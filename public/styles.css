@@ -301,10 +301,12 @@ button {
   line-height:1;
   overflow-wrap:anywhere
 }
+/* Labels share the english cell and overflow outward (height:0), so a line only
+   grows when one of its phrases really has a top/bottom label. */
 .phrase {
+  --label-space:58px;
   display:inline-grid;
-  grid-template-rows:61px auto 61px;
-  vertical-align:top;
+  vertical-align:baseline;
   max-width:100%;
   position:relative;
   margin:0 2px;
@@ -332,7 +334,8 @@ button {
   --tint:#faf2e6
 }
 .english {
-  grid-row:2;
+  grid-row:1;
+  grid-column:1;
   text-align:center;
   font-family:Georgia,"Times New Roman",serif;
   font-size:25px;
@@ -354,6 +357,9 @@ button {
   box-shadow:0 0 0 2px var(--tint)
 }
 .annotation {
+  grid-row:1;
+  grid-column:1;
+  height:0;
   display:flex;
   align-items:center;
   justify-content:flex-end;
@@ -368,13 +374,20 @@ button {
   overflow-wrap:anywhere
 }
 .annotation.top {
-  grid-row:1
+  align-self:start
 }
 .annotation.bottom {
-  grid-row:3;
+  align-self:end;
   justify-content:flex-start
 }
+.phrase.has-top {
+  margin-top:var(--label-space)
+}
+.phrase.has-bottom {
+  margin-bottom:var(--label-space)
+}
 .annotation .label {
+  flex-shrink:0;
   max-width:100%;
   display:-webkit-box;
   -webkit-line-clamp:2;

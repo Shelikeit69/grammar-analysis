@@ -122,6 +122,7 @@ function render() {
       const visible = segment.role !== 'other' && (detailed || segment.level === 'core');
       const phrase = element('span', `phrase role-${segment.role} ${visible ? 'annotated' : 'plain'}${/^\s+$/u.test(segment.text) ? ' whitespace' : ''}`);
       const english = element(visible ? 'button' : 'span', 'english', segment.text);
+      let annotationNode = null;
       if (visible) {
         english.type = 'button';
         english.setAttribute('aria-pressed', 'false');
@@ -135,7 +136,8 @@ function render() {
         label.title = labelText;
         const connector = element('span', 'connector');
         annotation.append(...(placement === 'top' ? [label, connector] : [connector, label]));
-        phrase.append(annotation);
+        annotationNode = annotation;
+        phrase.classList.add(placement === 'top' ? 'has-top' : 'has-bottom');
         english.addEventListener('click', () => {
           const wasSelected = english.getAttribute('aria-pressed') === 'true';
           line.querySelectorAll('[aria-pressed]').forEach((button) => button.setAttribute('aria-pressed', 'false'));
@@ -145,7 +147,9 @@ function render() {
         });
         annotatedIndex += 1;
       }
+      // english goes first so the grid baseline follows the text, not the label above it.
       phrase.append(english);
+      if (annotationNode) phrase.append(annotationNode);
       line.append(phrase);
     });
     card.append(line, detail);

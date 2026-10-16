@@ -16,3 +16,9 @@
 ## GitHub-only 测试适配
 
 新增 Codespaces 配置及精确转发来源校验后：`npm test` 18 项通过，`npm run test:browser` 13 项通过；配置 JSON 解析与代码/安全/JavaScript 复审通过。未创建真实 Codespace、未更改仓库可见性、未配置密钥；云端与实网验证仍待用户环境就绪。
+
+## 谓语合并与换行空白修复
+
+- `npm test`：23 项通过（新增多词谓语 `can shop for` 的校验用例、提示词关键规则防删用例）。`npm run test:browser`：17 项通过（新增 380px/800px 换行布局断言：无标签的行与普通文本行距一致、标签不压住任何文字、无横向滚动）；已确认新断言在旧样式下会失败。
+- 排版空白原因：`.phrase` 固定 `grid-template-rows:61px auto 61px`，对每个片段（含纯文本和空格）都预留上下各 61px。现改为标签与英文同格、高度为 0 向外溢出，只有带标签的片段才按 `--label-space` 预留空间。
+- 限制：提示词只能降低 AI 把谓语拆碎的概率，不能保证每次正确；`validateAnalysis` 不校验语法正确性。真实模型效果需在 Pages 网页版用真实密钥人工验证。
