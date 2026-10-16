@@ -76,6 +76,38 @@
 **这个工具会保存我输入的句子吗？**
 不会。网页版没有自己的后端，也没有数据库，输入的英文只发给 DeepSeek 做分析。
 
+## 密钥与隐私：这个网页会拿你的密钥做什么
+
+这是个人试验项目，目前不收费，页面里没有广告和统计代码。关于你填进去的 DeepSeek 密钥，实际情况如下：
+
+- 密钥只会作为请求头发给 `api.deepseek.com`，用来替你调用 DeepSeek。网页版没有自己的服务器，没有别的地方会收到它。
+- 页面带有内容安全策略（CSP），浏览器只允许它连接本站和 `api.deepseek.com`，不能把数据发到其他域名。可以在 `public/index.html` 里看到这一行。
+- 页面只加载自己的 `app.js` 和 `styles.css`，没有第三方脚本、字体或图片。
+- 默认只在当前页面里保存密钥，关掉网页就没了。勾选「在这台设备上记住密钥」后才会存进你自己浏览器的 localStorage，点「清除密钥」即可删除。
+- 你输入的英文会发给 DeepSeek，由 DeepSeek 按它自己的规则处理。这一点我管不了，用之前请自己看一下它的隐私政策。
+- 费用由你的 DeepSeek 账户承担。每次分析最多输出 16000 个 token，输入限制在 300 词以内。
+
+以上只适用于官方地址 https://shelikeit69.github.io/grammar-analysis/ 。别人 fork 或搬走的副本我没法担保，请不要往来路不明的网页里填密钥。
+
+不想直接信我的话，可以自己核实：
+
+1. 打开浏览器开发者工具的「网络」页，点一次分析，看请求是不是只发到了 `api.deepseek.com`。
+2. 代码全部公开，搜 `apiKey` 就能看到它被用在哪里。
+3. 先在 DeepSeek 开放平台新建一个只充少量余额的密钥来试，用完直接删除。这是任何网页工具都适用的做法。
+
+## 试验与合作
+
+这个项目还很早，AI 的判断会出错，我也还在摸索怎么让它更稳。欢迎一起改进，最有用的是这几种：
+
+- 提交判错的句子：在 GitHub 开一个 Issue，贴上原句、你看到的结果和你认为正确的答案。
+- 测试不同的句型、时态和模型，告诉我哪里不稳定。
+- 改提示词、改排版、补测试，直接提 PR。
+- 教英语或学英语的人提意见：哪些标注对初学者有用，哪些看不懂。
+
+代码用 MIT 许可证开源，你可以自由使用和修改。想一起做，直接在 GitHub 上开 Issue 或 PR 就行。
+
+**English summary.** This is a free, open-source (MIT) experiment that draws colored grammar boxes, Chinese glosses and a tense note over English sentences. It runs entirely in your browser. You paste your own DeepSeek API key, and the page sends it only to `api.deepseek.com` (enforced by a Content-Security-Policy; there are no analytics, ads or third-party scripts). The key is kept in memory unless you tick "remember", and you can clear it any time. There is no backend and nothing is stored on a server. Your sentences go to DeepSeek and are handled under its policy. The AI sometimes labels things wrongly, so bug reports with example sentences are the most useful contribution.
+
 ---
 
 ## 给开发者
