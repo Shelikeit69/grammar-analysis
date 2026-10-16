@@ -29,4 +29,4 @@ Files: README.md, .github/workflows/ci.yml.
 - [x] Document Node requirements, copy .env.example to .env, enter key locally, npm start, browser URL, API/data privacy, configurable model, localhost restriction, limitations and troubleshooting.
 - [x] Add CI using node --test, preserve MIT license.
 - [x] Review spec compliance then code/security quality, resolve findings, run final tests and syntax checks.
-- [ ] Commit only intended files, push feature branch, open and attach PR. Report live DeepSeek verification limitation if key absent.
+- [x] Commit only intended files, push feature branch, open and attach PR. Report live DeepSeek verification limitation if key absent.
