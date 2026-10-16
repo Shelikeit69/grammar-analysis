@@ -36,13 +36,13 @@
 
 | 颜色 | 成分 | 例子 |
 |---|---|---|
-| 蓝 | 主语（谁） | **Everyone** felt nervous. |
-| 红 | 谓语 / 系动词（做什么、是什么状态） | Everyone **felt** nervous. |
-| 绿 | 宾语 / 表语（做的对象、状态的内容） | Everyone felt **nervous**. |
-| 紫 | 状语（什么时候、在哪里、怎么样） | |
-| 灰 | 定语（修饰名词的部分） | Everyone **in the stadium** … |
+| 蓝 | 主语（谁） | Tired **learners** … |
+| 红 | 谓语 / 系动词（做什么、是什么状态） | … **will see** the beauty … |
+| 绿 | 宾语 / 表语（做的对象、状态的内容） | … will see **the beauty** … |
+| 紫 | 状语（什么时候、在哪里、怎么样） | … **in the end**. |
+| 灰 | 定语（修饰名词的部分） | **Tired** learners **who keep going every day** … |
 | 橙 | 补语 | |
-| 淡黄 | 时态和语态，在句子上方的黄框里 | 一般过去时 · 主动语态 |
+| 淡黄 | 时态和语态，在句子上方的黄框里 | 一般将来时 · 主动语态 |
 
 几个小提示：
 
