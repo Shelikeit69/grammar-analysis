@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>句间 · 英文语法分析</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <header class="masthead"><a class="brand" href="/" aria-label="句间首页"><span class="brand-mark">句</span>句间<span class="brand-en">BETWEEN THE WORDS</span></a><span class="edition">英文语法笔记</span></header>
+  <main>
+    <section class="intro"><span class="eyebrow">READ IT. UNDERSTAND IT.</span><h1>读懂一句话，<br class="mobile-break">从看清结构开始。</h1><p>贴一段英文，让主干、修饰和词义各归其位。</p></section>
+    <section class="input-panel" aria-labelledby="input-label">
+      <div class="input-heading"><label id="input-label" for="english-input">你的英文</label><span id="word-count">0 / 300 词</span></div>
+      <textarea id="english-input" rows="3" spellcheck="false" maxlength="6000" placeholder="在这里粘贴英文句子或一小段文字…" aria-describedby="input-hint"></textarea>
+      <div class="input-footer"><span id="input-hint">粘贴后自动分析 · 最多 300 词</span><div class="actions"><button id="clear-button" class="quiet" type="button">清空</button><button id="analyze-button" class="primary" type="button">分析句子 <span aria-hidden="true">↗</span></button></div></div>
+    </section>
+    <div class="utility-row"><button id="example-button" class="text-button" type="button">试试一个例句 <span aria-hidden="true">→</span></button><span id="connection-status">正在检查分析服务…</span></div>
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+    <section id="results" aria-labelledby="results-title" hidden>
+      <div class="results-heading"><div><span class="eyebrow">A CLOSER LOOK</span><h2 id="results-title">句子里的脉络 <span id="result-badge" class="badge">内置示例</span></h2></div><label class="detail-toggle"><input type="checkbox" id="detail-toggle">显示详细结构</label></div>
+      <div class="legend" aria-label="语法颜色说明"><span class="legend-subject">主语</span><span class="legend-predicate">谓语 / 系动词</span><span class="legend-object">宾语 / 表语</span><span class="legend-adverbial">状语</span><span class="legend-attribute">定语</span><span class="legend-complement">补语</span></div>
+      <div id="sentence-list"></div>
+      <details id="paragraph-translation" class="paragraph" hidden><summary>查看整段翻译</summary><p></p></details>
+      <p class="reading-hint">点击彩色框，查看词形与结构说明。分析由 AI 提供，供学习参考。</p>
+    </section>
+  </main>
+  <footer><span>句间 / 让英文清晰一点</span><span>仅本地使用 · 不保存分析记录</span></footer>
+</body>
+</html>
