@@ -113,3 +113,18 @@ test('client cancellation releases the active slot for a replacement request', a
     },
   });
 });
+
+test('Codespaces forwarded HTTPS requests reach the API but other origins do not', () => withServer(async base => {
+  const port = new URL(base).port;
+  const host = `test-space-123-${port}.app.github.dev`;
+  const request = headers => new Promise((resolve, reject) => {
+    const req = http.request(base + '/api/analyze', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...headers },
+    }, response => { response.resume(); resolve(response.statusCode); });
+    req.on('error', reject);
+    req.end(JSON.stringify({ text: 'Hello.' }));
+  });
+  assert.equal(await request({ Host: host, Origin: `https://${host}` }), 503);
+  assert.equal(await request({ Origin: `https://${host}` }), 503);
+  assert.equal(await request({ Host: host, Origin: 'https://other-space-3000.app.github.dev' }), 403);
+}, { environment: { CODESPACES: 'true', CODESPACE_NAME: 'test-space-123' } }));

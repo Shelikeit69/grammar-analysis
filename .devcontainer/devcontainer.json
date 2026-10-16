@@ -1,0 +1,17 @@
+{
+  "name": "句间 · GitHub 私有测试",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22-bookworm",
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": {
+      "label": "句间（保持 Private）",
+      "onAutoForward": "notify"
+    }
+  },
+  "secrets": {
+    "DEEPSEEK_API_KEY": {
+      "description": "DeepSeek API 密钥，仅供后端使用。也可以不填写，先查看内置示例。",
+      "documentationUrl": "https://platform.deepseek.com/"
+    }
+  }
+}
