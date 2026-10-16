@@ -100,3 +100,26 @@ test('tense reason is optional, kept when present and bounded', () => {
   data.sentences[0].tenseReason = 'x'.repeat(601);
   assert.throws(() => validateAnalysis(data, 'I see I.'));
 });
+
+test('contracted negation as one predicate span and a two-tense label are accepted', () => {
+  const data = {
+    sentences: [{
+      text: "Don't worry, so it costs about 5% less.", translation: '别担心，所以便宜约5%。', note: '',
+      tense: '祈使句；一般现在时 · 主动语态', tenseReason: '因为 Don\'t worry 以动词原形开头；costs 是第三人称单数。',
+      segments: [
+        { text: "Don't worry", role: 'predicate', translation: '不要担心', lemma: 'worry', detail: '', level: 'core' },
+        { text: ', so ', role: 'other', translation: '', lemma: '', detail: '', level: 'detail' },
+        { text: 'it', role: 'subject', translation: '它', lemma: '', detail: '', level: 'core' },
+        { text: ' ', role: 'other', translation: '', lemma: '', detail: '', level: 'detail' },
+        { text: 'costs', role: 'predicate', translation: '花费', lemma: 'cost', detail: '', level: 'core' },
+        { text: ' ', role: 'other', translation: '', lemma: '', detail: '', level: 'detail' },
+        { text: 'about 5% less', role: 'adverbial', translation: '大约便宜5%', lemma: '', detail: '', level: 'detail' },
+        { text: '.', role: 'other', translation: '', lemma: '', detail: '', level: 'detail' },
+      ],
+    }],
+    translation: '别担心，所以便宜约5%。',
+  };
+  const out = validateAnalysis(data, "Don't worry, so it costs about 5% less.");
+  assert.equal(out.sentences[0].segments[0].text, "Don't worry");
+  assert.equal(out.sentences[0].tense, '祈使句；一般现在时 · 主动语态');
+});
