@@ -19,7 +19,7 @@ async function main() {
   let browser;
   let checks = 0;
   try {
-    browser = await chromium.launch({headless:true, channel:process.env.BROWSER_CHANNEL || undefined});
+    browser = await chromium.launch({headless:true, channel:process.env.BROWSER_CHANNEL || undefined, executablePath:process.env.BROWSER_EXECUTABLE || undefined});
     const context = await browser.newContext();
     const page = await context.newPage();
     const errors = [];

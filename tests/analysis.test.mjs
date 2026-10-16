@@ -141,3 +141,67 @@ test('validation errors identify fields without quoting untrusted values', () =>
     return true;
   });
 });
+
+// "Big dogs bark loudly." -> 0 Big, 1 ' ', 2 dogs, 3 ' ', 4 bark, 5 ' ', 6 loudly, 7 '.'
+const modifierText = 'Big dogs bark loudly.';
+const modifierResult = (overrides = {}) => {
+  const seg = (text, role, translation, lemma = '', level = 'core') => ({ text, role, translation, lemma, detail: '', level });
+  const gap = () => seg(' ', 'other', '', '', 'detail');
+  const segments = [
+    seg('Big', 'attribute', '大的', '', 'detail'), gap(),
+    seg('dogs', 'subject', '狗'), gap(),
+    seg('bark', 'predicate', '叫', 'bark'), gap(),
+    seg('loudly', 'adverbial', '大声地', '', 'detail'),
+    seg('.', 'other', '', '', 'detail'),
+  ];
+  for (const [index, fields] of Object.entries(overrides)) Object.assign(segments[index], fields);
+  return {
+    sentences: [{ text: modifierText, translation: '大狗大声叫。', note: '', segments }],
+    translation: '大狗大声叫。',
+  };
+};
+const modifiesOf = data => data.sentences[0].segments.map(segment => segment.modifies);
+
+test('a valid modifies index is kept (attribute, adverbial to predicate, complement)', () => {
+  const out = validateAnalysis(modifierResult({ 0: { modifies: 2 }, 6: { modifies: 4 } }), modifierText);
+  assert.deepEqual(modifiesOf(out), [2, undefined, undefined, undefined, undefined, undefined, 4, undefined]);
+  const complement = modifierResult({ 6: { role: 'complement', modifies: 2 } });
+  assert.equal(validateAnalysis(complement, modifierText).sentences[0].segments[6].modifies, 2);
+});
+
+test('an invalid modifies is dropped on its own and the result stays valid', () => {
+  const bad = [
+    -1, 8, 99,          // out of range
+    0,                  // points to itself
+    1, 7,               // points to a role other segment
+    1.5, '2', null, true, [2], {}, NaN, // not an integer
+  ];
+  for (const value of bad) {
+    const data = modifierResult({ 0: { modifies: value }, 6: { modifies: 4 } });
+    const out = validateAnalysis(data, modifierText);
+    assert.equal('modifies' in out.sentences[0].segments[0], false, String(value));
+    // the rest of the result, including a valid sibling modifies, is untouched
+    assert.equal(out.sentences[0].segments[6].modifies, 4);
+    assert.equal(out.sentences[0].segments.map(segment => segment.text).join(''), modifierText);
+  }
+});
+
+test('modifies on a role that cannot modify (subject, other) is dropped', () => {
+  const out = validateAnalysis(modifierResult({ 2: { modifies: 4 }, 1: { modifies: 2 } }), modifierText);
+  assert.equal('modifies' in out.sentences[0].segments[2], false);
+  assert.equal('modifies' in out.sentences[0].segments[1], false);
+});
+
+test('legacy results without modifies still validate and carry no modifies key', () => {
+  const out = validateAnalysis(modifierResult(), modifierText);
+  assert.ok(out.sentences[0].segments.every(segment => !('modifies' in segment)));
+  assert.doesNotThrow(() => validateAnalysis(result(), 'I see I.'));
+});
+
+test('a bad modifies does not relax other checks', () => {
+  const data = modifierResult({ 0: { modifies: 2 } });
+  data.sentences[0].segments[4].lemma = '';
+  assert.throws(() => validateAnalysis(data, modifierText));
+  const wrongText = modifierResult({ 0: { modifies: 2 } });
+  assert.throws(() => validateAnalysis(wrongText, 'Big dogs bark quietly.'));
+});
