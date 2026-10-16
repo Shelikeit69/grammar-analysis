@@ -23,10 +23,33 @@ function loadSettings() {
     if (saved && typeof saved.apiKey === 'string') settings = {apiKey: saved.apiKey, model: typeof saved.model === 'string' ? saved.model : ''};
   } catch { /* storage unavailable: keep key in memory only */ }
 }
+let analyzedOnce = false;
+function updateSteps() {
+  if (mode !== 'browser') return;
+  const ready = !!settings.apiKey;
+  const states = {'step-get': ready ? 'done' : 'current', 'step-save': ready ? 'done' : '', 'step-paste': analyzedOnce ? 'done' : ready ? 'current' : ''};
+  for (const [id, state] of Object.entries(states)) {
+    const step = $(id);
+    step.classList.toggle('done', state === 'done');
+    step.classList.toggle('current', state === 'current');
+    if (state === 'current') step.setAttribute('aria-current', 'step'); else step.removeAttribute('aria-current');
+  }
+}
+const SIZE_STORE = 'grammar-analysis.textSize';
+function applyTextSize(large) {
+  document.documentElement.classList.toggle('large-text', large);
+  $('text-size').setAttribute('aria-pressed', String(large));
+}
+function toggleTextSize() {
+  const large = !document.documentElement.classList.contains('large-text');
+  applyTextSize(large);
+  try { localStorage.setItem(SIZE_STORE, large ? 'large' : 'normal'); } catch { /* ignore */ }
+}
 function updateKeyState() {
   const ready = !!settings.apiKey;
   $('key-state').textContent = ready ? '已设置' : '未设置';
   $('key-state').classList.toggle('ready', ready);
+  updateSteps();
   if (mode === 'browser') $('connection-status').textContent = ready ? `使用你的 DeepSeek 密钥 · ${settings.model || DEFAULT_MODEL}` : '例句可直接查看 · 分析需填写你的 DeepSeek 密钥';
 }
 function saveSettings() {
@@ -55,6 +78,7 @@ function enableBrowserMode() {
   mode = 'browser';
   loadSettings();
   $('key-panel').hidden = false;
+  $('steps').hidden = false;
   $('model-input').value = settings.model;
   $('remember-key').checked = !!settings.apiKey;
   if (settings.apiKey) $('key-input').placeholder = '已保存（重新输入可替换）';
@@ -210,6 +234,8 @@ async function analyze() {
     if (!Array.isArray(result.sentences) || !result.sentences.length) throw new Error('分析结果不完整，请重试。');
     current = result;
     $('result-badge').textContent = 'DeepSeek 分析';
+    analyzedOnce = true;
+    updateSteps();
     $('paragraph-translation').open = false;
     render();
     setStatus(`已分析 ${result.sentences.length} 句。`);
@@ -240,6 +266,9 @@ $('clear-button').addEventListener('click', () => {input.value = ''; invalidate(
 $('detail-toggle').addEventListener('change', render);
 showExample();
 $('save-key').addEventListener('click', saveSettings);
+$('text-size').addEventListener('click', toggleTextSize);
+$('step-open-key').addEventListener('click', () => {$('key-panel').open = true; $('key-input').focus();});
+try { applyTextSize(localStorage.getItem(SIZE_STORE) === 'large'); } catch { /* ignore */ }
 $('forget-key').addEventListener('click', forgetSettings);
 $('key-input').addEventListener('keydown', (event) => {if (event.key === 'Enter') {event.preventDefault(); saveSettings();}});
 // A local/Codespaces server answers /api/status with JSON; static hosting does not.

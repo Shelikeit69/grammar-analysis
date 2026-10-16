@@ -282,7 +282,7 @@ button {
   color:var(--complement)
 }
 .legend-tense {
-  color:#b8962e
+  color:#8a6d1c
 }
 .sentence-card {
   background:#fffefa;
@@ -681,4 +681,105 @@ footer {
 }
 .key-body .key-note a {
   color:var(--green)
+}
+
+.masthead-tools {
+  display:flex;
+  align-items:center;
+  gap:14px
+}
+.size-toggle {
+  min-height:40px;
+  padding:0 16px;
+  border:1px solid #cfd8cb;
+  border-radius:999px;
+  background:#fffefa;
+  color:var(--ink);
+  font-size:14px;
+  cursor:pointer
+}
+.size-toggle[aria-pressed=true] {
+  background:var(--green);
+  border-color:var(--green);
+  color:white
+}
+.steps {
+  list-style:none;
+  margin:0 0 18px;
+  padding:0;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px
+}
+.step {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  background:#fffefa;
+  border:1px solid #d7ded2;
+  border-radius:11px;
+  padding:12px 14px
+}
+.step-mark {
+  flex-shrink:0;
+  width:28px;
+  height:28px;
+  box-sizing:border-box;
+  border:2px solid var(--green);
+  border-radius:50%;
+  color:var(--green);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:13px;
+  font-weight:700
+}
+.step.done .step-mark {
+  background:var(--green);
+  color:white;
+  font-size:0
+}
+.step.done .step-mark:after {
+  content:"✓";
+  font-size:14px
+}
+.step.current {
+  background:#eef4ec;
+  border-color:var(--green)
+}
+.step-text {
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  min-width:0;
+  font-size:12px
+}
+.step-text strong {
+  font-size:14px;
+  font-weight:600
+}
+.step-text a,.step-link {
+  color:var(--green);
+  font-size:12px
+}
+.step-link {
+  padding:0;
+  text-align:left;
+  text-decoration:underline;
+  cursor:pointer
+}
+.step-hint {
+  color:var(--muted)
+}
+/* 大字模式：整体放大，排版比例不变 */
+html.large-text .masthead,html.large-text main,html.large-text footer {
+  zoom:1.25
+}
+@media(max-width:650px) {
+  .steps {
+    grid-template-columns:1fr
+  }
+  .masthead-tools .edition {
+    display:none
+  }
 }

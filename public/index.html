@@ -10,9 +10,14 @@
   <script type="module" src="./app.js"></script>
 </head>
 <body>
-  <header class="masthead"><a class="brand" href="./" aria-label="句间首页"><span class="brand-mark">句</span>句间<span class="brand-en">BETWEEN THE WORDS</span></a><span class="edition">英文语法笔记</span></header>
+  <header class="masthead"><a class="brand" href="./" aria-label="句间首页"><span class="brand-mark">句</span>句间<span class="brand-en">BETWEEN THE WORDS</span></a><div class="masthead-tools"><span class="edition">英文语法笔记</span><button id="text-size" class="size-toggle" type="button" aria-pressed="false">大字</button></div></header>
   <main>
     <section class="intro"><span class="eyebrow">READ IT. UNDERSTAND IT.</span><h1>读懂一句话，<br class="mobile-break">从看清结构开始。</h1><p>贴一段英文，让主干、修饰和词义各归其位。</p></section>
+    <ol id="steps" class="steps" aria-label="开始前的三步" hidden>
+      <li id="step-get" class="step"><span class="step-mark" aria-hidden="true">1</span><span class="step-text"><strong>拿到 DeepSeek 密钥</strong><a href="https://github.com/Shelikeit69/grammar-analysis#1-拿到-deepseek-密钥" target="_blank" rel="noopener noreferrer">不知道怎么拿？看步骤</a></span></li>
+      <li id="step-save" class="step"><span class="step-mark" aria-hidden="true">2</span><span class="step-text"><strong>填写并保存密钥</strong><button id="step-open-key" class="step-link" type="button">打开密钥设置</button></span></li>
+      <li id="step-paste" class="step"><span class="step-mark" aria-hidden="true">3</span><span class="step-text"><strong>粘贴一句英文</strong><span class="step-hint">粘贴后自动分析</span></span></li>
+    </ol>
     <section class="input-panel" aria-labelledby="input-label">
       <div class="input-heading"><label id="input-label" for="english-input">你的英文</label><span id="word-count">0 / 300 词</span></div>
       <textarea id="english-input" rows="3" spellcheck="false" maxlength="6000" placeholder="在这里粘贴英文句子或一小段文字…" aria-describedby="input-hint"></textarea>
@@ -35,7 +40,7 @@
     <p id="status" class="status" role="status" aria-live="polite"></p>
     <section id="results" aria-labelledby="results-title" hidden>
       <div class="results-heading"><div><span class="eyebrow">A CLOSER LOOK</span><h2 id="results-title">句子里的脉络 <span id="result-badge" class="badge">内置示例</span></h2></div><label class="detail-toggle"><input type="checkbox" id="detail-toggle">显示详细结构</label></div>
-      <div class="legend" aria-label="语法颜色说明"><span class="legend-subject">主语</span><span class="legend-predicate">谓语 / 系动词</span><span class="legend-object">宾语 / 表语</span><span class="legend-adverbial">状语</span><span class="legend-attribute">定语</span><span class="legend-complement">补语</span><span class="legend-tense">时态</span></div>
+      <div class="legend" aria-label="语法颜色说明"><span class="legend-subject">主语 · 谁</span><span class="legend-predicate">谓语 / 系动词 · 做什么</span><span class="legend-object">宾语 / 表语 · 对什么、是什么</span><span class="legend-adverbial">状语 · 何时、何地、怎样</span><span class="legend-attribute">定语 · 修饰名词</span><span class="legend-complement">补语 · 补充说明</span><span class="legend-tense">时态</span></div>
       <div id="sentence-list"></div>
       <details id="paragraph-translation" class="paragraph" hidden><summary>查看整段翻译</summary><p></p></details>
       <p class="reading-hint">点击彩色框，查看词形与结构说明。分析由 AI 提供，供学习参考。</p>
