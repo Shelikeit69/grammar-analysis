@@ -119,3 +119,14 @@ test('system prompt keeps the round-2 consistency rules', () => {
     'do not repeat it',
   ]) assert.ok(SYSTEM.includes(phrase), phrase);
 });
+
+test('prompt keeps the modifies rules and the worked example', () => {
+  for (const phrase of [
+    'modifies is OPTIONAL',
+    'Fill it only for attribute, adverbial and complement segments',
+    'Never point a segment at itself or at a role other segment',
+    'omit modifies entirely; never guess',
+    'an adverbial that modifies the whole action points to the predicate',
+    'in the end has modifies 6 (will see)',
+  ]) assert.ok(SYSTEM.includes(phrase), phrase);
+});

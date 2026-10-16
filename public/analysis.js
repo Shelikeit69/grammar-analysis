@@ -20,6 +20,9 @@ function string(value, max, nonempty = false) {
   return value;
 }
 
+// Only these roles can modify another segment (see `modifies` below).
+const modifierRoles = new Set(['attribute', 'adverbial', 'complement']);
+
 export function validateAnalysis(data, input) {
   if (!data || !Array.isArray(data.sentences) || !data.sentences.length || data.sentences.length > 300) {
     throw new Error('Invalid analysis');
@@ -51,6 +54,23 @@ export function validateAnalysis(data, input) {
       };
     });
     if (segments.map(segment => segment.text).join('') !== text) throw new Error('Invalid coverage');
+
+    // `modifies` is an optional index of the segment this one modifies. It is
+    // only a visual hint on top of an analysis whose text coverage already
+    // checked out, and models most often get it wrong by miscounting indexes.
+    // So an invalid value is dropped on its own instead of rejecting the whole
+    // result: the user still gets a correct, verbatim analysis, just without
+    // that one arrow. Every other check above stays strict.
+    sentence.segments.forEach((raw, index) => {
+      const target = raw.modifies;
+      if (
+        modifierRoles.has(segments[index].role) &&
+        Number.isInteger(target) && target >= 0 && target < segments.length &&
+        target !== index && segments[target].role !== 'other'
+      ) {
+        segments[index].modifies = target;
+      }
+    });
     return {
       text,
       translation: string(sentence.translation, 12000, true),

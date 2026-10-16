@@ -10,7 +10,7 @@ async function main() {
   let browser;
   let checks = 0;
   try {
-    browser = await chromium.launch({ headless: true, channel: process.env.BROWSER_CHANNEL || undefined });
+    browser = await chromium.launch({ headless: true, channel: process.env.BROWSER_CHANNEL || undefined, executablePath: process.env.BROWSER_EXECUTABLE || undefined });
     const page = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
@@ -46,14 +46,67 @@ async function main() {
 
     await checkLayout();
     assert.equal(await page.locator('.tense-name').first().innerText(), `时态：${demoAnalysis.sentences[0].tense}`);
-    assert.match(await page.locator('.tense-reason').first().innerText(), /^判断依据：因为.*felt/);
+    assert.match(await page.locator('.tense-reason').first().innerText(), /^判断依据：因为谓语是 will see/);
     checks++;
-    await page.locator('.role-linking .english').click();
-    assert.match(await page.locator('.phrase-detail').innerText(), /过去式/);
+    assert.equal(await page.locator('.annotated').count(), 3);
+    await page.locator('.role-predicate .english').click();
+    assert.match(await page.locator('.phrase-detail').innerText(), /will \+ 动词原形/);
+    // A core span has no modifies: no "修饰" note and nothing highlighted.
+    assert.equal(await page.locator('.modifies-note').count(), 0);
+    assert.equal(await page.locator('.modifier-target').count(), 0);
     checks++;
     await page.locator('#detail-toggle').check();
-    assert.equal(await page.locator('.annotated').count(), 4);
+    assert.equal(await page.locator('.annotated').count(), 7);
     assert.equal(await originalText(), demoText);
+    checks++;
+
+    // Modifier highlight: click shows the target, click again or another span clears it.
+    const phraseButton = text => page.locator('.annotated .english', { hasText: new RegExp(`^${text}$`) });
+    const targets = () => page.locator('.modifier-target').allTextContents();
+    async function checkModifier(width) {
+      await page.setViewportSize({ width, height: 900 });
+      assert.deepEqual(await targets(), []);
+      for (const [modifier, target] of [['Tired', 'learners'], ['who keep going every day', 'learners'], ['of English grammar', 'the beauty'], ['in the end', 'will see']]) {
+        await phraseButton(modifier).click();
+        assert.deepEqual(await targets(), [target], `${modifier} at ${width}px`);
+        assert.equal(await page.locator('.phrase-detail').isVisible(), true);
+        assert.equal(await page.locator('.modifies-note').innerText(), `修饰：${target}`);
+        const describedBy = await page.locator('.modifier-target').getAttribute('aria-describedby');
+        assert.equal(await page.locator(`#${describedBy}`).evaluate(node => node.classList.contains('phrase-detail')), true);
+        assert.equal(await phraseButton(modifier).getAttribute('aria-pressed'), 'true');
+        await checkLayout();
+        await phraseButton(modifier).click();
+        assert.deepEqual(await targets(), [], `second click clears at ${width}px`);
+        assert.equal(await page.locator('.phrase-detail').isVisible(), false);
+      }
+      // Switching to another span moves the highlight; a span without modifies clears it.
+      await phraseButton('Tired').click();
+      await phraseButton('in the end').click();
+      assert.deepEqual(await targets(), ['will see']);
+      await phraseButton('will see').click();
+      assert.deepEqual(await targets(), []);
+      assert.equal(await page.locator('.modifies-note').count(), 0);
+      assert.equal(await page.locator('.phrase-detail').isVisible(), true);
+      await phraseButton('will see').click();
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    }
+    await checkModifier(1280);
+    checks++;
+    // Keyboard: focus the span and press Enter.
+    await phraseButton('Tired').focus();
+    await page.keyboard.press('Enter');
+    assert.deepEqual(await targets(), ['learners']);
+    await page.keyboard.press('Enter');
+    assert.deepEqual(await targets(), []);
+    checks++;
+    // Turning detail off re-renders: no stale highlight, the target stays visible in the core view.
+    await phraseButton('in the end').click();
+    await page.locator('#detail-toggle').uncheck();
+    assert.deepEqual(await targets(), []);
+    assert.equal(await page.locator('.annotated .english', { hasText: /^will see$/ }).count(), 1);
+    await page.locator('#detail-toggle').check();
+    checks++;
+    await checkModifier(390);
     checks++;
     await page.setViewportSize({ width: 390, height: 844 });
     await checkLayout();
