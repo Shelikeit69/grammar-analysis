@@ -45,6 +45,8 @@ async function main() {
     }
 
     await checkLayout();
+    assert.equal(await page.locator('.tense-chip').first().innerText(), `时态：${demoAnalysis.sentences[0].tense}`);
+    checks++;
     await page.locator('.role-linking .english').click();
     assert.match(await page.locator('.phrase-detail').innerText(), /过去式/);
     checks++;

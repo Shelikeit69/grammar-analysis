@@ -5,7 +5,7 @@ import { SYSTEM } from '../public/deepseek.js';
 
 const valid = {
   sentences: [{
-    text: 'Go.', translation: '走。', note: '',
+    text: 'Go.', translation: '走。', note: '', tense: '祈使句',
     segments: [
       { text: 'Go', role: 'predicate', translation: '走', lemma: 'go', detail: '', level: 'core' },
       { text: '.', role: 'other', translation: '', lemma: '', detail: '', level: 'detail' },
@@ -96,4 +96,9 @@ test('system prompt keeps the multi-word predicate rules', () => {
     'You can shop for items.',
     'can shop for is ONE predicate/core span, lemma shop for',
   ]) assert.ok(SYSTEM.includes(phrase), phrase);
+});
+
+test('system prompt asks for a per-sentence tense', () => {
+  for (const phrase of ['"tense":"Chinese tense and voice of the main clause"', 'tense is the Chinese name of the main clause', '一般将来时 · 被动语态', 'Judge the whole predicate span'])
+    assert.ok(SYSTEM.includes(phrase), phrase);
 });

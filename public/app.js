@@ -112,7 +112,14 @@ function render() {
   current.sentences.forEach((sentence, sentenceIndex) => {
     const card = element('article', 'sentence-card');
     card.setAttribute('aria-label', `第 ${sentenceIndex + 1} 句`);
-    card.append(element('div', 'sentence-header', `SENTENCE ${String(sentenceIndex + 1).padStart(2, '0')}`));
+    const header = element('div', 'sentence-header');
+    header.append(element('span', '', `SENTENCE ${String(sentenceIndex + 1).padStart(2, '0')}`));
+    if (sentence.tense) {
+      const tense = element('span', 'tense-chip', `时态：${sentence.tense}`);
+      tense.title = '整句（主句）时态与语态';
+      header.append(tense);
+    }
+    card.append(header);
     const line = element('div', 'annotation-line');
     const detail = element('div', 'phrase-detail');
     detail.hidden = true;
