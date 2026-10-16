@@ -3,12 +3,18 @@ import assert from 'node:assert/strict';
 import {demoAnalysis, demoText} from '../public/demo.js';
 import {validateAnalysis} from '../lib/analysis.mjs';
 
-test('example preserves felt, binds nervous to predicative, and meets live contract', () => {
+test('example keeps the original text, marks the core and modifiers, and meets the live contract', () => {
   const result = validateAnalysis(demoAnalysis, demoText);
-  const segments = result.sentences[0].segments;
-  assert.equal(segments.map(part => part.text).join(''), demoText);
-  assert.equal(segments.find(part => part.text === 'felt').lemma, 'feel');
-  assert.equal(segments.find(part => part.text === 'felt').role, 'linking');
-  assert.equal(segments.find(part => part.text === 'nervous').role, 'predicative');
-  assert.equal(segments.find(part => part.text === 'in the stadium').level, 'detail');
+  const sentence = result.sentences[0];
+  const byText = text => sentence.segments.find(part => part.text === text);
+  assert.equal(sentence.segments.map(part => part.text).join(''), demoText);
+  assert.equal(byText('learners').role, 'subject');
+  assert.equal(byText('will see').role, 'predicate');
+  assert.equal(byText('will see').lemma, 'see');
+  assert.equal(byText('the beauty').role, 'object');
+  for (const text of ['Tired', 'who keep going every day', 'of English grammar', 'in the end']) {
+    assert.equal(byText(text).level, 'detail', text);
+  }
+  assert.equal(byText('in the end').role, 'adverbial');
+  assert.match(sentence.tense, /一般将来时/);
 });

@@ -111,7 +111,11 @@ async function main() {
         text: `${longText} felt nervous.`, translation: '人们感到紧张。', note: '长短语排版测试',
         segments: [
           { text: longText, role: 'subject', translation: '从全国各地远道而来的特别热情的人们', lemma: '', detail: '测试', level: 'core' },
-          ...demoAnalysis.sentences[0].segments.slice(3),
+          { text: ' ', role: 'other', translation: '', lemma: '', detail: '', level: 'detail' },
+          { text: 'felt', role: 'linking', translation: '感到', lemma: 'feel', detail: '测试', level: 'core' },
+          { text: ' ', role: 'other', translation: '', lemma: '', detail: '', level: 'detail' },
+          { text: 'nervous', role: 'predicative', translation: '紧张的', lemma: '', detail: '测试', level: 'core' },
+          { text: '.', role: 'other', translation: '', lemma: '', detail: '', level: 'detail' },
         ],
       }],
       translation: '人们感到紧张。',
