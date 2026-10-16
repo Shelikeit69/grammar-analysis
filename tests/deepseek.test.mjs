@@ -112,5 +112,8 @@ test('system prompt keeps the round-2 consistency rules', () => {
     'Do not leave modifiers unlabeled',
     'never role other',
     'coordinated main clauses',
+    'never swallows a predicative, object or complement',
+    'MANDATORY in the tense field itself',
+    'share the same tense and voice, write it ONCE',
   ]) assert.ok(SYSTEM.includes(phrase), phrase);
 });
