@@ -33,9 +33,14 @@ async function main() {
           overlap: rects.some((a, index) => rects.slice(index + 1).some(b =>
             a.label.left < b.label.right && a.label.right > b.label.left &&
             a.label.top < b.label.bottom && a.label.bottom > b.label.top)),
+          // a label must never sit on top of any phrase text (e.g. of the neighbouring line)
+          labelOnText: rects.some(a => [...document.querySelectorAll('.english')].some(node => {
+            const t = node.getBoundingClientRect();
+            return a.label.left < t.right && a.label.right > t.left && a.label.top < t.bottom && a.label.bottom > t.top;
+          })),
         };
       });
-      assert.deepEqual(outcome, { overflow: false, aligned: true, overlap: false });
+      assert.deepEqual(outcome, { overflow: false, aligned: true, overlap: false, labelOnText: false });
       checks++;
     }
 
@@ -114,6 +119,62 @@ async function main() {
     await page.waitForFunction(() => !document.querySelector('#results').hidden &&
       document.querySelector('.role-subject .english')?.textContent.startsWith('The extraordinarily'));
     await checkLayout();
+
+    // Wrapped sentence: labels only reserve space on lines that really have them.
+    const wrapSegment = (text, role, translation = '', lemma = '', level = 'core') => ({ text, role, translation, lemma, detail: '测试', level });
+    const gap = () => wrapSegment(' ', 'other', '', '', 'detail');
+    const wrapText = 'You can shop for items over 1,000 yen on qualifying shops with no Buyee fees.';
+    const wrapResult = {
+      sentences: [{
+        text: wrapText, translation: '你可以选购商品。', note: '换行测试',
+        segments: [
+          wrapSegment('You', 'subject', '你'), gap(),
+          wrapSegment('can shop for', 'predicate', '选购', 'shop for'), gap(),
+          wrapSegment('items', 'object', '商品'), gap(),
+          wrapSegment('over 1,000 yen', 'attribute', '超过一千日元', '', 'detail'), gap(),
+          wrapSegment('on qualifying shops', 'adverbial', '在符合条件的店铺', '', 'detail'), gap(),
+          wrapSegment('with no Buyee fees', 'adverbial', '没有 Buyee 费用', '', 'detail'),
+          wrapSegment('.', 'other', '', '', 'detail'),
+        ],
+      }],
+      translation: '你可以选购商品。',
+    };
+    await page.unroute('**/api/analyze');
+    await page.route('**/api/analyze', route => route.fulfill({ json: wrapResult }));
+    for (const width of [380, 800]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.locator('#english-input').fill(wrapText);
+      await page.locator('#analyze-button').click();
+      await page.waitForFunction(() => !document.querySelector('#results').hidden && document.querySelectorAll('.sentence-card').length === 1 &&
+        document.querySelector('.role-subject .english')?.textContent === 'You');
+      await checkLayout();
+      const rows = await page.evaluate(() => {
+        const byTop = new Map();
+        document.querySelectorAll('.annotation-line .phrase').forEach(phrase => {
+          const key = Math.round(phrase.querySelector('.english').getBoundingClientRect().top);
+          const row = byTop.get(key) || { top: key, hasTop: false, hasBottom: false };
+          row.hasTop ||= phrase.classList.contains('has-top');
+          row.hasBottom ||= phrase.classList.contains('has-bottom');
+          byTop.set(key, row);
+        });
+        return [...byTop.values()].sort((a, b) => a.top - b.top);
+      });
+      assert.ok(rows.length >= 1);
+      rows.slice(1).forEach((row, index) => {
+        const previous = rows[index];
+        // No label above this row and none below the previous one: normal text spacing.
+        if (!row.hasTop && !previous.hasBottom) assert.ok(row.top - previous.top < 50, `unlabelled row gap ${row.top - previous.top}px at ${width}px`);
+      });
+      if (width === 380) assert.ok(rows.length > 1, 'sentence should wrap at phone width');
+      checks++;
+    }
+    await page.unroute('**/api/analyze');
+    await page.route('**/api/analyze', route => route.fulfill({ json: longResult }));
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator('#english-input').fill(longResult.sentences[0].text);
+    await page.locator('#analyze-button').click();
+    await page.waitForFunction(() => !document.querySelector('#results').hidden &&
+      document.querySelector('.role-subject .english')?.textContent.startsWith('The extraordinarily'));
 
     // A wrapped phrase next to a short word must keep the same first-line baseline.
     const baseline = await page.evaluate(() => {

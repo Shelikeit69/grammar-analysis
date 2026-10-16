@@ -62,3 +62,21 @@ test('require translations for paragraph, sentence and annotated spans', () => {
   }
   assert.doesNotThrow(() => validateAnalysis(result(), 'I see I.'));
 });
+
+test('multi-word predicate span (modal + verb + preposition) is accepted', () => {
+  const data = {
+    sentences: [{
+      text: 'You can shop for items.', translation: '你可以选购商品。', note: '',
+      segments: [
+        { text: 'You', role: 'subject', translation: '你', lemma: '', detail: '', level: 'core' },
+        { text: ' ', role: 'other', translation: '', lemma: '', detail: '', level: 'detail' },
+        { text: 'can shop for', role: 'predicate', translation: '选购', lemma: 'shop for', detail: 'can 表示可以；shop for 意为选购', level: 'core' },
+        { text: ' ', role: 'other', translation: '', lemma: '', detail: '', level: 'detail' },
+        { text: 'items', role: 'object', translation: '商品', lemma: '', detail: '', level: 'core' },
+        { text: '.', role: 'other', translation: '', lemma: '', detail: '', level: 'detail' },
+      ],
+    }],
+    translation: '你可以选购商品。',
+  };
+  assert.doesNotThrow(() => validateAnalysis(data, 'You can shop for items.'));
+});

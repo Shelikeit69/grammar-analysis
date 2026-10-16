@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { analyzeWithDeepSeek } from '../lib/deepseek.mjs';
+import { SYSTEM } from '../public/deepseek.js';
 
 const valid = {
   sentences: [{
@@ -84,4 +85,15 @@ test('custom model name is sent and empty model falls back to default', async ()
   await analyzeWithDeepSeek('Go.', { apiKey: 'test', model: 'my-model', fetchImpl });
   await analyzeWithDeepSeek('Go.', { apiKey: 'test', model: '', fetchImpl });
   assert.deepEqual(seen, ['my-model', 'deepseek-flash']);
+});
+
+test('system prompt keeps the multi-word predicate rules', () => {
+  for (const phrase of [
+    'The predicate is ONE contiguous span covering the whole verb phrase',
+    'Never label a modal or auxiliary as a separate predicate',
+    'Prepositions are never predicate or linking',
+    'lemma is the base form of the verb phrase without modal/auxiliary',
+    'You can shop for items.',
+    'can shop for is ONE predicate/core span, lemma shop for',
+  ]) assert.ok(SYSTEM.includes(phrase), phrase);
 });
