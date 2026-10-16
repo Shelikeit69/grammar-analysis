@@ -5,7 +5,7 @@ import { SYSTEM } from '../public/deepseek.js';
 
 const valid = {
   sentences: [{
-    text: 'Go.', translation: '走。', note: '', tense: '祈使句',
+    text: 'Go.', translation: '走。', note: '', tense: '祈使句', tenseReason: '因为句子以动词原形 Go 开头且省略主语，所以是祈使句。',
     segments: [
       { text: 'Go', role: 'predicate', translation: '走', lemma: 'go', detail: '', level: 'core' },
       { text: '.', role: 'other', translation: '', lemma: '', detail: '', level: 'detail' },
@@ -99,6 +99,6 @@ test('system prompt keeps the multi-word predicate rules', () => {
 });
 
 test('system prompt asks for a per-sentence tense', () => {
-  for (const phrase of ['"tense":"Chinese tense and voice of the main clause"', 'tense is the Chinese name of the main clause', '一般将来时 · 被动语态', 'Judge the whole predicate span'])
+  for (const phrase of ['"tense":"Chinese tense and voice of the main clause"', 'tense is the Chinese name of the main clause', '一般将来时 · 被动语态', 'Judge the whole predicate span', '"tenseReason":"Chinese evidence for the tense"', 'Never cite a time word that is not in the sentence'])
     assert.ok(SYSTEM.includes(phrase), phrase);
 });

@@ -57,6 +57,7 @@ export function validateAnalysis(data, input) {
       note: string(sentence.note, 6000),
       // Optional: older/partial responses without a tense still render.
       tense: sentence.tense === undefined ? '' : string(sentence.tense, 100),
+      tenseReason: sentence.tenseReason === undefined ? '' : string(sentence.tenseReason, 600),
       segments,
     };
   });
