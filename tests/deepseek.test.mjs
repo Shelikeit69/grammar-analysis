@@ -102,3 +102,15 @@ test('system prompt asks for a per-sentence tense', () => {
   for (const phrase of ['"tense":"Chinese tense and voice of the main clause"', 'tense is the Chinese name of the main clause', '一般将来时 · 被动语态', 'Judge the whole predicate span', '"tenseReason":"Chinese evidence for the tense"', 'Never cite a time word that is not in the sentence'])
     assert.ok(SYSTEM.includes(phrase), phrase);
 });
+
+test('system prompt keeps the round-2 consistency rules', () => {
+  for (const phrase of [
+    'A contracted negation stays inside the predicate',
+    '"Don\'t worry" is ONE predicate span',
+    'One constituent is one span',
+    '"about 5% less" is ONE adverbial',
+    'Do not leave modifiers unlabeled',
+    'never role other',
+    'coordinated main clauses',
+  ]) assert.ok(SYSTEM.includes(phrase), phrase);
+});
