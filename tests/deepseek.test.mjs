@@ -115,5 +115,7 @@ test('system prompt keeps the round-2 consistency rules', () => {
     'never swallows a predicative, object or complement',
     'MANDATORY in the tense field itself',
     'share the same tense and voice, write it ONCE',
+    'add it after the main clause(s) in tense',
+    'do not repeat it',
   ]) assert.ok(SYSTEM.includes(phrase), phrase);
 });
