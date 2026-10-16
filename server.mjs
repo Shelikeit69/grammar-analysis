@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { validateInput } from './lib/analysis.mjs';
 import { analyzeWithDeepSeek } from './lib/deepseek.mjs';
+import { isAllowedRequest } from './lib/access.mjs';
 
 const assets = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
@@ -20,6 +21,7 @@ export function createApp({
   analyze = analyzeWithDeepSeek,
   maxConcurrent = 1,
   timeoutMs = 45000,
+  environment = process.env,
 } = {}) {
   let active = 0;
   return async (req, res) => {
@@ -32,17 +34,7 @@ export function createApp({
       res.end(JSON.stringify(value));
     };
 
-    const host = req.headers.host;
-    const expected = `127.0.0.1:${req.socket.localPort}`;
-    if (host !== expected && host !== `localhost:${req.socket.localPort}`) {
-      send(403, { error: '不允许的访问来源。' });
-      return;
-    }
-    if (req.headers.origin && req.headers.origin !== `http://${host}`) {
-      send(403, { error: '不允许的访问来源。' });
-      return;
-    }
-    if (req.headers['sec-fetch-site'] === 'cross-site') {
+    if (!isAllowedRequest(req.headers, req.socket.localPort, environment)) {
       send(403, { error: '不允许的访问来源。' });
       return;
     }
@@ -86,7 +78,7 @@ export function createApp({
           return;
         }
         if (!apiKey?.trim()) {
-          send(503, { error: '尚未配置 DeepSeek API Key，请在本地 .env 中配置后重启。' });
+          send(503, { error: '尚未配置 DeepSeek API Key。请设置 Codespaces Secret 后重启 Codespace，或在本机 .env 中配置后重启服务。' });
           return;
         }
         try {

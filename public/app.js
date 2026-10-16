@@ -160,5 +160,5 @@ $('clear-button').addEventListener('click', () => {input.value = ''; invalidate(
 $('detail-toggle').addEventListener('change', render);
 showExample();
 fetch('/api/status').then((response) => {if (!response.ok) throw new Error(); return response.json();}).then((data) => {
-  $('connection-status').textContent = data.configured ? 'DeepSeek 已配置 · 仅本机访问' : '示例可直接查看 · 分析需在本地配置密钥';
+  $('connection-status').textContent = data.configured ? 'DeepSeek 已配置' : '示例可直接查看 · 分析需配置密钥';
 }).catch(() => {$('connection-status').textContent = '示例可直接查看 · 请启动本地分析服务';});
