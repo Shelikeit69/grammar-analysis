@@ -66,3 +66,22 @@ test('provider fetch receives cancellation and timeout signals', async () => {
   }), { name: 'AbortError' });
   assert.equal(called, false);
 });
+
+test('provider HTTP status is exposed for user-facing error messages', async () => {
+  const { ProviderError } = await import('../public/deepseek.js');
+  await assert.rejects(
+    analyzeWithDeepSeek('Go.', { apiKey: 'test', fetchImpl: async () => new Response('no', { status: 402 }) }),
+    error => error instanceof ProviderError && error.status === 402,
+  );
+});
+
+test('custom model name is sent and empty model falls back to default', async () => {
+  const seen = [];
+  const fetchImpl = async (url, options) => {
+    seen.push(JSON.parse(options.body).model);
+    return Response.json({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(valid) } }] });
+  };
+  await analyzeWithDeepSeek('Go.', { apiKey: 'test', model: 'my-model', fetchImpl });
+  await analyzeWithDeepSeek('Go.', { apiKey: 'test', model: '', fetchImpl });
+  assert.deepEqual(seen, ['my-model', 'deepseek-flash']);
+});

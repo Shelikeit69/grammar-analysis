@@ -12,6 +12,8 @@ const assets = new Map([
   ['/styles.css', ['styles.css', 'text/css; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
   ['/demo.js', ['demo.js', 'text/javascript; charset=utf-8']],
+  ['/analysis.js', ['analysis.js', 'text/javascript; charset=utf-8']],
+  ['/deepseek.js', ['deepseek.js', 'text/javascript; charset=utf-8']],
 ]);
 
 export function createApp({

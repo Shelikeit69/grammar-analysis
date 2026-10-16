@@ -576,3 +576,76 @@ footer {
 }
 
 }
+.key-panel {
+  margin:14px 0 0;
+  background:#fffefa;
+  border:1px solid #d7ded2;
+  border-radius:11px;
+  font-size:13px
+}
+.key-panel summary {
+  cursor:pointer;
+  padding:13px 18px;
+  font-weight:600;
+  display:flex;
+  align-items:center;
+  gap:10px
+}
+.key-state {
+  font-weight:400;
+  font-size:11px;
+  color:var(--muted);
+  border:1px solid var(--line);
+  border-radius:999px;
+  padding:2px 9px
+}
+.key-state.ready {
+  color:var(--green);
+  border-color:#b9cdb9
+}
+.key-body {
+  padding:0 18px 16px;
+  display:grid;
+  gap:7px;
+  border-top:1px solid #edf0e8
+}
+.key-body p {
+  margin:12px 0 4px;
+  color:var(--muted);
+  line-height:1.6;
+  font-size:12px
+}
+.key-body label {
+  font-size:12px;
+  font-weight:600;
+  margin-top:6px
+}
+.key-body input[type=password],.key-body input[type=text] {
+  width:100%;
+  font:inherit;
+  font-size:14px;
+  padding:9px 11px;
+  border:1px solid #cfd8cb;
+  border-radius:7px;
+  background:white;
+  color:var(--ink)
+}
+.key-body input:focus {
+  outline:2px solid #6b8c70;
+  outline-offset:1px
+}
+.key-body .remember {
+  font-weight:400;
+  display:flex;
+  gap:8px;
+  align-items:center
+}
+.key-actions {
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+  margin-top:6px
+}
+.key-body .key-note a {
+  color:var(--green)
+}

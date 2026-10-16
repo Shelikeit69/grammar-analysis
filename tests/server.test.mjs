@@ -128,3 +128,11 @@ test('Codespaces forwarded HTTPS requests reach the API but other origins do not
   assert.equal(await request({ Origin: `https://${host}` }), 503);
   assert.equal(await request({ Host: host, Origin: 'https://other-space-3000.app.github.dev' }), 403);
 }, { environment: { CODESPACES: 'true', CODESPACE_NAME: 'test-space-123' } }));
+
+test('shared browser modules are served, server internals are not', () => withServer(async base => {
+  for (const path of ['/analysis.js', '/deepseek.js']) {
+    const response = await fetch(base + path);
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get('content-type'), /javascript/);
+  }
+}));

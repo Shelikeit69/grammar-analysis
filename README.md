@@ -7,10 +7,39 @@
 - 默认展示主干，展开详细结构查看定语、状语等。原文始终完整保留。
 - 短段落逐句分析，支持整段翻译和手机浏览。
 - DeepSeek 负责分析与翻译；没有密钥也可查看明确标注的内置示例。
+- 免费开源：网页版由每位用户填写自己的 DeepSeek 密钥。
 
-## 在 GitHub 上测试（推荐当前测试阶段）
+## 三种使用方式
 
-使用 Codespaces 同时运行前端与后端，端口保持 Private。把密钥放到 Codespaces Secrets，按[GitHub 测试指南](docs/github-testing.md)操作。现阶段仍需选择开发分支；PR 合并后可从 main 创建。
+| 方式 | 密钥放在哪里 | 适合 |
+|---|---|---|
+| **网页版（GitHub Pages）** | 访问者自己的浏览器 | 打开网址即用，每人用自己的 DeepSeek 密钥 |
+| Codespaces | Codespaces Secrets | 不装软件、在 GitHub 云端私有测试 |
+| 本地运行 | 本机 `.env` | 离线开发、修改代码 |
+
+## 网页版（GitHub Pages）
+
+网页版是纯静态页面，没有服务器。分析时由**你的浏览器直接请求 DeepSeek**，使用你在页面上填写的密钥，按你的 DeepSeek 账户计费。
+
+- 密钥不会上传到本网站、GitHub 或仓库。默认只在当前页面有效；勾选“在这台设备上记住密钥”后才保存在本机浏览器（localStorage）。公用电脑请不要勾选，用完可点“清除密钥”。
+- 页面设置了内容安全策略，只允许连接本站和 `api.deepseek.com`。
+- 不要把密钥放进 Actions Secrets 再“注入”网页：静态网页里的任何内容都能被访问者看到，等于公开密钥。
+
+### 开启步骤（仓库维护者）
+
+1. 仓库 Settings → General → Danger Zone，把仓库改为 **Public**（免费账户的 Pages 需要公开仓库）。仓库中没有密钥。
+2. 仓库 Settings → **Pages** → Build and deployment → Source 选择 **GitHub Actions**。
+3. 推送到 `main`（或在 Actions 页手动运行 “Deploy to GitHub Pages”）。工作流先跑测试，再只发布 `public/` 目录。
+4. 完成后网址为 `https://<用户名>.github.io/grammar-analysis/`。
+
+### 已知限制
+
+- 网页版能否工作，取决于 DeepSeek 是否允许浏览器跨域调用（CORS）。若点击分析后提示“浏览器无法直接连接 DeepSeek”，说明被浏览器拦截，此时请改用 Codespaces 或本地运行。
+- 模型名称可在页面上修改，需填写你的账户实际可用的模型。
+
+## 在 GitHub 上测试（Codespaces）
+
+使用 Codespaces 同时运行前端与后端，端口保持 Private。把密钥放到 Codespaces Secrets，按[GitHub 测试指南](docs/github-testing.md)操作。从 `main` 分支创建即可。
 
 ## 本地运行
 
@@ -53,9 +82,9 @@ npm start
 
 ## 使用范围与限制
 
-- 第一版面向个人本地使用或 Codespaces 私有预览。服务仅监听 `127.0.0.1`；Codespaces 通过私有端口转发访问，不提供自建账号系统。
+- 本地与 Codespaces 版本的服务仅监听 `127.0.0.1`；Codespaces 通过私有端口转发访问，不提供自建账号系统。
 - 输入最多 300 个英文单词、6000 个字符，适合单句与短段落。
-- GitHub 保存代码和版本。GitHub Pages 只能托管静态前端，不能运行本项目的 DeepSeek 后端；本版不自动部署公开接口。
+- GitHub Pages 只托管静态前端，不运行后端，也不保存任何人的密钥；网页版的 AI 调用都使用访问者自己的密钥。
 - 不要通过公网隧道或反向代理直接暴露此服务。若以后需要远程使用，应先增加身份验证、限额和部署配置。
 - 不自动纠正原文拼写或时态，歧义解释以当前分析为准。
 
