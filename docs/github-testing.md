@@ -2,9 +2,9 @@
 
 使用 **GitHub Codespaces** 同时运行前端与后端；无需外部托管，也无需本机常开。不是 GitHub Pages 常驻站点：Codespace 停止后，预览网址也停止服务。
 
-## 1. 将仓库设为 Private
+## 1. 仓库可见性
 
-仓库 Settings → General → 页面底部 Danger Zone → Change repository visibility → Private。确认仓库名后完成。代码的 MIT 文件可保留，之后可以再公开仓库。本次代码更新不会自动改变仓库可见性。
+Codespaces 在 Public 或 Private 仓库都能使用。若同时开启了 GitHub Pages 网页版，仓库需为 Public（免费账户）。代码中没有密钥，公开仓库是安全的；密钥只放在下面的 Codespaces Secrets 中。
 
 ## 2. 配置 DeepSeek 密钥
 
@@ -19,7 +19,7 @@
 
 ## 3. 创建测试环境
 
-1. 在仓库分支下拉框选择 `feat/grammar-analyzer-v1`。PR 合并后可改用 `main`。
+1. 在仓库分支下拉框选择 `main`。
 2. 点击绿色 Code → Codespaces → Create codespace（或 New with options，确认分支）。
 3. 选择最小可用机器，等待环境启动。仓库的 `.devcontainer/devcontainer.json` 会配置 Node 22 和 3000 端口。
 4. 在网页编辑器底部 Terminal 运行：

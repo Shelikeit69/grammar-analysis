@@ -4,12 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' https://api.deepseek.com; img-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <title>句间 · 英文语法分析</title>
-  <link rel="stylesheet" href="/styles.css">
-  <script type="module" src="/app.js"></script>
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
 </head>
 <body>
-  <header class="masthead"><a class="brand" href="/" aria-label="句间首页"><span class="brand-mark">句</span>句间<span class="brand-en">BETWEEN THE WORDS</span></a><span class="edition">英文语法笔记</span></header>
+  <header class="masthead"><a class="brand" href="./" aria-label="句间首页"><span class="brand-mark">句</span>句间<span class="brand-en">BETWEEN THE WORDS</span></a><span class="edition">英文语法笔记</span></header>
   <main>
     <section class="intro"><span class="eyebrow">READ IT. UNDERSTAND IT.</span><h1>读懂一句话，<br class="mobile-break">从看清结构开始。</h1><p>贴一段英文，让主干、修饰和词义各归其位。</p></section>
     <section class="input-panel" aria-labelledby="input-label">
@@ -18,6 +19,19 @@
       <div class="input-footer"><span id="input-hint">粘贴后自动分析 · 最多 300 词</span><div class="actions"><button id="clear-button" class="quiet" type="button">清空</button><button id="analyze-button" class="primary" type="button">分析句子 <span aria-hidden="true">↗</span></button></div></div>
     </section>
     <div class="utility-row"><button id="example-button" class="text-button" type="button">试试一个例句 <span aria-hidden="true">→</span></button><span id="connection-status">正在检查分析服务…</span></div>
+    <details id="key-panel" class="key-panel" hidden>
+      <summary>设置 DeepSeek 密钥 <span id="key-state" class="key-state">未设置</span></summary>
+      <div class="key-body">
+        <p>网页版没有服务器：分析时由你的浏览器直接请求 DeepSeek，使用你自己的密钥并按你的账户计费。密钥不会上传到本网站或 GitHub。</p>
+        <label for="key-input">API 密钥</label>
+        <input id="key-input" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…">
+        <label for="model-input">模型名称</label>
+        <input id="model-input" type="text" autocomplete="off" spellcheck="false" placeholder="deepseek-flash">
+        <label class="remember"><input id="remember-key" type="checkbox">在这台设备上记住密钥（公用电脑请不要勾选）</label>
+        <div class="key-actions"><button id="forget-key" class="quiet" type="button">清除密钥</button><button id="save-key" class="primary" type="button">保存</button></div>
+        <p class="key-note">没有密钥？在 <a href="https://platform.deepseek.com/" target="_blank" rel="noopener noreferrer">DeepSeek 开放平台</a> 创建。不填密钥也可以查看例句。</p>
+      </div>
+    </details>
     <p id="status" class="status" role="status" aria-live="polite"></p>
     <section id="results" aria-labelledby="results-title" hidden>
       <div class="results-heading"><div><span class="eyebrow">A CLOSER LOOK</span><h2 id="results-title">句子里的脉络 <span id="result-badge" class="badge">内置示例</span></h2></div><label class="detail-toggle"><input type="checkbox" id="detail-toggle">显示详细结构</label></div>
@@ -27,6 +41,6 @@
       <p class="reading-hint">点击彩色框，查看词形与结构说明。分析由 AI 提供，供学习参考。</p>
     </section>
   </main>
-  <footer><span>句间 / 让英文清晰一点</span><span>个人语法笔记 · 不保存分析记录</span></footer>
+  <footer><span>句间 / 让英文清晰一点</span><span>开源语法笔记 · 不保存分析记录</span></footer>
 </body>
 </html>
