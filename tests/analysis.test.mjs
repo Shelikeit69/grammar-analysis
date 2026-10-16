@@ -80,3 +80,23 @@ test('multi-word predicate span (modal + verb + preposition) is accepted', () =>
   };
   assert.doesNotThrow(() => validateAnalysis(data, 'You can shop for items.'));
 });
+
+test('sentence tense is kept when present and optional when absent', () => {
+  const data = result();
+  assert.equal(validateAnalysis(data, 'I see I.').sentences[0].tense, '');
+  data.sentences[0].tense = '一般现在时 · 主动语态';
+  assert.equal(validateAnalysis(data, 'I see I.').sentences[0].tense, '一般现在时 · 主动语态');
+  data.sentences[0].tense = 5;
+  assert.throws(() => validateAnalysis(data, 'I see I.'));
+  data.sentences[0].tense = 'x'.repeat(101);
+  assert.throws(() => validateAnalysis(data, 'I see I.'));
+});
+
+test('tense reason is optional, kept when present and bounded', () => {
+  const data = result();
+  assert.equal(validateAnalysis(data, 'I see I.').sentences[0].tenseReason, '');
+  data.sentences[0].tenseReason = '因为 see 是动词原形，所以是一般现在时。';
+  assert.equal(validateAnalysis(data, 'I see I.').sentences[0].tenseReason, '因为 see 是动词原形，所以是一般现在时。');
+  data.sentences[0].tenseReason = 'x'.repeat(601);
+  assert.throws(() => validateAnalysis(data, 'I see I.'));
+});

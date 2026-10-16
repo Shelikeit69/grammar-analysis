@@ -113,6 +113,12 @@ function render() {
     const card = element('article', 'sentence-card');
     card.setAttribute('aria-label', `第 ${sentenceIndex + 1} 句`);
     card.append(element('div', 'sentence-header', `SENTENCE ${String(sentenceIndex + 1).padStart(2, '0')}`));
+    if (sentence.tense) {
+      const tense = element('div', 'tense-box');
+      tense.append(element('div', 'tense-name', `时态：${sentence.tense}`));
+      if (sentence.tenseReason) tense.append(element('div', 'tense-reason', `判断依据：${sentence.tenseReason}`));
+      card.append(tense);
+    }
     const line = element('div', 'annotation-line');
     const detail = element('div', 'phrase-detail');
     detail.hidden = true;

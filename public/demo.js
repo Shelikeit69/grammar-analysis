@@ -4,6 +4,8 @@ export const demoAnalysis = {
   sentences: [{
     text: demoText,
     translation: '体育场里的每个人都感到紧张。',
+    tense: '一般过去时 · 主动语态',
+    tenseReason: '因为谓语 felt 是 feel 的过去式（不带 will/have 等助动词），所以是一般过去时的主动语态。',
     note: 'Everyone in the stadium 整体构成主语。Everyone 是主语中心词，in the stadium 是修饰 Everyone 的后置定语。felt 是系动词，nervous 是表语。',
     segments: [
       part('Everyone', 'subject', '每个人', '', '不定代词 Everyone 是主语中心词。'),
