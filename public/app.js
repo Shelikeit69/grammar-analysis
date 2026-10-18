@@ -156,8 +156,11 @@ function render() {
     const detail = element('div', 'phrase-detail');
     detail.hidden = true;
     detail.setAttribute('role', 'status');
+    detail.id = `phrase-detail-${sentenceIndex}`;
+    // Visible (clickable) phrase buttons by segment index, so a click can find its `modifies` target.
+    const buttons = new Map();
     let annotatedIndex = 0;
-    sentence.segments.forEach((segment) => {
+    sentence.segments.forEach((segment, segmentIndex) => {
       const visible = segment.role !== 'other' && (detailed || segment.level === 'core');
       const phrase = element('span', `phrase role-${segment.role} ${visible ? 'annotated' : 'plain'}${/^\s+$/u.test(segment.text) ? ' whitespace' : ''}`);
       const english = element(visible ? 'button' : 'span', 'english', segment.text);
@@ -177,12 +180,27 @@ function render() {
         annotation.append(...(placement === 'top' ? [label, connector] : [connector, label]));
         annotationNode = annotation;
         phrase.classList.add(placement === 'top' ? 'has-top' : 'has-bottom');
+        buttons.set(segmentIndex, english);
         english.addEventListener('click', () => {
           const wasSelected = english.getAttribute('aria-pressed') === 'true';
           line.querySelectorAll('[aria-pressed]').forEach((button) => button.setAttribute('aria-pressed', 'false'));
+          line.querySelectorAll('.modifier-target').forEach((node) => {
+            node.classList.remove('modifier-target');
+            node.removeAttribute('aria-describedby');
+          });
           english.setAttribute('aria-pressed', String(!wasSelected));
           detail.hidden = wasSelected;
+          if (wasSelected) return;
           detail.textContent = `${segment.text} · ${labelText}${segment.detail ? `。${segment.detail}` : ''}`;
+          const target = Number.isInteger(segment.modifies) ? sentence.segments[segment.modifies] : null;
+          if (!target) return;
+          detail.append(element('span', 'modifies-note', `修饰：${target.text}`));
+          // The target may be hidden in the current view (a detail span in the core view): the note still names it.
+          const targetButton = buttons.get(segment.modifies);
+          if (targetButton) {
+            targetButton.classList.add('modifier-target');
+            targetButton.setAttribute('aria-describedby', detail.id);
+          }
         });
         annotatedIndex += 1;
       }

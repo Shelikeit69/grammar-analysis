@@ -287,3 +287,36 @@ test('abort after reading model content is not treated as a format failure', asy
   }), { name: 'AbortError' });
   assert.equal(calls, 1);
 });
+
+test('prompt keeps the modifies rules and the worked example', () => {
+  for (const phrase of [
+    'modifies is OPTIONAL',
+    'Fill it only for attribute, adverbial and complement segments',
+    'Never point a segment at itself or at a role other segment',
+    'omit modifies entirely; never guess',
+    'an adverbial that modifies the whole action points to the predicate',
+    'in the end has modifies 6 (will see)',
+  ]) assert.ok(SYSTEM.includes(phrase), phrase);
+});
+
+test('modifies survives the provider path, and an invalid one is dropped without a repair call', async () => {
+  const text = 'Big dogs bark.';
+  const seg = (t, role, translation, lemma = '', level = 'core') => ({ text: t, role, translation, lemma, detail: '', level });
+  const gap = seg(' ', 'other', '', '', 'detail');
+  const make = (modifies) => ({
+    sentences: [{
+      text, translation: '大狗叫。', note: '',
+      segments: [{ ...seg('Big', 'attribute', '大的', '', 'detail'), modifies }, gap, seg('dogs', 'subject', '狗'), gap, seg('bark', 'predicate', '叫', 'bark'), seg('.', 'other', '', '', 'detail')],
+    }],
+    translation: '大狗叫。',
+  });
+  for (const [modifies, expected] of [[2, 2], [99, undefined], [0, undefined]]) {
+    let calls = 0;
+    const result = await analyzeWithDeepSeek(text, {
+      apiKey: 'test',
+      fetchImpl: async () => { calls++; return contentResponse(JSON.stringify(make(modifies))); },
+    });
+    assert.equal(calls, 1, `modifies ${modifies} must not trigger a repair`);
+    assert.equal(result.sentences[0].segments[0].modifies, expected);
+  }
+});

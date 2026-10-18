@@ -376,6 +376,17 @@ button {
   border-color:var(--role);
   box-shadow:0 0 0 2px var(--tint)
 }
+.annotated>.english.modifier-target {
+  background:color-mix(in srgb,var(--role) 16%,#fffefa);
+  border-color:var(--role);
+  box-shadow:0 0 0 2px var(--role)
+}
+.modifies-note {
+  display:block;
+  margin-top:4px;
+  font-weight:600;
+  color:var(--green)
+}
 .annotation {
   grid-row:1;
   grid-column:1;
