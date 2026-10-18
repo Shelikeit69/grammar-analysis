@@ -2,6 +2,8 @@ import http from 'node:http';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from '../server.mjs';
+import { readAnalysisResponse } from '../public/server-client.js';
+import { demoAnalysis, demoText } from '../public/demo.js';
 
 async function withServer(fn, options = {}) {
   const server = createServer({ apiKey: '', ...options });
@@ -130,9 +132,76 @@ test('Codespaces forwarded HTTPS requests reach the API but other origins do not
 }, { environment: { CODESPACES: 'true', CODESPACE_NAME: 'test-space-123' } }));
 
 test('shared browser modules are served, server internals are not', () => withServer(async base => {
-  for (const path of ['/analysis.js', '/deepseek.js']) {
+  for (const path of ['/analysis.js', '/deepseek.js', '/server-client.js']) {
     const response = await fetch(base + path);
     assert.equal(response.status, 200);
     assert.match(response.headers.get('content-type'), /javascript/);
   }
 }));
+
+test('real repair pipeline streams progress and preserves ordinary JSON clients', async () => {
+  for (const streaming of [true, false]) {
+    let calls = 0;
+    let repairs = 0;
+    await withServer(async base => {
+      const headers = { 'Content-Type': 'application/json' };
+      if (streaming) headers.Accept = 'application/x-ndjson';
+      const response = await post(base, JSON.stringify({text:demoText}), headers);
+      assert.equal(response.status, 200);
+      const result = await readAnalysisResponse(response, {onRepair:()=>repairs++});
+      assert.equal(result.translation, demoAnalysis.translation);
+      assert.equal(repairs, streaming ? 1 : 0);
+      assert.equal(calls, 2);
+    }, {
+      apiKey:'fake-test-key',
+      fetchImpl:async () => {
+        calls++;
+        return Response.json({choices:[{finish_reason:'stop',message:{content:calls === 1 ? '{}' : JSON.stringify(demoAnalysis)}}]});
+      },
+    });
+  }
+});
+
+test('repair failure sends a generic stream error without provider data', () => withServer(async base => {
+  const response = await post(base, JSON.stringify({text:demoText}), {
+    'Content-Type':'application/json', Accept:'application/x-ndjson',
+  });
+  const body = await response.text();
+  const events = body.trim().split('\n').map(line => JSON.parse(line));
+  assert.deepEqual(events.map(event => event.type), ['progress','error']);
+  assert.equal(events[1].error, '分析暂时失败，请稍后重试。');
+  assert.ok(!body.includes('SECRET'));
+}, {
+  apiKey:'fake-test-key',
+  fetchImpl:async () => Response.json({choices:[{finish_reason:'stop',message:{content:'{"SECRET":"invalid"}'}}]}),
+}));
+
+test('disconnect during repair aborts the provider and releases the active slot', async () => {
+  let cancelled;
+  const stopped = new Promise(resolve => {cancelled = resolve;});
+  let calls = 0;
+  await withServer(async base => {
+    const controller = new AbortController();
+    const response = await fetch(base + '/api/analyze', {
+      method:'POST', headers:{'Content-Type':'application/json',Accept:'application/x-ndjson'},
+      body:JSON.stringify({text:demoText}), signal:controller.signal,
+    });
+    const reader = response.body.getReader();
+    const progress = await reader.read();
+    assert.match(new TextDecoder().decode(progress.value), /repairing/);
+    controller.abort();
+    await stopped;
+    const replacement = await post(base, JSON.stringify({text:demoText}));
+    assert.equal(replacement.status, 200);
+    assert.equal(calls, 3);
+  }, {
+    apiKey:'fake-test-key',
+    fetchImpl:async (url, {signal}) => {
+      calls++;
+      if (calls === 2) return new Promise((resolve, reject) => {
+        signal.addEventListener('abort', () => {cancelled(); reject(signal.reason);}, {once:true});
+      });
+      return Response.json({choices:[{finish_reason:'stop',message:{content:calls === 1 ? '{}' : JSON.stringify(demoAnalysis)}}]});
+    },
+  });
+});

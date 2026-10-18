@@ -3,6 +3,14 @@ const roles = new Set([
   'complement', 'adverbial', 'attribute', 'other',
 ]);
 
+export class AnalysisValidationError extends Error {
+  constructor(reason) {
+    super(reason.slice(0, 280));
+    this.name = 'AnalysisValidationError';
+    this.reason = this.message;
+  }
+}
+
 export function validateInput(text) {
   if (
     typeof text !== 'string' || !text.trim() || text.length > 6000 ||
@@ -13,54 +21,72 @@ export function validateInput(text) {
   return text;
 }
 
-function string(value, max, nonempty = false) {
+function string(value, max, field, nonempty = false) {
   if (typeof value !== 'string' || value.length > max || (nonempty && !value.trim())) {
-    throw new Error('Invalid analysis');
+    throw new AnalysisValidationError(`${field} must be ${nonempty ? 'a nonempty' : 'a'} string of at most ${max} characters.`);
   }
   return value;
 }
 
+function optionalString(value, max) {
+  return typeof value === 'string' && value.length <= max ? value : '';
+}
+
 export function validateAnalysis(data, input) {
   if (!data || !Array.isArray(data.sentences) || !data.sentences.length || data.sentences.length > 300) {
-    throw new Error('Invalid analysis');
+    throw new AnalysisValidationError('sentences must be an array containing 1 to 300 sentences.');
   }
   let offset = 0;
-  const sentences = data.sentences.map(sentence => {
+  const sentences = data.sentences.map((sentence, sentenceIndex) => {
+    const field = `sentences[${sentenceIndex}]`;
     if (!sentence || !Array.isArray(sentence.segments) || !sentence.segments.length || sentence.segments.length > 1200) {
-      throw new Error('Invalid analysis');
+      throw new AnalysisValidationError(`${field}.segments must be an array containing 1 to 1200 segments.`);
     }
-    const text = string(sentence.text, 6000, true);
+    const text = string(sentence.text, 6000, `${field}.text`, true);
     // Ignore only whitespace between sentences, never whitespace within a sentence.
     while (offset < input.length && /\s/u.test(input[offset]) && !input.startsWith(text, offset)) {
       offset++;
     }
-    if (!input.startsWith(text, offset)) throw new Error('Invalid coverage');
+    if (!input.startsWith(text, offset)) {
+      throw new AnalysisValidationError(`${field}.text must match the next original input characters exactly, preserving order and internal whitespace.`);
+    }
     offset += text.length;
 
-    const segments = sentence.segments.map(segment => {
-      if (!segment || segment.text === '' || !roles.has(segment.role) || !['core', 'detail'].includes(segment.level)) {
-        throw new Error('Invalid analysis');
+    const segments = sentence.segments.map((segment, segmentIndex) => {
+      const segmentField = `${field}.segments[${segmentIndex}]`;
+      if (!segment || !roles.has(segment.role)) {
+        throw new AnalysisValidationError(`${segmentField}.role must be one of the documented grammar roles.`);
+      }
+      if (!['core', 'detail'].includes(segment.level)) {
+        throw new AnalysisValidationError(`${segmentField}.level must be core or detail.`);
+      }
+      if (segment.text === '') {
+        throw new AnalysisValidationError(`${segmentField}.text must contain at least one original character.`);
       }
       return {
-        text: string(segment.text, 6000),
+        text: string(segment.text, 6000, `${segmentField}.text`),
         role: segment.role,
-        translation: string(segment.translation, 6000, segment.role !== 'other'),
-        lemma: string(segment.lemma, 200, ['predicate', 'linking'].includes(segment.role)),
-        detail: string(segment.detail, 6000),
+        translation: string(segment.translation, 6000, `${segmentField}.translation`, segment.role !== 'other'),
+        lemma: string(segment.lemma, 200, `${segmentField}.lemma`, ['predicate', 'linking'].includes(segment.role)),
+        detail: string(segment.detail, 6000, `${segmentField}.detail`),
         level: segment.level,
       };
     });
-    if (segments.map(segment => segment.text).join('') !== text) throw new Error('Invalid coverage');
+    if (segments.map(segment => segment.text).join('') !== text) {
+      throw new AnalysisValidationError(`${field}.segments text must concatenate exactly to sentence text, including whitespace and punctuation.`);
+    }
     return {
       text,
-      translation: string(sentence.translation, 12000, true),
-      note: string(sentence.note, 6000),
-      // Optional: older/partial responses without a tense still render.
-      tense: sentence.tense === undefined ? '' : string(sentence.tense, 100),
-      tenseReason: sentence.tenseReason === undefined ? '' : string(sentence.tenseReason, 600),
+      translation: string(sentence.translation, 12000, `${field}.translation`, true),
+      note: string(sentence.note, 6000, `${field}.note`),
+      // Optional explanatory metadata must not invalidate otherwise usable analysis.
+      tense: optionalString(sentence.tense, 100),
+      tenseReason: optionalString(sentence.tenseReason, 600),
       segments,
     };
   });
-  if (input.slice(offset).trim()) throw new Error('Invalid coverage');
-  return { sentences, translation: string(data.translation, 24000, true) };
+  if (input.slice(offset).trim()) {
+    throw new AnalysisValidationError('sentences must cover all original input in order; trailing non-whitespace text is missing.');
+  }
+  return { sentences, translation: string(data.translation, 24000, 'translation', true) };
 }

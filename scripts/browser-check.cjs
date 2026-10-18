@@ -46,13 +46,13 @@ async function main() {
 
     await checkLayout();
     assert.equal(await page.locator('.tense-name').first().innerText(), `时态：${demoAnalysis.sentences[0].tense}`);
-    assert.match(await page.locator('.tense-reason').first().innerText(), /^判断依据：因为.*felt/);
+    assert.equal(await page.locator('.tense-reason').first().innerText(), '判断依据：' + demoAnalysis.sentences[0].tenseReason);
     checks++;
-    await page.locator('.role-linking .english').click();
-    assert.match(await page.locator('.phrase-detail').innerText(), /过去式/);
+    await page.locator('.annotated .english').first().click();
+    assert.ok((await page.locator('.phrase-detail').innerText()).includes(demoAnalysis.sentences[0].segments.find(part => part.role !== 'other' && part.level === 'core').detail));
     checks++;
     await page.locator('#detail-toggle').check();
-    assert.equal(await page.locator('.annotated').count(), 4);
+    assert.equal(await page.locator('.annotated').count(), demoAnalysis.sentences[0].segments.filter(part => part.role !== 'other').length);
     assert.equal(await originalText(), demoText);
     checks++;
     await page.setViewportSize({ width: 390, height: 844 });
