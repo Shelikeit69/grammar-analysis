@@ -1,5 +1,6 @@
 import {demoText, demoAnalysis} from './demo.js';
 import {analyzeWithDeepSeek, ProviderError, DEFAULT_MODEL} from './deepseek.js';
+import {readAnalysisResponse} from './server-client.js';
 
 const $ = (id) => document.getElementById(id);
 const input = $('english-input');
@@ -53,26 +54,34 @@ function updateKeyState() {
   if (mode === 'browser') $('connection-status').textContent = ready ? `使用你的 DeepSeek 密钥 · ${settings.model || DEFAULT_MODEL}` : '例句可直接查看 · 分析需填写你的 DeepSeek 密钥';
 }
 function saveSettings() {
-  settings = {apiKey: $('key-input').value.trim(), model: $('model-input').value.trim()};
+  cancelPending();
+  settings = {apiKey: $('key-input').value.trim() || settings.apiKey, model: $('model-input').value.trim()};
+  let storageUpdated = true;
   try {
     if ($('remember-key').checked && settings.apiKey) localStorage.setItem(STORE, JSON.stringify(settings));
     else localStorage.removeItem(STORE);
-  } catch { /* ignore */ }
+  } catch { storageUpdated = false; }
   $('key-input').value = '';
   $('key-input').placeholder = settings.apiKey ? '已保存（重新输入可替换）' : 'sk-…';
   updateKeyState();
-  setStatus(settings.apiKey ? ($('remember-key').checked ? '密钥已保存在这台设备的浏览器中。' : '密钥仅在本次打开的页面中有效，关闭页面后需重新填写。') : '尚未填写密钥。');
+  if (!storageUpdated) {
+    setStatus('设置已在当前页面生效，但无法更新浏览器保存的记录。旧记录可能仍存在，请检查浏览器的站点数据。', true);
+  } else {
+    setStatus(settings.apiKey ? ($('remember-key').checked ? '密钥已保存在这台设备的浏览器中。' : '密钥仅在本次打开的页面中有效，关闭页面后需重新填写。') : '尚未填写密钥。');
+  }
   if (settings.apiKey) $('key-panel').open = false;
 }
 function forgetSettings() {
+  cancelPending();
   settings = {apiKey: '', model: ''};
-  try { localStorage.removeItem(STORE); } catch { /* ignore */ }
+  let removed = true;
+  try { localStorage.removeItem(STORE); } catch { removed = false; }
   $('key-input').value = '';
   $('model-input').value = '';
   $('remember-key').checked = false;
   $('key-input').placeholder = 'sk-…';
   updateKeyState();
-  setStatus('已清除这台设备上的密钥。');
+  setStatus(removed ? '已清除这台设备上的密钥。' : '当前页面的密钥已清除，但无法删除浏览器中的记录。请在浏览器设置里清除本站数据。', !removed);
 }
 function enableBrowserMode() {
   mode = 'browser';
@@ -208,6 +217,7 @@ function showExample() {
 async function analyze() {
   if (composing) return;
   cancelPending();
+  if (mode === 'unknown') { setStatus('正在检查运行环境，请稍候再试。'); return; }
   const text = input.value;
   if (!text.trim()) { setStatus('先输入一句英文吧。', true); input.focus(); return; }
   if (countWords() > 300 || text.length > 6000) { setStatus('请缩短到 300 词、6000 字符以内。', true); return; }
@@ -220,16 +230,18 @@ async function analyze() {
   analyzeButton.textContent = '正在分析…';
   $('results').hidden = true;
   setStatus('正在梳理语法结构与中文释义…');
+  const onRepair = () => {
+    if (requestGeneration === generation) setStatus('正在修正格式，再试一次（会额外调用一次 DeepSeek）。');
+  };
   try {
     let result;
     if (mode === 'browser') {
-      result = await analyzeWithDeepSeek(text, {apiKey: settings.apiKey, model: settings.model || DEFAULT_MODEL, signal: requestController.signal, timeoutMs: 90000});
+      result = await analyzeWithDeepSeek(text, {apiKey: settings.apiKey, model: settings.model || DEFAULT_MODEL, signal: requestController.signal, timeoutMs: 90000, onRepair});
       if (requestGeneration !== generation) return;
     } else {
-      const response = await fetch('./api/analyze', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({text}), signal:requestController.signal});
-      result = await response.json();
+      const response = await fetch('./api/analyze', {method:'POST', headers:{'Content-Type':'application/json', Accept:'application/x-ndjson'}, body:JSON.stringify({text}), signal:requestController.signal});
+      result = await readAnalysisResponse(response, {onRepair, signal:requestController.signal});
       if (requestGeneration !== generation) return;
-      if (!response.ok) throw new Error(result.error || '分析失败，请稍后重试。');
     }
     if (!Array.isArray(result.sentences) || !result.sentences.length) throw new Error('分析结果不完整，请重试。');
     current = result;
@@ -272,7 +284,7 @@ try { applyTextSize(localStorage.getItem(SIZE_STORE) === 'large'); } catch { /* 
 $('forget-key').addEventListener('click', forgetSettings);
 $('key-input').addEventListener('keydown', (event) => {if (event.key === 'Enter') {event.preventDefault(); saveSettings();}});
 // A local/Codespaces server answers /api/status with JSON; static hosting does not.
-fetch('./api/status').then((response) => {if (!response.ok) throw new Error(); return response.json();}).then((data) => {
+fetch('./api/status', {signal: AbortSignal.timeout(8000)}).then((response) => {if (!response.ok) throw new Error(); return response.json();}).then((data) => {
   mode = 'server';
   $('connection-status').textContent = data.configured ? 'DeepSeek 已配置' : '示例可直接查看 · 分析需配置密钥';
 }).catch(enableBrowserMode);

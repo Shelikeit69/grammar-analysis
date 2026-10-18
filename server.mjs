@@ -14,6 +14,7 @@ const assets = new Map([
   ['/demo.js', ['demo.js', 'text/javascript; charset=utf-8']],
   ['/analysis.js', ['analysis.js', 'text/javascript; charset=utf-8']],
   ['/deepseek.js', ['deepseek.js', 'text/javascript; charset=utf-8']],
+  ['/server-client.js', ['server-client.js', 'text/javascript; charset=utf-8']],
 ]);
 
 export function createApp({
@@ -85,10 +86,26 @@ export function createApp({
         }
         try {
           controller.signal.throwIfAborted();
-          const result = await analyze(text, { apiKey, model, fetchImpl, timeoutMs, signal: controller.signal });
-          send(200, result);
+          const streaming = req.headers.accept === 'application/x-ndjson';
+          const event = value => {
+            if (res.destroyed || res.writableEnded) return;
+            if (!res.headersSent) res.writeHead(200, {'Content-Type':'application/x-ndjson; charset=utf-8'});
+            res.write(JSON.stringify(value) + '\n');
+          };
+          try {
+            const result = await analyze(text, {
+              apiKey, model, fetchImpl, timeoutMs, signal: controller.signal,
+              onRepair: streaming ? () => event({type:'progress', stage:'repairing'}) : undefined,
+            });
+            if (streaming) { event({type:'result', data:result}); res.end(); }
+            else send(200, result);
+          } catch {
+            const error = '分析暂时失败，请稍后重试。';
+            if (res.headersSent) { event({type:'error', error}); res.end(); }
+            else send(502, {error});
+          }
         } catch {
-          send(502, { error: '分析暂时失败，请稍后重试。' });
+          if (!res.headersSent) send(502, { error: '分析暂时失败，请稍后重试。' });
         }
       } catch {
         if (!res.headersSent) send(400, { error: '无法读取请求。' });

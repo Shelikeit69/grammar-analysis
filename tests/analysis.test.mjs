@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateInput, validateAnalysis } from '../lib/analysis.mjs';
+import { AnalysisValidationError, validateInput, validateAnalysis } from '../lib/analysis.mjs';
 
 const result = () => ({
   sentences: [{
@@ -87,9 +87,9 @@ test('sentence tense is kept when present and optional when absent', () => {
   data.sentences[0].tense = '一般现在时 · 主动语态';
   assert.equal(validateAnalysis(data, 'I see I.').sentences[0].tense, '一般现在时 · 主动语态');
   data.sentences[0].tense = 5;
-  assert.throws(() => validateAnalysis(data, 'I see I.'));
+  assert.equal(validateAnalysis(data, 'I see I.').sentences[0].tense, '');
   data.sentences[0].tense = 'x'.repeat(101);
-  assert.throws(() => validateAnalysis(data, 'I see I.'));
+  assert.equal(validateAnalysis(data, 'I see I.').sentences[0].tense, '');
 });
 
 test('tense reason is optional, kept when present and bounded', () => {
@@ -98,7 +98,7 @@ test('tense reason is optional, kept when present and bounded', () => {
   data.sentences[0].tenseReason = '因为 see 是动词原形，所以是一般现在时。';
   assert.equal(validateAnalysis(data, 'I see I.').sentences[0].tenseReason, '因为 see 是动词原形，所以是一般现在时。');
   data.sentences[0].tenseReason = 'x'.repeat(601);
-  assert.throws(() => validateAnalysis(data, 'I see I.'));
+  assert.equal(validateAnalysis(data, 'I see I.').sentences[0].tenseReason, '');
 });
 
 test('contracted negation as one predicate span and a two-tense label are accepted', () => {
@@ -122,4 +122,22 @@ test('contracted negation as one predicate span and a two-tense label are accept
   const out = validateAnalysis(data, "Don't worry, so it costs about 5% less.");
   assert.equal(out.sentences[0].segments[0].text, "Don't worry");
   assert.equal(out.sentences[0].tense, '祈使句；一般现在时 · 主动语态');
+});
+
+
+test('validation errors identify fields without quoting untrusted values', () => {
+  const data = result();
+  data.sentences[0].segments[2].role = 'SECRET arbitrary provider content';
+  assert.throws(() => validateAnalysis(data, 'I see I.'), error => {
+    assert.ok(error instanceof AnalysisValidationError);
+    assert.ok(error.reason.includes('sentences[0].segments[2].role'));
+    assert.ok(!error.reason.includes('SECRET'));
+    assert.ok(error.reason.length <= 280);
+    return true;
+  });
+  assert.throws(() => validateAnalysis(result(), 'I see I. extra'), error => {
+    assert.ok(error instanceof AnalysisValidationError);
+    assert.ok(error.reason.includes('cover all original input'));
+    return true;
+  });
 });
