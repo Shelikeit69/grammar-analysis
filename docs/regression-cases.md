@@ -8,7 +8,7 @@
 |---|---|---|
 | 01 | everyone in the stadium felt nervous; | `everyone` 是主语中心，`in the stadium` 修饰 everyone；`felt` 为系动词，框外显示 `feel－感到`；`nervous` 为表语，下方标签指向 nervous。一般过去时；保留小写与分号。 |
 | 02 | She told him that she trusted him. | 重复的 she / him 必须按位置区分；主句 told 的原形 tell，从句 trusted 的原形 trust；that 引导宾语从句，him 为 told 的间接宾语（界面可归入宾语）。 |
-| 03 | You should give it up. | should give … up 构成被宾语 it 隔开的谓语结构；原形 give up，释义「放弃」。不能把 it 一并标成谓语，也不能为合框而改写词序。当前分离短语动词规则待专项修正。 |
+| 03 | You should give it up. | should give … up 构成被宾语 it 隔开的谓语结构；原形 give up，释义「放弃」。不能把 it 一并标成谓语，也不能为合框而改写词序。粒子可用 predicateOf 关联主谓语；两个红框点击解释同一 give up，不联动高亮。新版本真实模型结果 pending。 |
 | 04 | Did you see him yesterday? | 一般过去时疑问句；Did 与 see 被主语 you 隔开，him 是宾语，yesterday 是状语；保留原顺序与问号。 |
 | 05 | She has never seen it. | 现在完成时，seen 原形 see；never 表否定频率，it 是宾语。has 与 seen 之间的 never 不应被误判为主语或宾语。 |
 | 06 | The book that you lent me is interesting. | 主干 The book … is interesting；is 为系动词，interesting 为表语；that you lent me 是修饰 book 的定语从句，lent 原形 lend。主句现在时、从句过去时。 |
@@ -18,3 +18,7 @@
 | 10 | Tom opened the door and Mary walked in. | 两个并列分句各有主语和谓语，均为一般过去时；opened 原形 open，walked 原形 walk；in 与第二个动作相关，不能附到 door 上。 |
 
 涉及复杂或不连续结构时，优先检查原文对应和解释是否正确。不能为了让展示「好看」而强行合并不相邻的词。格式校验通过只说明数据可显示，不能充当语法正确性评分。
+
+## Issue #19 专项验收
+
+五句真实调用工作表见 [verification.md](verification.md)。除上表 03 外，补查 `You should give up smoking.`（连续谓语）、`She turned the light off.`（分离谓语）、`She looked after him.`（连续介词动词）和 `Everyone in the stadium felt nervous.`（系表结构）。保留原文、宾语独立、两个红框可分别点击且不联动高亮；模型是否输出合法字段与语法是否正确分别记录。

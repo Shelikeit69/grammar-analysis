@@ -69,3 +69,25 @@
 
 - 新发现（未修）：原形释义混入时态或情态的意思，如 stay 写成「将待」「将停留」，walk in 写成「走了进来」，give 写成「应该给」；多个时态用「；」列出时，排列顺序（主句优先还是按原文顺序）不固定。
 - 限制：每句只分析了一到两次，样本很少。`modifies` 指向合理不代表模型每次都会输出、每次都对；同一句多次分析，框的划分和措辞会变。本记录不是准确率评测。
+
+## 可分离短语动词：Issue #19（2026-10-25）
+
+[Issue #19](https://github.com/Shelikeit69/grammar-analysis/issues/19) 的第一阶段实现可选 `predicateOf`：同句零起始片段下标，空白与标点也计数，只允许粒子 predicate/core 指向较早的主 predicate/core，两端完整 lemma 相同，目标不能再带 predicateOf，中间须有实质成分。非法可选关系单独丢弃，不触发付费修正；核心字段与原文覆盖仍严格校验。
+
+显示保留原文顺序与独立宾语。should give 和 up 各有红框，点击任一框解释同一 give up（放弃），should 的情态意义在说明中；不联动高亮。连续的 should give up、looked after 仍为一个谓语框，felt / nervous 仍分别为系动词和表语。
+
+### 真实模型验收工作表（未执行）
+
+本次没有调用真实 API。下面的新版本结果全部 pending；历史基线仅引用 2026-10-19 已有记录，不补造旧版本调用。历史 felt 句采用小写开头与分号，与本表大小写和句末标点不同。
+
+| 原句 | 历史基线 | 新版本格式 / 语法 / 显示 | 模型、日期、修正次数、实际结果 |
+|---|---|---|---|
+| You should give it up. | 2026-10-19：should give 释义为“应该给”，up 错标补语；一次分析触发修正 | pending / pending / pending | pending |
+| You should give up smoking. | 未记录 | pending / pending / pending | pending |
+| She turned the light off. | 未记录 | pending / pending / pending | pending |
+| She looked after him. | 未记录 | pending / pending / pending | pending |
+| Everyone in the stadium felt nervous. | 2026-10-19 同结构旧句：语法正确 | pending / pending / pending | pending |
+
+验收时分别记录 predicateOf 是否出现且合法、语法是否正确、两个红框点击解释是否一致、宾语是否独立、should 是否只在说明中表达情态；连续短语与系表句不能回归。模拟测试不代表真实模型稳定输出正确关系，Issue 仍待真实验收。
+
+自动检查（本机 Edge，全部模拟响应）：`npm test` 57 项通过，0 失败，退出码 0；`npm run test:browser` 排版与交互 46 项、静态 Pages 11 项通过，退出码 0。覆盖分离谓语关系校验、非法可选字段不付费修正、原文和宾语保留、红框分别点击及窄屏展示；本记录不包含真实 API、真实模型准确率或云端验证。

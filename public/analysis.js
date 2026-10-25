@@ -86,6 +86,18 @@ export function validateAnalysis(data, input) {
     // result: the user still gets a correct, verbatim analysis, just without
     // that one arrow. Every other check above stays strict.
     sentence.segments.forEach((raw, index) => {
+      // Optional structural metadata cannot trigger a paid format repair.
+      const head = raw.predicateOf;
+      if (
+        segments[index].role === 'predicate' && segments[index].level === 'core' &&
+        Number.isInteger(head) && head >= 0 && head < index &&
+        segments[head].role === 'predicate' && segments[head].level === 'core' &&
+        !Object.hasOwn(sentence.segments[head], 'predicateOf') &&
+        segments[index].lemma === segments[head].lemma &&
+        segments.slice(head + 1, index).some(part => part.role !== 'other' && /[\p{L}\p{N}]/u.test(part.text))
+      ) {
+        segments[index].predicateOf = head;
+      }
       const target = raw.modifies;
       if (
         modifierRoles.has(segments[index].role) &&

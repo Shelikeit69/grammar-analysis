@@ -88,7 +88,7 @@ test('custom model name is sent and empty model falls back to default', async ()
 
 test('system prompt keeps the multi-word predicate rules', () => {
   for (const phrase of [
-    'The predicate is ONE contiguous span covering the whole verb phrase',
+    'When its words are adjacent, the predicate is ONE contiguous span covering the whole verb phrase',
     'Never label a modal or auxiliary as a separate predicate',
     'Prepositions are never predicate or linking',
     'lemma is the base form of the verb phrase without modal/auxiliary',
