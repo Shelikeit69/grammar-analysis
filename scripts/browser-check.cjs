@@ -239,7 +239,12 @@ async function main() {
     // Mocked provider output exercises both separated predicates, preserving order and selection.
     const { separated } = await import('../tests/fixtures/predicate.mjs');
     for (const turnOff of [false, true]) {
+     for (const emptyHead of [false, true]) {
       const fixture = separated(turnOff);
+      const head = fixture.sentences[0].segments[2];
+      const particle = fixture.sentences[0].segments[6];
+      particle.detail = turnOff ? 'off 与前面的 turned 构成短语动词 turn off。' : 'up 与前面的 give 构成短语动词 give up。';
+      if (emptyHead) head.detail = '';
       await page.unroute('**/api/analyze');
       await page.route('**/api/analyze', route => route.fulfill({json: fixture}));
       await page.locator('#english-input').fill(fixture.sentences[0].text);
@@ -259,7 +264,11 @@ async function main() {
             const explanation = await page.locator('.phrase-detail').innerText();
             assert.match(explanation, turnOff ? /turned…off 是同一谓语/ : /should give…up 是同一谓语/);
             assert.match(explanation, turnOff ? /the light 是宾语/ : /it 是宾语/);
-            if (!turnOff) assert.match(explanation, /should 表示应该/);
+            if (!turnOff && !emptyHead) assert.match(explanation, /should 表示应该/);
+            const expectedDetail = emptyHead ? particle.detail : head.detail;
+            assert.equal(explanation.split(expectedDetail).length - 1, 1);
+            if (!emptyHead) assert.ok(!explanation.includes(particle.detail));
+            assert.equal(explanation, `${turnOff ? 'turned…off 是同一谓语；turn off－关掉。the light' : 'should give…up 是同一谓语；give up－放弃。it'} 是宾语。${expectedDetail}`);
             assert.equal(await page.locator('[aria-pressed="true"].english').count(), 1);
             assert.equal(await page.locator('.modifier-target').count(), 0);
             await phraseButton(word).click();
@@ -268,6 +277,7 @@ async function main() {
           checks++;
         }
       }
+     }
     }
 
     await page.unroute('**/api/analyze');

@@ -212,7 +212,8 @@ function render() {
           if (predicateParts.length > 1) {
             const lastIndex = sentence.segments.lastIndexOf(predicateParts.at(-1));
             const objects = sentence.segments.slice(headIndex + 1, lastIndex).filter(part => part.role === 'object');
-            detail.textContent = `${predicateParts.map(part => part.text.trim()).join('…')} 是同一谓语；${head.lemma}－${head.translation}。${objects.map(part => `${part.text} 是宾语。`).join('')}${predicateParts.map(part => part.detail).filter(Boolean).join(' ')}`;
+            const predicateDetail = head.detail?.trim() ? head.detail : predicateParts.find(part => part.detail?.trim())?.detail || '';
+            detail.textContent = `${predicateParts.map(part => part.text.trim()).join('…')} 是同一谓语；${head.lemma}－${head.translation}。${objects.map(part => `${part.text} 是宾语。`).join('')}${predicateDetail}`;
           }
           const target = Number.isInteger(segment.modifies) ? sentence.segments[segment.modifies] : null;
           if (!target) return;
