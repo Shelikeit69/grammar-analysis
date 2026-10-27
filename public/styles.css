@@ -795,12 +795,27 @@ html.large-text .masthead,html.large-text main,html.large-text footer {
   }
 }
 
-#feedback-dialog { width: min(680px, calc(100vw - 32px)); max-height: 90vh; box-sizing: border-box; overflow: auto; border: 1px solid #aaa; border-radius: 12px; padding: 24px; }
+#feedback-dialog { width: min(680px, calc(100vw - 32px)); max-height: 90vh; max-height: 90dvh; box-sizing: border-box; overflow: hidden; border: 1px solid #aaa; border-radius: 12px; padding: 0; }
+#feedback-dialog[open] { display: flex; flex-direction: column; }
 #feedback-dialog::backdrop { background: #0007; }
-#feedback-dialog > label { display: block; margin: 12px 0 6px; }
-#feedback-title, #feedback-body { width: 100%; box-sizing: border-box; font: inherit; }
-#feedback-body { resize: vertical; }
-.feedback-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+.feedback-content { overflow-y: auto; min-height: 0; padding: 20px; }
+.feedback-content > label { display: block; margin: 12px 0 6px; }
+#feedback-description, #feedback-expected, #feedback-body { width: 100%; box-sizing: border-box; font: inherit; border: 1px solid #bbb; border-radius: 6px; padding: 10px; background: #fff; }
+#feedback-description, #feedback-body { resize: vertical; }
+#feedback-sentence, #feedback-title { overflow-wrap: anywhere; }
+#feedback-types { border: 0; padding: 0; margin: 14px 0; }
+#feedback-types label { display: inline-block; position: relative; margin: 4px 2px; cursor: pointer; }
+#feedback-types input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+#feedback-types span { display: inline-block; border: 1px solid #999; border-radius: 999px; padding: 6px 10px; }
+#feedback-types input:checked + span { background: var(--predicate); color: #fff; border-color: var(--predicate); }
+#feedback-types input:focus-visible + span { outline: 2px solid var(--predicate); outline-offset: 3px; }
+#feedback-details { margin-top: 16px; }
+.feedback-footer { position: sticky; bottom: 0; flex-shrink: 0; background: #fff; border-top: 1px solid #ddd; padding: 12px 20px; font-size: 13px; }
+.feedback-footer p { margin: 6px 0; }
+.feedback-hint { color: #555; font-size: 12px; }
+.feedback-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+#feedback-open { background: var(--predicate); color: #fff; margin-left: auto; }
+#feedback-open:disabled { opacity: .45; }
 .report-button {
   display:inline-block;
   font:inherit;

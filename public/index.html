@@ -51,13 +51,32 @@
   </main>
   <footer><span>句间 / 让英文清晰一点</span><span>开源语法笔记 · 不保存分析记录</span></footer>
 <dialog id="feedback-dialog" aria-labelledby="feedback-heading" aria-describedby="feedback-privacy">
-  <h2 id="feedback-heading">预览并编辑问题反馈</h2>
-  <p id="feedback-privacy">请检查并删除个人或敏感信息，无需填写姓名或邮箱。打开预填链接就会把标题和正文发送给 GitHub；最终提交需要 GitHub 账号，提交后内容会公开。你将在 GitHub 页面最后确认提交。</p>
-  <label for="feedback-title">标题</label><input id="feedback-title" type="text">
-  <label for="feedback-body">完整正文（可修改；不要求提供正确答案）</label><textarea id="feedback-body" rows="14" spellcheck="false"></textarea>
-  <p id="feedback-message" role="status"></p>
-  <label><input id="feedback-consent" type="checkbox">我已检查内容，同意打开链接把预览内容送往 GitHub，并了解最终提交后公开。</label>
-  <div class="feedback-actions"><button id="feedback-copy" type="button">复制完整正文</button><button id="feedback-cancel" type="button">取消</button><button id="feedback-open" type="button" disabled>打开 GitHub 预填页面</button></div>
+  <div class="feedback-content">
+    <h2 id="feedback-heading">这句哪里不对？</h2>
+    <p id="feedback-sentence"></p>
+    <fieldset id="feedback-types"><legend>问题类型（可多选）</legend>
+      <label><input type="checkbox" value="成分标错了"><span>成分标错了</span></label>
+      <label><input type="checkbox" value="中文意思不对"><span>中文意思不对</span></label>
+      <label><input type="checkbox" value="时态不对"><span>时态不对</span></label>
+      <label><input type="checkbox" value="显示或排版有问题"><span>显示或排版有问题</span></label>
+      <label><input type="checkbox" value="其他"><span>其他</span></label>
+    </fieldset>
+    <label for="feedback-description">具体说说（选填）</label>
+    <textarea id="feedback-description" rows="3" placeholder="例如：off 应该和 turned 算一个谓语"></textarea>
+    <label for="feedback-expected">正确的应该是？（选填，不确定可以不填）</label>
+    <input id="feedback-expected" type="text">
+    <details id="feedback-details"><summary>查看会发送的完整内容</summary>
+      <p id="feedback-title"></p><textarea id="feedback-body" rows="8" readonly aria-label="将发送的正文" spellcheck="false"></textarea>
+    </details>
+  </div>
+  <div class="feedback-footer">
+    <p id="feedback-privacy">提交后会公开在 GitHub 上，请不要写姓名、联系方式等个人信息。需要 GitHub 账号。</p>
+    <label><input id="feedback-consent" type="checkbox">我知道内容会公开</label>
+    <p class="feedback-hint">打开链接会将预览内容带到 GitHub，请先检查。</p>
+    <p id="feedback-message" role="status"></p>
+    <div class="feedback-actions"><button id="feedback-copy" type="button" hidden>复制完整正文</button><button id="feedback-cancel" type="button">取消</button><button id="feedback-open" type="button" disabled>去 GitHub 提交 →</button></div>
+    <p id="feedback-next" class="feedback-hint">会在新标签页打开 GitHub，内容已填好，在那边点 Create 完成提交。</p>
+  </div>
 </dialog>
 </body>
 </html>
