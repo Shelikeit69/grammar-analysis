@@ -253,7 +253,7 @@ async function main() {
           assert.deepEqual(await page.locator('.role-predicate .english').allTextContents(), turnOff ? ['turned', 'off'] : ['should give', 'up']);
           assert.deepEqual(await page.locator('.role-object .english').allTextContents(), [turnOff ? 'the light' : 'it']);
           assert.match(await page.locator('.role-predicate .label').first().innerText(), turnOff ? /谓语：turn off－关掉/ : /谓语：give up－放弃/);
-          assert.equal(await page.locator('.role-predicate .label').last().innerText(), turnOff ? '谓语组成部分：与 turned 构成 turn off' : '谓语组成部分：与 give 构成 give up');
+          assert.equal(await page.locator('.role-predicate .label').last().innerText(), turnOff ? '谓语组成部分：与 turn 构成 turn off' : '谓语组成部分：与 give 构成 give up');
           for (const word of turnOff ? ['turned', 'off'] : ['should give', 'up']) {
             await phraseButton(word).click();
             const explanation = await page.locator('.phrase-detail').innerText();

@@ -184,7 +184,7 @@ function render() {
         const predicateParts = sentence.segments.filter((part, index) => index === headIndex || part.predicateOf === headIndex);
         const isPredicatePart = headIndex !== segmentIndex;
         const labelText = isPredicatePart
-          ? `谓语组成部分：与 ${head.text.trim().split(/\s+/u).at(-1)} 构成 ${head.lemma}`
+          ? `谓语组成部分：与 ${head.lemma.trim().split(/\s+/u)[0]} 构成 ${head.lemma}`
           : `${roles[segment.role] || '其他'}：${meaning}`;
         english.setAttribute('aria-label', `${segment.text}，${labelText}，查看说明`);
         const placement = segment.role === 'predicative' || (segment.role !== 'linking' && annotatedIndex % 2 === 1) ? 'bottom' : 'top';
