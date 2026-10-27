@@ -52,10 +52,11 @@
 
 - 刚出来的结果只框出句子的主干。想看定语、状语这些修饰部分，勾选右上角的「显示详细结构」。
 - 点任意一个彩色框，下方会出现更详细的解释。点定语、状语这类修饰成分时，它修饰的那个词会同时加粗高亮，说明里多一句「修饰：……」；再点一次或点别的框就取消。AI 拿不准修饰对象时会不标，这时只显示说明、没有高亮。
-- 框旁边写的是这个词的原形。比如原句是 `felt`，框外会写「系动词：feel－感到」，方便你查词典。`can shop for` 这样的多个词会合成一个谓语框，不会拆开。
+- 框旁边写的是这个词的原形。比如原句是 `felt`，框外会写「系动词：feel－感到」，方便你查词典。`can shop for` 这样连在一起的几个词会合成一个谓语框。如果短语动词中间插了宾语，比如 `give it up`，会按原文顺序分成 give 和 up 两个红框，点哪个都会解释 give up。
 - 黄框里的「判断依据」会写明是看哪个动词形式、哪个时间词判断出的时态。一句话里有并列分句或时态不同的从句时，黄框用「；」按顺序分开写，相同的时态只写一次。
 - 一段话里有好几句时，最下面可以展开「查看整段翻译」。
 - 字太小就点右上角的「大字」，整页放大，再点一次恢复。这台设备会记住你的选择。
+- 觉得哪里标错了，点这句下面的「这句分析有问题？」。勾一下问题类型，愿意的话写一两句，再点「去 GitHub 提交 →」。GitHub 会在新页面打开，内容已经填好，你点 Create 就提交了。不知道正确答案也没关系。需要 GitHub 账号，提交后会公开。
 
 ## 常见问题
 
@@ -78,7 +79,7 @@
 先检查网络。如果网络正常仍然出现，可以在 GitHub 上提一个 Issue 告诉我。
 
 **这个工具会保存我输入的句子吗？**
-平常分析时，应用不保存输入或分析历史，英文会发给 DeepSeek。主动反馈是例外：请先在本页检查、编辑并确认，打开预填链接就会把确认的内容带到 GitHub；由你最终提交的公开 Issue 会持久保存。
+平常分析时不会，英文只发给 DeepSeek。反馈是例外：你点「去 GitHub 提交 →」，原句、这句的分析结果和你写的说明会带到 GitHub；你在那边点了 Create，它就成了公开的 Issue，会一直留着。所以原句里有个人信息的话，先别提交反馈。
 
 ## 密钥与隐私：这个网页会拿你的密钥做什么
 
@@ -103,14 +104,14 @@
 
 项目刚起步，AI 时不时会判错，我也还在摸索怎么让它稳一点。想帮忙的话，下面这些最有用：
 
-- 提交判错的句子：在 GitHub 开一个 Issue，贴上原句、你看到的结果和哪里不对；正确答案选填，不确定可留空。
+- 提交判错的句子：最方便的是点结果下面的「这句分析有问题？」，原句和分析结果会自动带上。也可以直接在 GitHub 开 Issue，贴上原句、你看到的结果和哪里不对。正确答案可以不写。
 - 测试不同的句型、时态和模型，告诉我哪里不稳定。
 - 改提示词、改排版、补测试，直接提 PR。
 - 教英语或学英语的人提意见：哪些标注对初学者有用，哪些看不懂。
 
 代码用 MIT 许可证开源，可以随便用、随便改。
 
-**English summary.** This is a free, open-source (MIT) experiment that draws colored grammar boxes, Chinese glosses and a tense note over English sentences. It runs entirely in your browser. You paste your own DeepSeek API key, and the page sends it only to `api.deepseek.com` (enforced by a Content-Security-Policy; there are no analytics, ads or third-party scripts). The key is kept in memory unless you tick "remember", and you can clear it any time. Normal analysis history is not stored by this app. Opening a confirmed feedback link sends the edited content to GitHub; Issues you choose to submit are public and persist. Your sentences go to DeepSeek and are handled under its policy. The AI sometimes labels things wrongly, so bug reports with example sentences are the most useful contribution.
+**English summary.** This is a free, open-source (MIT) experiment that draws colored grammar boxes, Chinese glosses and a tense note over English sentences. It runs entirely in your browser. You paste your own DeepSeek API key, and the page sends it only to `api.deepseek.com` (enforced by a Content-Security-Policy; there are no analytics, ads or third-party scripts). The key is kept in memory unless you tick "remember", and you can clear it any time. Normal analysis history is not stored by this app. The "这句分析有问题？" button opens a prefilled GitHub issue with the sentence, its analysis and your note; nothing is sent until you confirm, and issues you submit are public. Your sentences go to DeepSeek and are handled under its policy. The AI sometimes labels things wrongly, so bug reports with example sentences are the most useful contribution.
 
 ---
 
