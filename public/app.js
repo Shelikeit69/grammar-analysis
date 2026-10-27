@@ -179,7 +179,13 @@ function render() {
         english.type = 'button';
         english.setAttribute('aria-pressed', 'false');
         const meaning = segment.lemma ? `${segment.lemma}－${segment.translation}` : segment.translation;
-        const labelText = `${roles[segment.role] || '其他'}：${meaning}`;
+        const headIndex = Number.isInteger(segment.predicateOf) ? segment.predicateOf : segmentIndex;
+        const head = sentence.segments[headIndex];
+        const predicateParts = sentence.segments.filter((part, index) => index === headIndex || part.predicateOf === headIndex);
+        const isPredicatePart = headIndex !== segmentIndex;
+        const labelText = isPredicatePart
+          ? `谓语组成部分：与 ${head.text.trim().split(/\s+/u).at(-1)} 构成 ${head.lemma}`
+          : `${roles[segment.role] || '其他'}：${meaning}`;
         english.setAttribute('aria-label', `${segment.text}，${labelText}，查看说明`);
         const placement = segment.role === 'predicative' || (segment.role !== 'linking' && annotatedIndex % 2 === 1) ? 'bottom' : 'top';
         const annotation = element('span', `annotation ${placement}`);
@@ -202,6 +208,11 @@ function render() {
           detail.hidden = wasSelected;
           if (wasSelected) return;
           detail.textContent = `${segment.text} · ${labelText}${segment.detail ? `。${segment.detail}` : ''}`;
+          if (predicateParts.length > 1) {
+            const lastIndex = sentence.segments.lastIndexOf(predicateParts.at(-1));
+            const objects = sentence.segments.slice(headIndex + 1, lastIndex).filter(part => part.role === 'object');
+            detail.textContent = `${predicateParts.map(part => part.text.trim()).join('…')} 是同一谓语；${head.lemma}－${head.translation}。${objects.map(part => `${part.text} 是宾语。`).join('')}${predicateParts.map(part => part.detail).filter(Boolean).join(' ')}`;
+          }
           const target = Number.isInteger(segment.modifies) ? sentence.segments[segment.modifies] : null;
           if (!target) return;
           detail.append(element('span', 'modifies-note', `修饰：${target.text}`));

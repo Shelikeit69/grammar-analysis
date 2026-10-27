@@ -235,6 +235,46 @@ async function main() {
     await page.waitForFunction(() => !document.querySelector('#results').hidden &&
       document.querySelector('.role-subject .english')?.textContent.startsWith('The extraordinarily'));
 
+
+    // Mocked provider output exercises both separated predicates, preserving order and selection.
+    const { separated } = await import('../tests/fixtures/predicate.mjs');
+    for (const turnOff of [false, true]) {
+      const fixture = separated(turnOff);
+      await page.unroute('**/api/analyze');
+      await page.route('**/api/analyze', route => route.fulfill({json: fixture}));
+      await page.locator('#english-input').fill(fixture.sentences[0].text);
+      await page.locator('#analyze-button').click();
+      await page.waitForFunction(text => !document.querySelector('#results').hidden && [...document.querySelectorAll('.english')].map(n => n.textContent).join('') === text, fixture.sentences[0].text);
+      for (const width of [1280, 390]) {
+        await page.setViewportSize({width, height: 900});
+        for (const detailed of [false, true]) {
+          await page.locator('#detail-toggle').setChecked(detailed);
+          assert.equal(await originalText(), fixture.sentences[0].text);
+          assert.deepEqual(await page.locator('.role-predicate .english').allTextContents(), turnOff ? ['turned', 'off'] : ['should give', 'up']);
+          assert.deepEqual(await page.locator('.role-object .english').allTextContents(), [turnOff ? 'the light' : 'it']);
+          assert.match(await page.locator('.role-predicate .label').first().innerText(), turnOff ? /谓语：turn off－关掉/ : /谓语：give up－放弃/);
+          assert.equal(await page.locator('.role-predicate .label').last().innerText(), turnOff ? '谓语组成部分：与 turned 构成 turn off' : '谓语组成部分：与 give 构成 give up');
+          for (const word of turnOff ? ['turned', 'off'] : ['should give', 'up']) {
+            await phraseButton(word).click();
+            const explanation = await page.locator('.phrase-detail').innerText();
+            assert.match(explanation, turnOff ? /turned…off 是同一谓语/ : /should give…up 是同一谓语/);
+            assert.match(explanation, turnOff ? /the light 是宾语/ : /it 是宾语/);
+            if (!turnOff) assert.match(explanation, /should 表示应该/);
+            assert.equal(await page.locator('[aria-pressed="true"].english').count(), 1);
+            assert.equal(await page.locator('.modifier-target').count(), 0);
+            await phraseButton(word).click();
+          }
+          await checkLayout();
+          checks++;
+        }
+      }
+    }
+
+    await page.unroute('**/api/analyze');
+    await page.route('**/api/analyze', route => route.fulfill({json: longResult}));
+    await page.locator('#english-input').fill(longResult.sentences[0].text);
+    await page.locator('#analyze-button').click();
+    await page.waitForFunction(() => !document.querySelector('#results').hidden && document.querySelector('.role-subject .english')?.textContent.startsWith('The extraordinarily'));
     // A wrapped phrase next to a short word must keep the same first-line baseline.
     const baseline = await page.evaluate(() => {
       const line = document.querySelector('.annotation-line');
