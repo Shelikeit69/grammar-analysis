@@ -7,7 +7,7 @@ const path = require('node:path');
 
 async function main() {
   const {demoAnalysis, demoText} = await import('../public/demo.js');
-  const allowed = new Set(['index.html','styles.css','app.js','demo.js','analysis.js','deepseek.js','server-client.js']);
+  const allowed = new Set(['index.html','styles.css','app.js','demo.js','analysis.js','deepseek.js','server-client.js','feedback.js','version.js']);
   const server = http.createServer(async (req, res) => {
     const name = req.url === '/grammar-analysis/' ? 'index.html' : req.url.replace('/grammar-analysis/', '');
     if (!allowed.has(name)) { res.writeHead(404); res.end(); return; }

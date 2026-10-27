@@ -794,3 +794,11 @@ html.large-text .masthead,html.large-text main,html.large-text footer {
     display:none
   }
 }
+
+#feedback-dialog { width: min(680px, calc(100vw - 32px)); max-height: 90vh; box-sizing: border-box; overflow: auto; border: 1px solid #aaa; border-radius: 12px; padding: 24px; }
+#feedback-dialog::backdrop { background: #0007; }
+#feedback-dialog > label { display: block; margin: 12px 0 6px; }
+#feedback-title, #feedback-body { width: 100%; box-sizing: border-box; font: inherit; }
+#feedback-body { resize: vertical; }
+.feedback-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+.report-sentence { margin-top: 12px; }

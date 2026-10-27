@@ -1,3 +1,5 @@
+import {createFeedback, issueLink} from './feedback.js';
+import {TOOL_VERSION} from './version.js';
 import {demoText, demoAnalysis} from './demo.js';
 import {analyzeWithDeepSeek, ProviderError, DEFAULT_MODEL} from './deepseek.js';
 import {readAnalysisResponse} from './server-client.js';
@@ -8,6 +10,11 @@ const status = $('status');
 const analyzeButton = $('analyze-button');
 const roles = {subject:'主语',predicate:'谓语',linking:'系动词',object:'宾语',predicative:'表语',complement:'补语',adverbial:'状语',attribute:'定语',other:'其他'};
 let current = null;
+let resultModel = null;
+let serverModel = null;
+let failureSnapshot = null;
+let feedbackTrigger = null;
+let feedbackSession = 0;
 let controller = null;
 let generation = 0;
 let pasteTimer;
@@ -117,6 +124,9 @@ function setStatus(message, error = false) {
   status.classList.toggle('error', error);
 }
 function cancelPending() {
+  closeFeedback();
+  failureSnapshot = null;
+  $('report-failure').hidden = true;
   clearTimeout(pasteTimer);
   generation += 1;
   controller?.abort();
@@ -214,6 +224,10 @@ function render() {
     const translation = element('div', 'translation-row');
     translation.append(element('span', 'translation-label', '整句翻译'), element('p', 'translation-text', sentence.translation));
     card.append(translation);
+    const report = element('button', 'text-button report-sentence', '这句分析有问题');
+    report.type = 'button';
+    report.addEventListener('click', () => openFeedback({sentence, model:resultModel}, report));
+    card.append(report);
     list.append(card);
   });
   $('paragraph-translation').hidden = current.sentences.length < 2;
@@ -226,6 +240,7 @@ function showExample() {
   input.value = demoText;
   countWords();
   current = demoAnalysis;
+  resultModel = '内置示例（未调用模型）';
   $('result-badge').textContent = '内置示例';
   $('paragraph-translation').open = false;
   setStatus('这是预置示例，未调用 AI。粘贴你自己的英文即可开始分析。');
@@ -240,6 +255,7 @@ async function analyze() {
   if (!text.trim()) { setStatus('先输入一句英文吧。', true); input.focus(); return; }
   if (countWords() > 300 || text.length > 6000) { setStatus('请缩短到 300 词、6000 字符以内。', true); return; }
   if (mode === 'browser' && !settings.apiKey) { setStatus('请先在下方填写你的 DeepSeek 密钥。', true); $('key-panel').open = true; $('key-input').focus(); return; }
+  const requestModel = mode === 'browser' ? settings.model || DEFAULT_MODEL : serverModel;
   const requestGeneration = generation;
   controller = new AbortController();
   const requestController = controller;
@@ -263,6 +279,7 @@ async function analyze() {
     }
     if (!Array.isArray(result.sentences) || !result.sentences.length) throw new Error('分析结果不完整，请重试。');
     current = result;
+    resultModel = requestModel;
     $('result-badge').textContent = 'DeepSeek 分析';
     analyzedOnce = true;
     updateSteps();
@@ -273,8 +290,18 @@ async function analyze() {
     if (requestGeneration !== generation) return;
     current = null;
     $('results').hidden = true;
-    if (mode === 'browser') setStatus(browserError(error), true);
-    else setStatus(error.name === 'AbortError' ? '分析超时，请稍后重试。' : error instanceof TypeError || error instanceof SyntaxError ? '无法连接分析服务，请确认本地服务正在运行。' : error.message, true);
+    const safeServerMessages = new Set([
+      '尚未配置 DeepSeek API Key。请设置 Codespaces Secret 后重启 Codespace，或在本机 .env 中配置后重启服务。',
+      '正在分析，请稍后重试。', '分析暂时失败，请稍后重试。', '分析失败，请稍后重试。',
+      '分析结果不完整，请重试。', '分析结果格式不正确，请重试。', '分析结果过长，请缩短原文后重试。',
+    ]);
+    const displayError = mode === 'browser' ? browserError(error)
+      : error.name === 'AbortError' ? '分析超时，请稍后重试。'
+      : error instanceof TypeError || error instanceof SyntaxError ? '无法连接分析服务，请确认本地服务正在运行。'
+      : safeServerMessages.has(error.message) ? error.message : '分析服务未能返回有效结果，请重试。';
+    setStatus(displayError, true);
+    failureSnapshot = {text, model:requestModel, error:displayError};
+    $('report-failure').hidden = false;
   } finally {
     clearTimeout(timeout);
     if (requestGeneration === generation) {
@@ -284,6 +311,61 @@ async function analyze() {
     }
   }
 }
+
+
+function closeFeedback() {
+  feedbackSession += 1;
+  const dialog = $('feedback-dialog');
+  if (dialog.open) dialog.close();
+  $('feedback-title').value = '';
+  $('feedback-body').value = '';
+  $('feedback-consent').checked = false;
+  $('feedback-open').disabled = true;
+  $('feedback-message').textContent = '';
+}
+function updateFeedbackLink() {
+  $('feedback-consent').checked = false;
+  $('feedback-open').disabled = true;
+  const link = issueLink($('feedback-title').value, $('feedback-body').value);
+  $('feedback-open').textContent = link.long ? '打开 GitHub，手动粘贴正文' : '打开 GitHub 预填页面';
+  $('feedback-message').textContent = link.long ? '内容较长，链接不会附带标题和正文。请先复制完整正文，再到 GitHub 粘贴；标题也需填写。' : '';
+}
+function openFeedback(snapshot, trigger) {
+  feedbackSession += 1;
+  const draft = createFeedback({...snapshot, version:TOOL_VERSION});
+  feedbackTrigger = trigger;
+  $('feedback-title').value = draft.title;
+  $('feedback-body').value = draft.body;
+  $('feedback-consent').checked = false;
+  $('feedback-open').disabled = true;
+  updateFeedbackLink();
+  $('feedback-dialog').showModal();
+  $('feedback-title').focus();
+}
+$('report-failure').addEventListener('click', () => {if (failureSnapshot) openFeedback(failureSnapshot, $('report-failure'));});
+$('feedback-cancel').addEventListener('click', closeFeedback);
+$('feedback-dialog').addEventListener('cancel', event => {event.preventDefault(); closeFeedback();});
+$('feedback-dialog').addEventListener('close', () => {if (feedbackTrigger?.isConnected) feedbackTrigger.focus(); feedbackTrigger = null;});
+$('feedback-consent').addEventListener('change', () => {$('feedback-open').disabled = !$('feedback-consent').checked;});
+$('feedback-body').addEventListener('input', updateFeedbackLink);
+$('feedback-title').addEventListener('input', updateFeedbackLink);
+$('feedback-copy').addEventListener('click', async () => {
+  const body = $('feedback-body').value;
+  const session = feedbackSession;
+  try {
+    await navigator.clipboard.writeText(body);
+    if (session === feedbackSession && $('feedback-dialog').open && $('feedback-body').value === body) $('feedback-message').textContent = '已复制完整正文。剪贴板会保留内容，请按需清除。';
+  } catch {
+    if (session !== feedbackSession || !$('feedback-dialog').open || $('feedback-body').value !== body) return;
+    $('feedback-body').focus(); $('feedback-body').select();
+    $('feedback-message').textContent = '自动复制失败，正文已全选，请手动复制（Ctrl/Cmd+C 或手机长按复制）。';
+  }
+});
+$('feedback-open').addEventListener('click', () => {
+  if (!$('feedback-consent').checked) return;
+  const link = issueLink($('feedback-title').value, $('feedback-body').value);
+  window.open(link.url, '_blank', 'noopener,noreferrer');
+});
 
 input.addEventListener('input', invalidate);
 input.addEventListener('compositionstart', () => {composing = true;});
@@ -304,5 +386,6 @@ $('key-input').addEventListener('keydown', (event) => {if (event.key === 'Enter'
 // A local/Codespaces server answers /api/status with JSON; static hosting does not.
 fetch('./api/status', {signal: AbortSignal.timeout(8000)}).then((response) => {if (!response.ok) throw new Error(); return response.json();}).then((data) => {
   mode = 'server';
+  serverModel = typeof data.model === 'string' && data.model.trim() ? data.model : null;
   $('connection-status').textContent = data.configured ? 'DeepSeek 已配置' : '示例可直接查看 · 分析需配置密钥';
 }).catch(enableBrowserMode);

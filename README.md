@@ -78,7 +78,7 @@
 先检查网络。如果网络正常仍然出现，可以在 GitHub 上提一个 Issue 告诉我。
 
 **这个工具会保存我输入的句子吗？**
-不会。网页版没有后端也没有数据库，句子只发给 DeepSeek。
+平常分析时，应用不保存输入或分析历史，英文会发给 DeepSeek。主动反馈是例外：请先在本页检查、编辑并确认，打开预填链接就会把确认的内容带到 GitHub；由你最终提交的公开 Issue 会持久保存。
 
 ## 密钥与隐私：这个网页会拿你的密钥做什么
 
@@ -103,14 +103,14 @@
 
 项目刚起步，AI 时不时会判错，我也还在摸索怎么让它稳一点。想帮忙的话，下面这些最有用：
 
-- 提交判错的句子：在 GitHub 开一个 Issue，贴上原句、你看到的结果和你认为正确的答案。
+- 提交判错的句子：在 GitHub 开一个 Issue，贴上原句、你看到的结果和哪里不对；正确答案选填，不确定可留空。
 - 测试不同的句型、时态和模型，告诉我哪里不稳定。
 - 改提示词、改排版、补测试，直接提 PR。
 - 教英语或学英语的人提意见：哪些标注对初学者有用，哪些看不懂。
 
 代码用 MIT 许可证开源，可以随便用、随便改。
 
-**English summary.** This is a free, open-source (MIT) experiment that draws colored grammar boxes, Chinese glosses and a tense note over English sentences. It runs entirely in your browser. You paste your own DeepSeek API key, and the page sends it only to `api.deepseek.com` (enforced by a Content-Security-Policy; there are no analytics, ads or third-party scripts). The key is kept in memory unless you tick "remember", and you can clear it any time. There is no backend and nothing is stored on a server. Your sentences go to DeepSeek and are handled under its policy. The AI sometimes labels things wrongly, so bug reports with example sentences are the most useful contribution.
+**English summary.** This is a free, open-source (MIT) experiment that draws colored grammar boxes, Chinese glosses and a tense note over English sentences. It runs entirely in your browser. You paste your own DeepSeek API key, and the page sends it only to `api.deepseek.com` (enforced by a Content-Security-Policy; there are no analytics, ads or third-party scripts). The key is kept in memory unless you tick "remember", and you can clear it any time. Normal analysis history is not stored by this app. Opening a confirmed feedback link sends the edited content to GitHub; Issues you choose to submit are public and persist. Your sentences go to DeepSeek and are handled under its policy. The AI sometimes labels things wrongly, so bug reports with example sentences are the most useful contribution.
 
 ---
 
@@ -164,7 +164,7 @@ npm start
 
 默认模型为 `deepseek-flash`，本地可用 `DEEPSEEK_MODEL` 修改，网页版在页面上的「模型名称」修改。接入依据：[官方 API 文档](https://api-docs.deepseek.com/)和 [JSON 输出说明](https://api-docs.deepseek.com/guides/json_mode/)。
 
-真实分析会把输入的英文发给 DeepSeek，并按密钥所属账户计费；内置例句不会发送请求。应用不保存输入或分析历史。
+真实分析会把输入的英文发给 DeepSeek，并按密钥所属账户计费；内置例句不会发送请求。应用不保存正常分析的输入或历史；主动提交到 GitHub 的公开反馈会持久保存。
 
 ### 校验与限制
 
@@ -207,6 +207,12 @@ npm run test:browser
 它同样使用模拟响应，覆盖原文保留、批注引线、手机宽度布局、换行间距、详情切换、修饰对象高亮（点击、再点取消、回车键、390px 无横向滚动）、粘贴、清空和多句翻译；也覆盖静态 Pages 下的密钥设置、存储失败、一次格式修正及取消。设置 `BROWSER_CHANNEL=msedge` 可改用本机 Edge，或用 `BROWSER_EXECUTABLE` 指定浏览器可执行文件。
 
 后续顺序见[待办与路线图](docs/roadmap.md)，人工检查用的句子见[语法回归样例](docs/regression-cases.md)。模拟响应测试不代表真实模型已经通过这些语法样例。
+
+## 分析问题反馈（当前分支实现，待审核）
+
+每句结果及请求失败提示旁都有反馈入口。本页可编辑原句、单句结果、实际请求模型与版本；失败反馈包含安全提示。请删除姓名、联系方式等个人信息，勾选确认后再打开 GitHub，由你最终提交。不会自动提交 Issue，也不会附带设置、密钥、请求头或原始提供方响应。
+
+预填链接超过 6000 字符时不会截断正文：请复制完整正文，在 GitHub 填写标题并粘贴；自动复制失败会全选正文供手动复制。剪贴板可能保留内容，需要时请自行清除。反馈草稿不保存到浏览器存储，关闭预览或更换输入会清除草稿。
 
 ## 许可证
 

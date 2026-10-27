@@ -10,6 +10,8 @@ const assets = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/index.html', ['index.html', 'text/html; charset=utf-8']],
   ['/styles.css', ['styles.css', 'text/css; charset=utf-8']],
+  ['/feedback.js', ['feedback.js', 'text/javascript; charset=utf-8']],
+  ['/version.js', ['version.js', 'text/javascript; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
   ['/demo.js', ['demo.js', 'text/javascript; charset=utf-8']],
   ['/analysis.js', ['analysis.js', 'text/javascript; charset=utf-8']],
@@ -42,7 +44,7 @@ export function createApp({
       return;
     }
     if (req.method === 'GET' && req.url === '/api/status') {
-      send(200, { configured: !!apiKey?.trim() });
+      send(200, { configured: !!apiKey?.trim(), model });
       return;
     }
 

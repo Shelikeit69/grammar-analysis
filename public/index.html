@@ -39,6 +39,7 @@
         <p class="key-note">没有密钥？在 <a href="https://platform.deepseek.com/" target="_blank" rel="noopener noreferrer">DeepSeek 开放平台</a> 创建。不填密钥也可以查看例句。</p>
       </div>
     </details>
+    <button id="report-failure" class="text-button" type="button" hidden>报告分析问题</button>
     <p id="status" class="status" role="status" aria-live="polite"></p>
     <section id="results" aria-labelledby="results-title" hidden>
       <div class="results-heading"><div><span class="eyebrow">A CLOSER LOOK</span><h2 id="results-title">句子里的脉络 <span id="result-badge" class="badge">内置示例</span></h2></div><label class="detail-toggle"><input type="checkbox" id="detail-toggle">显示详细结构</label></div>
@@ -49,5 +50,14 @@
     </section>
   </main>
   <footer><span>句间 / 让英文清晰一点</span><span>开源语法笔记 · 不保存分析记录</span></footer>
+<dialog id="feedback-dialog" aria-labelledby="feedback-heading" aria-describedby="feedback-privacy">
+  <h2 id="feedback-heading">预览并编辑问题反馈</h2>
+  <p id="feedback-privacy">请检查并删除个人或敏感信息，无需填写姓名或邮箱。打开预填链接就会把标题和正文发送给 GitHub；最终提交需要 GitHub 账号，提交后内容会公开。你将在 GitHub 页面最后确认提交。</p>
+  <label for="feedback-title">标题</label><input id="feedback-title" type="text">
+  <label for="feedback-body">完整正文（可修改；不要求提供正确答案）</label><textarea id="feedback-body" rows="14" spellcheck="false"></textarea>
+  <p id="feedback-message" role="status"></p>
+  <label><input id="feedback-consent" type="checkbox">我已检查内容，同意打开链接把预览内容送往 GitHub，并了解最终提交后公开。</label>
+  <div class="feedback-actions"><button id="feedback-copy" type="button">复制完整正文</button><button id="feedback-cancel" type="button">取消</button><button id="feedback-open" type="button" disabled>打开 GitHub 预填页面</button></div>
+</dialog>
 </body>
 </html>

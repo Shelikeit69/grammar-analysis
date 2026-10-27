@@ -3,10 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.9.0" },
+  "engines": {
+    "node": ">=22.9.0"
+  },
   "scripts": {
     "start": "node --env-file-if-exists=.env server.mjs",
     "test": "node --test",
-    "test:browser": "node scripts/browser-check.cjs && node scripts/browser-pages-check.cjs"
+    "test:browser": "node scripts/browser-check.cjs && node scripts/browser-pages-check.cjs && node scripts/browser-feedback-check.cjs"
   }
 }

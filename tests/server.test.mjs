@@ -20,7 +20,7 @@ function post(base, body, headers = { 'Content-Type': 'application/json' }) {
 }
 
 test('status, missing key, malformed input and origin protections', () => withServer(async base => {
-  assert.deepEqual(await (await fetch(base + '/api/status')).json(), { configured: false });
+  assert.deepEqual(await (await fetch(base + '/api/status')).json(), { configured: false, model: 'deepseek-flash' });
   for (const [headers, status] of [
     [{ Origin: 'https://evil.test' }, 403],
     [{ 'Content-Type': 'text/plain' }, 415],
@@ -29,6 +29,11 @@ test('status, missing key, malformed input and origin protections', () => withSe
   }
   assert.equal((await post(base, JSON.stringify({ text: 'Hello.' }))).status, 503);
   assert.equal((await post(base, '{')).status, 400);
+  for (const asset of ['/feedback.js', '/version.js']) {
+    const response = await fetch(base + asset);
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get('content-type'), /javascript/);
+  }
   for (const path of ['/.env', '/server.mjs', '/lib/analysis.mjs', '/%2e%2e/.env']) {
     assert.equal((await fetch(base + path)).status, 404);
   }
