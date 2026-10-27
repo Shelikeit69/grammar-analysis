@@ -235,7 +235,7 @@ function render() {
     const translation = element('div', 'translation-row');
     translation.append(element('span', 'translation-label', '整句翻译'), element('p', 'translation-text', sentence.translation));
     card.append(translation);
-    const report = element('button', 'text-button report-sentence', '这句分析有问题');
+    const report = element('button', 'report-button report-sentence', '这句分析有问题？');
     report.type = 'button';
     report.addEventListener('click', () => openFeedback({sentence, model:resultModel}, report));
     card.append(report);

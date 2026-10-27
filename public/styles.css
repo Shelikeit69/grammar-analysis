@@ -801,4 +801,20 @@ html.large-text .masthead,html.large-text main,html.large-text footer {
 #feedback-title, #feedback-body { width: 100%; box-sizing: border-box; font: inherit; }
 #feedback-body { resize: vertical; }
 .feedback-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
-.report-sentence { margin-top: 12px; }
+.report-button {
+  display:inline-block;
+  font:inherit;
+  font-size:14px;
+  font-weight:700;
+  color:var(--predicate);
+  background:#fff;
+  border:1.5px solid var(--predicate);
+  border-radius:999px;
+  padding:6px 14px;
+  cursor:pointer
+}
+.report-button:hover,.report-button:focus-visible {
+  background:var(--predicate);
+  color:#fff
+}
+.report-sentence { margin: 0 23px 20px; }
