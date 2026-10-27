@@ -15,6 +15,7 @@ let serverModel = null;
 let failureSnapshot = null;
 let feedbackTrigger = null;
 let feedbackSession = 0;
+let feedbackSnapshot = null;
 let controller = null;
 let generation = 0;
 let pasteTimer;
@@ -328,38 +329,58 @@ function closeFeedback() {
   feedbackSession += 1;
   const dialog = $('feedback-dialog');
   if (dialog.open) dialog.close();
-  $('feedback-title').value = '';
+  feedbackSnapshot = null;
+  $('feedback-title').textContent = '';
+  $('feedback-sentence').textContent = '';
   $('feedback-body').value = '';
+  $('feedback-description').value = '';
+  $('feedback-expected').value = '';
+  $('feedback-types').querySelectorAll('input').forEach(chip => {chip.checked = false;});
+  $('feedback-details').open = false;
   $('feedback-consent').checked = false;
   $('feedback-open').disabled = true;
   $('feedback-message').textContent = '';
 }
+function feedbackReady() {
+  return feedbackSnapshot && $('feedback-consent').checked &&
+    ($('feedback-description').value.trim() || (feedbackSnapshot.sentence && $('feedback-types').querySelector('input:checked')));
+}
 function updateFeedbackLink() {
+  feedbackSession += 1;
   $('feedback-consent').checked = false;
   $('feedback-open').disabled = true;
-  const link = issueLink($('feedback-title').value, $('feedback-body').value);
-  $('feedback-open').textContent = link.long ? '打开 GitHub，手动粘贴正文' : '打开 GitHub 预填页面';
+  const draft = createFeedback({...feedbackSnapshot, version:TOOL_VERSION,
+    types:Array.from($('feedback-types').querySelectorAll('input:checked'), chip => chip.value),
+    description:$('feedback-description').value, expected:$('feedback-expected').value});
+  $('feedback-title').textContent = draft.title;
+  $('feedback-body').value = draft.body;
+  const link = issueLink(draft.title, draft.body);
+  $('feedback-copy').hidden = !link.long;
+  $('feedback-next').textContent = link.long ? '会在新标签页打开 GitHub，请填写标题、粘贴完整正文，再点 Create 完成提交。' : '会在新标签页打开 GitHub，内容已填好，在那边点 Create 完成提交。';
   $('feedback-message').textContent = link.long ? '内容较长，链接不会附带标题和正文。请先复制完整正文，再到 GitHub 粘贴；标题也需填写。' : '';
 }
 function openFeedback(snapshot, trigger) {
   feedbackSession += 1;
-  const draft = createFeedback({...snapshot, version:TOOL_VERSION});
+  closeFeedback();
+  feedbackSnapshot = snapshot;
   feedbackTrigger = trigger;
-  $('feedback-title').value = draft.title;
-  $('feedback-body').value = draft.body;
+  $('feedback-sentence').textContent = snapshot.sentence ? snapshot.sentence.text : snapshot.text;
+  $('feedback-types').hidden = !snapshot.sentence;
   $('feedback-consent').checked = false;
   $('feedback-open').disabled = true;
   updateFeedbackLink();
   $('feedback-dialog').showModal();
-  $('feedback-title').focus();
+  $('feedback-description').focus({preventScroll:true});
+  $('feedback-dialog').querySelector('.feedback-content').scrollTop = 0;
 }
 $('report-failure').addEventListener('click', () => {if (failureSnapshot) openFeedback(failureSnapshot, $('report-failure'));});
 $('feedback-cancel').addEventListener('click', closeFeedback);
 $('feedback-dialog').addEventListener('cancel', event => {event.preventDefault(); closeFeedback();});
 $('feedback-dialog').addEventListener('close', () => {if (feedbackTrigger?.isConnected) feedbackTrigger.focus(); feedbackTrigger = null;});
-$('feedback-consent').addEventListener('change', () => {$('feedback-open').disabled = !$('feedback-consent').checked;});
-$('feedback-body').addEventListener('input', updateFeedbackLink);
-$('feedback-title').addEventListener('input', updateFeedbackLink);
+$('feedback-consent').addEventListener('change', () => {$('feedback-open').disabled = !feedbackReady();});
+$('feedback-description').addEventListener('input', updateFeedbackLink);
+$('feedback-expected').addEventListener('input', updateFeedbackLink);
+$('feedback-types').addEventListener('change', updateFeedbackLink);
 $('feedback-copy').addEventListener('click', async () => {
   const body = $('feedback-body').value;
   const session = feedbackSession;
@@ -368,14 +389,16 @@ $('feedback-copy').addEventListener('click', async () => {
     if (session === feedbackSession && $('feedback-dialog').open && $('feedback-body').value === body) $('feedback-message').textContent = '已复制完整正文。剪贴板会保留内容，请按需清除。';
   } catch {
     if (session !== feedbackSession || !$('feedback-dialog').open || $('feedback-body').value !== body) return;
+    $('feedback-details').open = true;
     $('feedback-body').focus(); $('feedback-body').select();
     $('feedback-message').textContent = '自动复制失败，正文已全选，请手动复制（Ctrl/Cmd+C 或手机长按复制）。';
   }
 });
 $('feedback-open').addEventListener('click', () => {
-  if (!$('feedback-consent').checked) return;
-  const link = issueLink($('feedback-title').value, $('feedback-body').value);
+  if (!feedbackReady()) return;
+  const link = issueLink($('feedback-title').textContent, $('feedback-body').value);
   window.open(link.url, '_blank', 'noopener,noreferrer');
+  $('feedback-message').textContent = link.long ? '已打开 GitHub。请填写标题并粘贴完整正文，再点 Create 完成提交。' : '已打开 GitHub。请在新页面点 Create 完成提交。';
 });
 
 input.addEventListener('input', invalidate);
