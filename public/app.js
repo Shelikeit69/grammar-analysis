@@ -16,6 +16,7 @@ let failureSnapshot = null;
 let feedbackTrigger = null;
 let feedbackSession = 0;
 let feedbackSnapshot = null;
+let feedbackCopied = false;
 let controller = null;
 let generation = 0;
 let pasteTimer;
@@ -331,6 +332,8 @@ function closeFeedback() {
   const dialog = $('feedback-dialog');
   if (dialog.open) dialog.close();
   feedbackSnapshot = null;
+  feedbackCopied = false;
+  $('feedback-copy').disabled = true;
   $('feedback-title').textContent = '';
   $('feedback-sentence').textContent = '';
   $('feedback-body').value = '';
@@ -346,7 +349,17 @@ function feedbackReady() {
   return feedbackSnapshot && $('feedback-consent').checked &&
     ($('feedback-description').value.trim() || (feedbackSnapshot.sentence && $('feedback-types').querySelector('input:checked')));
 }
+function updateFeedbackActions() {
+  const ready = !!feedbackReady();
+  const long = !$('feedback-copy').hidden;
+  $('feedback-copy').disabled = !ready;
+  $('feedback-open').disabled = !ready || (long && !feedbackCopied);
+  $('feedback-requirement').textContent = !ready
+    ? '勾选「我知道内容会公开」并选一个问题类型或填写说明后可以提交。'
+    : long && !feedbackCopied ? '请先点第 1 步复制反馈内容。' : '';
+}
 function updateFeedbackLink() {
+  feedbackCopied = false;
   feedbackSession += 1;
   $('feedback-consent').checked = false;
   $('feedback-open').disabled = true;
@@ -357,8 +370,10 @@ function updateFeedbackLink() {
   $('feedback-body').value = draft.body;
   const link = issueLink(draft.title, draft.body);
   $('feedback-copy').hidden = !link.long;
-  $('feedback-next').textContent = link.long ? '会在新标签页打开 GitHub，请填写标题、粘贴完整正文，再点 Create 完成提交。' : '会在新标签页打开 GitHub，内容已填好，在那边点 Create 完成提交。';
-  $('feedback-message').textContent = link.long ? '内容较长，链接不会附带标题和正文。请先复制完整正文，再到 GitHub 粘贴；标题也需填写。' : '';
+  $('feedback-open').textContent = link.long ? '② 打开 GitHub 粘贴 →' : '去 GitHub 提交 →';
+  $('feedback-copy').textContent = '① 复制反馈内容';
+  $('feedback-message').textContent = link.long ? '内容较长，链接放不下，需要分两步：' : '打开链接会将预览内容带到 GitHub，请先检查。会在新标签页打开，内容已填好，在那边点 Create 完成提交。';
+  updateFeedbackActions();
 }
 function openFeedback(snapshot, trigger) {
   feedbackSession += 1;
@@ -378,28 +393,34 @@ $('report-failure').addEventListener('click', () => {if (failureSnapshot) openFe
 $('feedback-cancel').addEventListener('click', closeFeedback);
 $('feedback-dialog').addEventListener('cancel', event => {event.preventDefault(); closeFeedback();});
 $('feedback-dialog').addEventListener('close', () => {if (feedbackTrigger?.isConnected) feedbackTrigger.focus(); feedbackTrigger = null;});
-$('feedback-consent').addEventListener('change', () => {$('feedback-open').disabled = !feedbackReady();});
+$('feedback-consent').addEventListener('change', updateFeedbackActions);
 $('feedback-description').addEventListener('input', updateFeedbackLink);
 $('feedback-expected').addEventListener('input', updateFeedbackLink);
 $('feedback-types').addEventListener('change', updateFeedbackLink);
 $('feedback-copy').addEventListener('click', async () => {
+  if (!feedbackReady()) return;
   const body = $('feedback-body').value;
   const session = feedbackSession;
   try {
     await navigator.clipboard.writeText(body);
-    if (session === feedbackSession && $('feedback-dialog').open && $('feedback-body').value === body) $('feedback-message').textContent = '已复制完整正文。剪贴板会保留内容，请按需清除。';
+    if (session !== feedbackSession || !$('feedback-dialog').open || $('feedback-body').value !== body) return;
+    feedbackCopied = true;
+    $('feedback-copy').textContent = '① 复制反馈内容 · 已复制 ✓';
+    $('feedback-message').textContent = '已复制 ✓ 请点第 2 步，在 GitHub 粘贴后点 Create。剪贴板会保留内容，请按需清除。';
   } catch {
     if (session !== feedbackSession || !$('feedback-dialog').open || $('feedback-body').value !== body) return;
     $('feedback-details').open = true;
     $('feedback-body').focus(); $('feedback-body').select();
-    $('feedback-message').textContent = '自动复制失败，正文已全选，请手动复制（Ctrl/Cmd+C 或手机长按复制）。';
+    feedbackCopied = true;
+    $('feedback-message').textContent = '自动复制失败，正文已全选，请手动复制（Ctrl/Cmd+C 或手机长按复制）。手动复制好之后，再点第 2 步。剪贴板可能保留内容，请按需清除。';
   }
+  updateFeedbackActions();
 });
 $('feedback-open').addEventListener('click', () => {
-  if (!feedbackReady()) return;
+  if (!feedbackReady() || (!$('feedback-copy').hidden && !feedbackCopied)) return;
   const link = issueLink($('feedback-title').textContent, $('feedback-body').value);
   window.open(link.url, '_blank', 'noopener,noreferrer');
-  $('feedback-message').textContent = link.long ? '已打开 GitHub。请填写标题并粘贴完整正文，再点 Create 完成提交。' : '已打开 GitHub。请在新页面点 Create 完成提交。';
+  $('feedback-message').textContent = link.long ? '已打开 GitHub。请粘贴反馈内容，再点 Create 完成提交。剪贴板可能保留内容，请按需清除。' : '已打开 GitHub。请在新页面点 Create 完成提交。';
 });
 
 input.addEventListener('input', invalidate);

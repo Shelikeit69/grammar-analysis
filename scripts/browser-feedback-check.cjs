@@ -57,9 +57,13 @@ async function main() {
  await page.locator('#feedback-description').fill('长正文'.repeat(2500));
  assert.equal(await page.locator('#feedback-consent').isChecked(),false);
  assert.equal(await page.locator('#feedback-open').isDisabled(),true);
+ assert.equal(await page.locator('#feedback-copy').isDisabled(),true);
+ await page.locator('#feedback-consent').check();
+ assert.equal(await page.locator('#feedback-open').isDisabled(),true);
  await page.evaluate(()=>Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async()=>{throw Error('blocked');}}}));
  await page.locator('#feedback-copy').click();
- assert.match(await page.locator('#feedback-message').innerText(),/自动复制失败/);
+ assert.match(await page.locator('#feedback-message').innerText(),/手动复制好之后，再点第 2 步/);
+ assert.equal(await page.locator('#feedback-open').isDisabled(),false);
  const longBody=await page.locator('#feedback-body').inputValue();
  assert.equal(await page.locator('#feedback-body').evaluate(n=>n.selectionEnd-n.selectionStart),longBody.length);
  assert.ok(longBody.includes('长正文'.repeat(2500)));
@@ -67,10 +71,25 @@ async function main() {
  await page.evaluate(()=>Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async body=>{window.copiedBody=body;}}}));
  await page.locator('#feedback-copy').click();
  assert.equal(await page.evaluate(()=>window.copiedBody),longBody);
- assert.match(await page.locator('#feedback-message').innerText(),/已复制完整正文/);
- await page.locator('#feedback-consent').check(); await page.locator('#feedback-open').click();
+ assert.match(await page.locator('#feedback-message').innerText(),/已复制 ✓/);
+ assert.equal(await page.locator('#feedback-open').isDisabled(),false);
+ await page.locator('#feedback-open').click();
  url=new URL(await page.evaluate(()=>window.opened[1][0])); assert.match(url.searchParams.get('body'),/粘贴/);
+ assert.equal(url.searchParams.get('title'),await page.locator('#feedback-title').textContent());
+ assert.match(url.searchParams.get('body'),/Create/);
  assert.equal(await page.locator('#feedback-body').inputValue(),longBody);
+ await page.locator('#feedback-description').fill('修改后的长正文'.repeat(2500));
+ assert.equal(await page.locator('#feedback-open').isDisabled(),true);
+ await page.locator('#feedback-consent').check();
+ assert.equal(await page.locator('#feedback-open').isDisabled(),true);
+ for (const change of [()=>page.locator('#feedback-expected').fill('修正答案'),()=>page.locator('#feedback-types input').last().check()]) {
+   await page.locator('#feedback-copy').click();
+   assert.equal(await page.locator('#feedback-open').isDisabled(),false);
+   await change();
+   assert.equal(await page.locator('#feedback-consent').isChecked(),false);
+   await page.locator('#feedback-consent').check();
+   assert.equal(await page.locator('#feedback-open').isDisabled(),true);
+ }
  await page.locator('#feedback-cancel').click();
  await page.locator('#english-input').fill('Go.'); await page.locator('#analyze-button').click();
  await page.locator('#report-failure').waitFor({state:'visible'}); await page.locator('#report-failure').click();
@@ -123,6 +142,7 @@ async function main() {
  assert.equal(await page.locator('#feedback-consent').isChecked(),false);
  // A pending clipboard operation from an old dialog must not mutate a new one.
  await page.evaluate(()=>Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:()=>new Promise((resolve,reject)=>{window.rejectCopy=reject;})}}));
+ await page.locator('#feedback-consent').check();
  await page.locator('#feedback-copy').click();await page.locator('#feedback-cancel').click();await open();
  const message=await page.locator('#feedback-message').innerText();
  await page.evaluate(()=>window.rejectCopy(Error('blocked')));
@@ -139,7 +159,32 @@ async function main() {
  await page.locator('#analyze-button').click();await page.locator('#report-failure').waitFor({state:'visible'});
  await page.locator('#example-button').click();assert.equal(await page.locator('#report-failure').isVisible(),false);
  await open();assert.match(await page.locator('#feedback-body').inputValue(),/未调用模型/);
- await page.locator('#feedback-cancel').click();await page.locator('#clear-button').click();
+ await page.locator('#feedback-cancel').click();
+ // Reduced viewport height models keyboard space; real mobile keyboards require manual verification.
+ const fs=require('node:fs/promises');
+ await fs.mkdir('artifacts/feedback',{recursive:true});
+ for (const width of [380,390]) for (const large of [false,true]) for (const long of [false,true]) {
+   await page.setViewportSize({width,height:844});
+   await page.evaluate(large=>{const sheet=document.styleSheets[0];sheet.insertRule(`.feedback-footer {font-size:${large?20:13}px}`,sheet.cssRules.length);sheet.insertRule(`.feedback-steps button {font-size:${large?24:16}px}`,sheet.cssRules.length);},large);
+   await open();
+   await page.locator('#feedback-description').fill(long ? '长正文'.repeat(2500) : '反馈说明');
+   await page.locator('#feedback-consent').check();
+   assert.equal(await page.locator('.feedback-steps button:visible').count(),long ? 2 : 1);
+   const checkLayout=async()=>{
+     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+     assert.equal(await page.locator('.feedback-footer').evaluate(n=>n.scrollWidth<=n.clientWidth),true);
+     const boxes=await page.locator('.feedback-steps button:visible').evaluateAll(ns=>ns.map(n=>{const r=n.getBoundingClientRect();return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,height:r.height,overflow:n.scrollWidth>n.clientWidth};}));
+     for(const b of boxes) assert.ok(b.top>=0 && b.bottom<=await page.evaluate(()=>innerHeight) && b.left>=0 && b.right<=width && b.height>=44 && !b.overflow);
+     if(long) assert.ok(boxes[0].bottom<=boxes[1].top);
+   };
+   await checkLayout();
+   if(width===390 && !large) await page.screenshot({path:`artifacts/feedback/${long?'long':'short'}-390.png`});
+   await page.setViewportSize({width,height:550});
+   await page.locator('#feedback-description').focus();
+   await checkLayout();
+   await page.locator('#feedback-cancel').click();
+ }
+ await page.locator('#clear-button').click();
  assert.equal(await page.locator('#results').isVisible(),false);
  assert.deepEqual(errors,[]);
  console.log(`Feedback browser: ${checks} assertions passed (all external requests blocked or mocked).`);
