@@ -43,5 +43,5 @@ export function createFeedback({sentence, text = '', model, version, error, type
 export function issueLink(title, body) {
   const url = `${ISSUE_URL}?${new URLSearchParams({title, body})}`;
   if (url.length <= 6000) return {url, long:false};
-  return {url:`${ISSUE_URL}?${new URLSearchParams({title:'分析问题反馈（请填写标题）', body:'请将网页中复制的完整反馈正文粘贴到这里，再检查并提交。'})}`, long:true};
+  return {url:`${ISSUE_URL}?${new URLSearchParams({title, body:'请在这里粘贴刚才在网页上复制的反馈内容（电脑按 Ctrl+V 或 Cmd+V，手机长按后选「粘贴」），然后点右下角的 Create。'})}`, long:true};
 }

@@ -54,8 +54,12 @@ test('edited preview is encoded exactly and oversized content remains intact', (
  const body = '<script> 中文 &?#';
  const short = issueLink('edited',body);
  assert.equal(new URL(short.url).searchParams.get('body'),body);
- const long = issueLink('x',body.repeat(2000));
+ const title = '分析问题：She turned the light off.';
+ const long = issueLink(title,body.repeat(2000));
  assert.equal(long.long,true);
+ assert.equal(new URL(long.url).searchParams.get('title'),title);
+ assert.ok(long.url.length < 1000);
+ assert.match(new URL(long.url).searchParams.get('body'),/Create/);
  assert.match(new URL(long.url).searchParams.get('body'),/粘贴/);
 });
 test('report contains one sentence only and no raw errors', () => {

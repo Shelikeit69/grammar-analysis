@@ -814,8 +814,12 @@ html.large-text .masthead,html.large-text main,html.large-text footer {
 .feedback-footer p { margin: 6px 0; }
 .feedback-hint { color: #555; font-size: 12px; }
 .feedback-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-#feedback-open { background: var(--predicate); color: #fff; margin-left: auto; }
-#feedback-open:disabled { opacity: .45; }
+.feedback-steps { display: flex; flex: 1; flex-direction: column; gap: 8px; min-width: 0; }
+.feedback-actions { align-items: flex-end; }
+.feedback-steps button { min-height: 44px; width: 100%; padding: 10px 12px; font-size: 16px; font-weight: 700; white-space: normal; background: #255746; color: #fff; border: 1px solid #255746; border-radius: 6px; }
+.feedback-steps button:disabled { opacity: 1; background: #e0e5e2; color: #4b5751; border-color: #a7b2ab; cursor: not-allowed; }
+#feedback-cancel { min-height: 44px; padding: 8px; background: #fff; color: #444; border: 1px solid #aaa; border-radius: 6px; }
+.feedback-steps button[hidden] { display: none; }
 .report-button {
   display:inline-block;
   font:inherit;
