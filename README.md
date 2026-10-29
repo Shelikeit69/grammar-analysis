@@ -188,7 +188,8 @@ npm start
 - `lib/`：转发 `public/` 里的共用模块，供 Node 使用。
 - `server.mjs`：本地和 Codespaces 用的 HTTP 服务与访问边界。
 - `tests/`：原文对应、接口错误、安全边界和提示词规则测试。
-- `docs/`：测试指南、验证记录和设计文档。
+- `docs/`：测试指南、验证记录和设计文档；`docs/project/` 是项目资料（概况、架构、提示词规则、决策记录、协作流程）。
+- `AGENTS.md`：所有编码工具共用的规则；`.trae/rules/` 和 `CLAUDE.md` 分别给 Trae 和 Claude Code。
 
 ### 测试
 
