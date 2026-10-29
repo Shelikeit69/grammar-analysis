@@ -76,9 +76,9 @@
 
 显示保留原文顺序与独立宾语。should give 和 up 各有红框，点击任一框解释同一 give up（放弃），should 的情态意义在说明中；不联动高亮。连续的 should give up、looked after 仍为一个谓语框，felt / nervous 仍分别为系动词和表语。
 
-### 真实模型验收工作表（未执行）
+### 真实模型验收工作表（2026-10-25 时未执行；2026-10-27 上线复测结果见下一节）
 
-本次没有调用真实 API。下面的新版本结果全部 pending；历史基线仅引用 2026-10-19 已有记录，不补造旧版本调用。历史 felt 句采用小写开头与分号，与本表大小写和句末标点不同。
+以下为 2026-10-25 当时的记录，保留原样。本次没有调用真实 API。下面的新版本结果全部 pending；历史基线仅引用 2026-10-19 已有记录，不补造旧版本调用。历史 felt 句采用小写开头与分号，与本表大小写和句末标点不同。
 
 | 原句 | 历史基线 | 新版本格式 / 语法 / 显示 | 模型、日期、修正次数、实际结果 |
 |---|---|---|---|
@@ -91,3 +91,17 @@
 验收时分别记录 predicateOf 是否出现且合法、语法是否正确、两个红框点击解释是否一致、宾语是否独立、should 是否只在说明中表达情态；连续短语与系表句不能回归。模拟测试不代表真实模型稳定输出正确关系，Issue 仍待真实验收。
 
 自动检查（本机 Edge，全部模拟响应）：`npm test` 57 项通过，0 失败，退出码 0；`npm run test:browser` 排版与交互 46 项、静态 Pages 11 项通过，退出码 0。覆盖分离谓语关系校验、非法可选字段不付费修正、原文和宾语保留、红框分别点击及窄屏展示；本记录不包含真实 API、真实模型准确率或云端验证。
+
+### 上线复测：Issue #19（2026-10-27，GitHub Pages，deepseek-flash）
+
+上表的 pending 已在 PR #20、#23、#26 合并后用真实模型复测，结果如下。[Issue #19](https://github.com/Shelikeit69/grammar-analysis/issues/19) 已于 2026-10-27 关闭。
+
+| 原句 | 次数 | 格式 / 语法 / 显示 | 实际结果 |
+|---|---|---|---|
+| You should give it up. | 2 | 通过 / 通过 / 通过 | 两次都是 should give / it / up 两个红框，「give up－放弃」，没再出现「应该给」，up 没被标成补语 |
+| You should give up smoking. | 1 | 通过 / 通过 / 通过 | should give up 一个框，smoking 宾语 |
+| She turned the light off. | 3 | 通过 / 通过 / 通过 | 三次都是 turned / the light / off 两个红框，「turn off－关掉」；#23 后标签为「与 turn 构成」；#26 后点击说明不再重复 |
+| She looked after him. | 1 | 通过 / 通过 / 通过 | looked after 一个框，him 宾语 |
+| Everyone in the stadium felt nervous. | 1 | 通过 / 通过 / 通过 | felt 系动词，nervous 表语 |
+
+没记录：是否触发格式修正；in the stadium 的修饰高亮没截图确认。每句只测一到三次，样本少，不代表模型每次都稳定输出正确关系；本记录不是准确率评测。
