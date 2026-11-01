@@ -11,10 +11,19 @@ export function serializeSentence(sentence) {
     for (const key of ['modifies', 'predicateOf']) if (Number.isInteger(segment?.[key])) item[key] = segment[key];
     return item;
   });
+  // Only whitelisted clause fields; hashing out ids, depth or copied clause text.
+  const clauses = (Array.isArray(sentence?.clauses) ? sentence.clauses : []).map(clause => {
+    const item = strings(clause, ['type', 'subtype']);
+    for (const key of ['start', 'end']) if (Number.isInteger(clause?.[key])) item[key] = clause[key];
+    return item;
+  });
+  if (clauses.length) result.clauses = clauses;
   return result;
 }
 export const FEEDBACK_TYPES = ['成分标错了', '中文意思不对', '时态不对', '显示或排版有问题', '其他'];
 const roles = {subject:'主语', predicate:'谓语', linking:'系动词', object:'宾语', predicative:'表语', complement:'补语', adverbial:'状语', attribute:'定语', other:'其他'};
+const clauseNames = {relative:'定语从句', object:'宾语从句', adverbial:'状语从句'};
+const subtypeNames = {time:'时间', condition:'条件', reason:'原因', concession:'让步', purpose:'目的', result:'结果', comparison:'比较', manner:'方式'};
 function readableAnalysis(sentence) {
   const safe = serializeSentence(sentence);
   const lines = [['translation', '翻译'], ['tense', '时态'], ['tenseReason', '依据']]
@@ -28,6 +37,16 @@ function readableAnalysis(sentence) {
     return '- ' + [part.text, role, meaning, part.detail].filter(Boolean).join('｜');
   });
   if (parts.length) lines.push('成分：', ...parts);
+  // The clause text is rebuilt from the segment range, never copied from the model.
+  if (safe.clauses?.length) {
+    lines.push('从句：');
+    for (const clause of safe.clauses) {
+      const name = clause.type === 'adverbial' && subtypeNames[clause.subtype]
+        ? `${subtypeNames[clause.subtype]}状语从句` : clauseNames[clause.type] || '从句';
+      const clauseText = safe.segments.slice(clause.start, clause.end).map(part => part.text).join('');
+      lines.push(`- ${name}：${clauseText}`);
+    }
+  }
   if (safe.note) lines.push(`说明：${safe.note}`);
   return lines.join('\n');
 }

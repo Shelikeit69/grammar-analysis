@@ -320,3 +320,52 @@ test('modifies survives the provider path, and an invalid one is dropped without
     assert.equal(result.sentences[0].segments[0].modifies, expected);
   }
 });
+
+test('system prompt documents optional clause ranges with indexes, types and tolerance', () => {
+  for (const phrase of [
+    'clauses is OPTIONAL',
+    'end is the index AFTER the last segment',
+    'Use only relative (定语从句), object (宾语从句) and adverbial (状语从句)',
+    'Do not output id, depth, numbering, copied clause text or parent references',
+    'Nesting is allowed up to three levels',
+    'Omit clauses entirely when the sentence has none',
+  ]) assert.ok(SYSTEM.includes(phrase), phrase);
+});
+
+test('system prompt puts the main clause first in tense, then clauses in original order', () => {
+  for (const phrase of [
+    'listing the main clause first and then subordinate clauses in the order they appear in the sentence',
+    'identical tense and voice combinations appear only once',
+    '"If it rains, we will stay at home." is "一般将来时 · 主动语态；一般现在时 · 主动语态", not the reverse',
+    'make clear which combination belongs to the main clause and which to a subordinate clause',
+  ]) assert.ok(SYSTEM.includes(phrase), phrase);
+});
+
+test('clauses survive the provider path; invalid ranges are dropped without a repair call', async () => {
+  const text = 'Big dogs bark loudly.';
+  const seg = (t, role, translation, lemma = '', level = 'core') => ({ text: t, role, translation, lemma, detail: '', level });
+  const gap = seg(' ', 'other', '', '', 'detail');
+  const segments = [seg('Big', 'attribute', '大的', '', 'detail'), gap, seg('dogs', 'subject', '狗'), gap,
+    seg('bark', 'predicate', '叫', 'bark'), gap, seg('loudly', 'adverbial', '大声地', '', 'detail'), seg('.', 'other', '', '', 'detail')];
+  const make = clauses => ({
+    sentences: [{ text, translation: '大狗大声叫。', note: '', clauses, segments }],
+    translation: '大狗大声叫。',
+  });
+  const cases = [
+    [[{ start: 0, end: 2, type: 'relative' }, { start: 4, end: 7, type: 'adverbial', subtype: 'manner' }],
+      [{ start: 0, end: 2, type: 'relative' }, { start: 4, end: 7, type: 'adverbial', subtype: 'manner' }]],
+    [[{ start: 0, end: 99, type: 'relative' }], undefined],
+    [[{ start: 0, end: 2, type: 'unknown' }], undefined],
+    ['not-an-array', undefined],
+  ];
+  for (const [clauses, expected] of cases) {
+    let calls = 0;
+    const result = await analyzeWithDeepSeek(text, {
+      apiKey: 'test', onRepair: () => assert.fail('clauses must not trigger a paid repair'),
+      fetchImpl: async () => { calls++; return contentResponse(JSON.stringify(make(clauses))); },
+    });
+    assert.equal(calls, 1);
+    assert.deepEqual(result.sentences[0].clauses, expected, JSON.stringify(clauses));
+    assert.equal(result.sentences[0].segments.map(part => part.text).join(''), text);
+  }
+});
