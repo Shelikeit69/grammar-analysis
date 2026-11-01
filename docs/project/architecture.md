@@ -1,6 +1,6 @@
 # 技术架构
 
-最后更新：2026-11-01（任务 B PR 1「数据基础、反馈及时态规则」，分支 `feat/clause-data`，待独立审核与负责人合并）
+最后更新：2026-11-01（任务 B PR 2「长从句拆分与从句条带渲染」，分支 `feat/clause-brackets`，已实现并完成自动检查，待独立审核与上线实测）
 
 ## 三种运行方式（共用同一套页面 public/）
 | 方式 | 密钥在哪里 | 页面怎么判断 |
@@ -15,19 +15,20 @@
 
 ## 文件结构
 - `public/index.html`：页面，含反馈对话框 `#feedback-dialog`。meta CSP 只允许连接本站和 `https://api.deepseek.com`，资源用相对路径（适配 `/grammar-analysis/` 子路径）。
-- `public/app.js`：界面逻辑（渲染批注、修饰高亮、分离谓语标签和说明、模式判断、密钥面板、三步引导、大字开关、错误提示、格式修正提示、反馈表单）。
-- `public/styles.css`：样式。标签和英文放在同一格，高度为 0 向外溢出；只有带标签的片段才通过 `--label-space` 留出空间。大字模式用 `html.large-text` 加 CSS zoom 1.25（只放大 masthead、main、footer，不影响反馈弹窗）。反馈按钮用 `.report-button`；反馈弹窗底部操作区固定（`.feedback-footer`），主按钮在 `.feedback-steps` 里（PR #28）。
+- `public/app.js`：界面逻辑（渲染批注、修饰高亮、分离谓语标签和说明、详细视图的从句清单与跨行范围条带、模式判断、密钥面板、三步引导、大字开关、错误提示、格式修正提示、反馈表单）。
+- `public/styles.css`：样式。标签和英文放在同一格，高度为 0 向外溢出；只有带标签的片段才通过 `--label-space` 留出空间。详细视图的从句条带在英文下方按行绘制，深度 1/2/3 各占一条轨道，行内有底标签时额外留出 58px。大字模式用 `html.large-text` 加 CSS zoom 1.25（只放大 masthead、main、footer，不影响反馈弹窗），条带坐标按 zoom 换算回本地 CSS 像素。反馈按钮用 `.report-button`；反馈弹窗底部操作区固定（`.feedback-footer`），主按钮在 `.feedback-steps` 里（PR #28）。
 - `public/deepseek.js`：Node 和浏览器共用的 DeepSeek 客户端，系统提示词常量 `SYSTEM` 和「格式修正一次」的逻辑都在这里。
 - `public/analysis.js`：`validateInput`、`validateAnalysis`、`AnalysisValidationError`，Node 和浏览器共用。
 - `public/feedback.js`：`FEEDBACK_TYPES`（5 个问题类型）、反馈标题和易读正文生成（只放白名单字段）、GitHub Issue 预填链接（上限 6000 字符；超过时只带真实标题和粘贴说明，正文由用户粘贴）（PR #21、#25、#28）。
-- `public/version.js`：`TOOL_VERSION`，写进反馈正文。本分支为 `2026-11-01.1`（任务 B PR 1），实际合并日改变时由负责人在合并前调整。发布影响分析或反馈的改动时要更新，用实际合并日期加序号。
+- `public/version.js`：`TOOL_VERSION`，写进反馈正文。本分支为 `2026-11-01.2`（任务 B PR 2），实际合并日改变时由负责人在合并前调整。发布影响分析或反馈的改动时要更新，用实际合并日期加序号。
 - `public/server-client.js`：本地和 Codespaces 模式下读取服务器返回结果（支持 NDJSON 进度消息，旧的纯 JSON 也兼容）。
-- `public/demo.js`：内置例句和它的分析结果（含 `modifies`）。
+- `public/demo.js`：内置例句和它的分析结果（含 `modifies` 和 `clauses`）。例句的 `who keep going every day` 是 5 词短从句，保持单片段，只显示清单不画条带。
 - `lib/analysis.mjs`、`lib/deepseek.mjs`：只是转发 `public/` 里的共用模块。
 - `lib/access.mjs`：本地和 Codespaces 的访问来源校验（只允许 127.0.0.1 和本 Codespace 的域名）。
 - `server.mjs`：本地和 Codespaces 用的 HTTP 服务，只监听 127.0.0.1。新增的 `public/` 文件要加进它的资源白名单，也要加进 `scripts/browser-pages-check.cjs` 的白名单。
-- `tests/`：node --test 单元测试，共 78 项（任务 B PR 1 新增 14 项：clauses 归一化/容错、提示词关键句、反馈从句清单与 HTML 安全）。
-- `scripts/browser-check.cjs`：Playwright 排版与交互检查（62 项，含 #26 新增的分离谓语点击说明检查）；`scripts/browser-pages-check.cjs`：模拟 Pages 静态网页的检查（11 项）；`scripts/browser-feedback-check.cjs`：反馈流程检查（154 项断言，PR #28 起包含长链接两步流程和 380/390px 排版检查，任务 B PR 1 新增从句清单的 XSS/字段白名单断言，会生成截图到 `artifacts/feedback/`）。都用模拟响应，不调用真实 DeepSeek，也不提交真实 Issue。
+- `tests/`：node --test 单元测试，共 85 项（任务 B PR 1 新增 14 项：clauses 归一化/容错、提示词关键句、反馈从句清单与 HTML 安全；PR 2 新增 7 项：长从句拆分与 core/detail 提示词关键句、从句 `predicateOf` 边界、内置例句 clauses）。
+- `tests/fixtures/clauses.mjs`：从句渲染夹具（条件、宾语、两层/三层嵌套、同终点、相邻范围），句子为虚构改写，供浏览器检查模拟响应使用。
+- `scripts/browser-check.cjs`：Playwright 排版与交互检查（86 项，含 PR 2 的从句清单、跨行条带位置、嵌套轨道、单片段短从句、清理、窄屏和大字检查）；`scripts/browser-pages-check.cjs`：模拟 Pages 静态网页的检查（11 项）；`scripts/browser-feedback-check.cjs`：反馈流程检查（154 项断言，PR #28 起包含长链接两步流程和 380/390px 排版检查，任务 B PR 1 新增从句清单的 XSS/字段白名单断言，会生成截图到 `artifacts/feedback/`）。都用模拟响应，不调用真实 DeepSeek，也不提交真实 Issue。
 - `.gitignore`：`artifacts/` 已加入（PR #28），测试生成的截图不提交。
 - `.github/ISSUE_TEMPLATE/analysis-error.md`：「分析问题反馈」Issue 模板，标题和网页生成的正文一致：问题类型 / 具体说明 / 用户认为正确的 / 原句 / AI 分析结果 / 调用模型 / 工具版本。
 - `.github/workflows/ci.yml`：每次 push 和 PR 都跑 `npm test`，再装 Playwright 跑 `npm run test:browser`。任务名叫 `test`（分支保护依赖这个名字，别改）。
@@ -60,7 +61,8 @@
 ```
 - `modifies`（可选）：这个片段修饰的是同一句 `segments` 里第几个片段，从 0 开始数，空格和标点也要算。只对 attribute、adverbial、complement 有效。
 - `predicateOf`（可选，PR #20）：被宾语隔开的短语动词小品词（如 `give it up` 的 up）指向前面的主谓语片段下标。规则见 [prompt-rules.md](prompt-rules.md)。
-- `clauses`（可选，任务 B PR 1）：每句的从句范围数组。`start` 是句内 `segments` 的零起始下标（包含），`end` 是结束下标（不包含），空格和标点片段同样计入。`type` 只有 relative（定语从句）、object（宾语从句）、adverbial（状语从句）；`subtype` 只对 adverbial 有效，可选 time、condition、reason、concession、purpose、result、comparison、manner，非法时只丢 subtype。模型不输出 id、depth、编号、重复的从句原文或 parent 引用；范围包含引导词，尽量不含从句外的首尾空白和分隔标点。第一版不记录主句范围。
+- `clauses`（可选，任务 B PR 1 数据约定，PR 2 开始渲染）：每句的从句范围数组。`start` 是句内 `segments` 的零起始下标（包含），`end` 是结束下标（不包含），空格和标点片段同样计入。`type` 只有 relative（定语从句）、object（宾语从句）、adverbial（状语从句）；`subtype` 只对 adverbial 有效，可选 time、condition、reason、concession、purpose、result、comparison、manner，非法时只丢 subtype。模型不输出 id、depth、编号、重复的从句原文或 parent 引用；范围包含引导词，尽量不含从句外的首尾空白和分隔标点。不记录主句范围。
+- `level`：主句主干和并列主句用 `core`；为解释长从句内部结构而拆出的主语、谓语等用 `detail`。默认视图只显示 `core`，详细视图显示全部。长从句（超过 6 个英文单词或内部含嵌套从句）按 SYSTEM 要求拆开，短从句可保留整框；客户端不猜测语法、不强行切分 segments。
 
 ## 校验（validateAnalysis）
 严格检查（不合规就拒绝整个结果，并触发一次格式修正）：
@@ -97,9 +99,19 @@
 - 2026-10-27 手机实测通过（短链接）：键盘弹出时底部按钮可见，GitHub 预填页标题和正文都带过去（没点 Create）。
 - 2026-10-28 电脑实测通过（长链接两步、短链接）：标题预填、粘贴完整（没点 Create）。
 
+## 从句条带渲染（任务 B PR 2）
+- 只在详细视图渲染；默认视图不显示清单和条带。
+- 句子下方追加「从句清单」：按规范化后的 `clauses` 顺序编号，每项写编号、中文类型（状语可带小类）和按 `segments` 范围重建的原文。模型不重复提供从句文本。
+- 范围跨两个及以上含字母或数字的片段时，在英文下方画细线，编号与清单一致；只有一个这样的片段时只列清单，写明「单片段短从句，不画范围线」。
+- 跨行范围按实际文字矩形分行绘制，每行一条线；同一从句每行的编号相同，不在每行重复清单。深度 1/2/3 分别使用不同轨道（间隔 13px），行内有底标签时先留出 58px，避免与成分标签重叠。
+- 条带层 `aria-hidden`、`pointer-events: none`、无 tabindex，不进入 Tab 顺序，也不拦截成分框点击；完整信息由清单的可访问文本提供。
+- 布局刷新：`ResizeObserver` 观察句子列表，监听窗口 resize、字体加载完成、大字切换；先取消上一帧和定时器再重排。重新分析、换例句或清空时移除旧 `.clause-layer` 和 `.clause-panel`，避免残留。
+- 大字模式的 CSS zoom 会放大测量结果，绘制前按 `实际宽度 / 本地宽度` 换算回本地 CSS 像素。
+- 已知边界：从句内部拆分出的片段是 `detail`，SYSTEM 要求不输出 `predicateOf`；`predicateOf` 校验仍要求两端 predicate/core，只服务主句里被宾语隔开的短语动词。这条边界由 `tests/predicate.test.mjs` 覆盖。
+
 ## 数据结构的限制
-- 片段仍是平铺的，不能嵌套。任务 B PR 1 只新增了可选的句级 `clauses` 范围（并进入反馈正文）；页面上还没有范围条带，从句仍然只能拆成从句里的主谓宾，再靠说明文字解释。条带渲染和长从句拆分在 PR 2。
-- 长从句常被整块标成一个片段（Issue #27），内部结构只能靠说明文字讲；按片段下标画括号也画不出来。**PR 1 不修复 #27**，见 decisions.md 2026-10-28 与 2026-11-01。
+- 片段仍是平铺的，不能嵌套。从句关系由句级 `clauses` 范围加上详细视图的条带和清单表达；默认视图只保留主句主干（`core`）。
+- 长从句拆分依赖模型按 SYSTEM 规则输出，客户端不做语法猜测；真实模型是否稳定拆分、嵌套范围是否完整，仍待上线实测（Issue #27 的显示问题在提示词和渲染层已处理，但不在本 PR 声明模型已稳定正确）。
 - `clauses` 不记录主句范围；第一版只有定、宾、状三种从句，最多三层。中文小类只用于状语从句。
 - `modifies` 只能指向一个片段。「状语修饰整个从句」这类关系，目前只能指向谓语。
 - 目标片段如果在当前视图里是隐藏的细节，只显示「修饰：…」文字，没有高亮。

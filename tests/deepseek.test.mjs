@@ -106,7 +106,7 @@ test('system prompt keeps the round-2 consistency rules', () => {
   for (const phrase of [
     'A contracted negation stays inside the predicate',
     '"Don\'t worry" is ONE predicate span',
-    'One constituent is one span',
+    'Outside the long-clause rule below, one constituent is one span',
     '"about 5% less" is ONE adverbial',
     'Do not leave modifiers unlabeled',
     'never role other',
@@ -338,6 +338,48 @@ test('system prompt puts the main clause first in tense, then clauses in origina
     'identical tense and voice combinations appear only once',
     '"If it rains, we will stay at home." is "一般将来时 · 主动语态；一般现在时 · 主动语态", not the reverse',
     'make clear which combination belongs to the main clause and which to a subordinate clause',
+  ]) assert.ok(SYSTEM.includes(phrase), phrase);
+});
+
+test('system prompt splits long or nested clauses and keeps short ones whole', () => {
+  for (const phrase of [
+    'a clause is long when it contains MORE THAN 6 English words',
+    'or when it contains a nested clause',
+    'A clause with 6 or fewer English words and no nested clause MAY stay as ONE span',
+    'a prepositional phrase alone is never a reason to split a clause',
+    'never split a clause word by word',
+    '"who lives next door to me" has 6 words and may stay one span',
+    '"who lives next door to my parents" has 7 words and must be split into who (subject/detail)',
+    'split the outer relative clause that the teacher who lives next door recommended AND its inner clause who lives next door',
+    'give both ranges in clauses',
+    'Outside the long-clause rule below, one constituent is one span',
+  ]) assert.ok(SYSTEM.includes(phrase), phrase);
+});
+
+test('system prompt uses core for the main clause and detail for split clause internals', () => {
+  for (const phrase of [
+    'The main clause backbone uses level core; spans created by splitting a long clause open use level detail',
+    'Every span created by splitting a long clause is level detail, including its internal subject and predicate',
+    'the main clause backbone stays level core, and coordinated main clauses keep their core spans',
+    'When a long clause is split open, its clause range still covers all of its split spans',
+    'The clause who keep going every day has 5 words and no nested clause, so it MAY stay one span',
+  ]) assert.ok(SYSTEM.includes(phrase), phrase);
+});
+
+test('system prompt keeps predicateOf for the main clause and forbids it inside split clauses', () => {
+  for (const phrase of [
+    'predicateOf is only for a separated phrasal verb in the main clause: both ends must be predicate/core',
+    'Do NOT output predicateOf for a predicate inside a clause that the long-clause rule split open',
+    'because such a span is level detail and the validator drops the link',
+    'Main-clause separated predicates keep predicateOf as described here',
+  ]) assert.ok(SYSTEM.includes(phrase), phrase);
+});
+
+test('system prompt still requires clause predicates as tense evidence after deduplication', () => {
+  for (const phrase of [
+    "tenseReason must still quote that clause's key predicate (for example lives or rains) as evidence",
+    'The judgement must cover the key predicate of every clause you relied on',
+    'even when its tense combination was deduplicated',
   ]) assert.ok(SYSTEM.includes(phrase), phrase);
 });
 
