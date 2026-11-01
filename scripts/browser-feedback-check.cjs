@@ -113,7 +113,19 @@ async function main() {
  await page.locator('.report-sentence').first().waitFor(); await open();
  assert.ok(!(await page.locator('#feedback-body').inputValue()).includes('Stay.'));
  await page.locator('#feedback-cancel').click();
+ // Clause ranges appear in the report as literal text rebuilt from segments, never as markup.
+ const clauseText='<img src=x onerror=alert(1)>';
+ const clauseResult={translation:'all',sentences:[{text:`The dog ${clauseText} barked.`,translation:'狗叫。',note:'',clauses:[{start:0,end:2,type:'relative',copiedText:'secret-copied',depth:9}],segments:[{text:'The dog ',role:'subject',translation:'狗'},{text:clauseText,role:'attribute',translation:'叫的',level:'detail'},{text:' barked.',role:'predicate',translation:'叫',lemma:'bark'}]}]};
+ await page.route('**/api/analyze',r=>r.fulfill({json:clauseResult}));
+ await page.locator('#english-input').fill(clauseResult.sentences[0].text); await page.locator('#analyze-button').click();
+ await page.locator('.report-sentence').first().waitFor(); await open();
+ const clauseBody=await page.locator('#feedback-body').inputValue();
+ assert.match(clauseBody,/从句：\n- 定语从句：The dog <img src=x onerror=alert\(1\)>/);
+ assert.ok(!clauseBody.includes('secret-copied')); assert.ok(!clauseBody.includes('depth'));
+ assert.equal(await page.locator('#feedback-dialog img').count(),0);
+ await page.locator('#feedback-cancel').click(); await page.unroute('**/api/analyze');
  // An older backend must report unknown, never infer a default model.
+ await page.route('**/api/analyze',r=>r.fulfill({json:{translation:'all',sentences:[{text:'Go.',translation:'走',segments:[{text:'Go.',role:'other'}]},{text:'Stay.',translation:'留下',segments:[{text:'Stay.',role:'other'}]}]}}));
  await page.route('**/api/status',r=>r.fulfill({json:{configured:true}})); await page.reload();
  await page.locator('#english-input').fill('Go.Stay.'); await page.locator('#analyze-button').click();
  await open(); assert.match(await page.locator('#feedback-body').inputValue(),/未知/);

@@ -205,3 +205,140 @@ test('a bad modifies does not relax other checks', () => {
   const wrongText = modifierResult({ 0: { modifies: 2 } });
   assert.throws(() => validateAnalysis(wrongText, 'Big dogs bark quietly.'));
 });
+
+// "Big dogs bark loudly." -> 0 Big, 1 ' ', 2 dogs, 3 ' ', 4 bark, 5 ' ', 6 loudly, 7 '.'
+const clauseResult = clauses => {
+  const data = modifierResult();
+  data.sentences[0].clauses = clauses;
+  return data;
+};
+const clausesOf = clauses => validateAnalysis(clauseResult(clauses), modifierText).sentences[0].clauses;
+
+test('clauses are optional, legacy results keep their exact shape and non-arrays are ignored', () => {
+  assert.equal('clauses' in validateAnalysis(modifierResult(), modifierText).sentences[0], false);
+  for (const value of ['', null, {}, 'x', 5, true, undefined]) {
+    const data = modifierResult();
+    data.sentences[0].clauses = value;
+    const out = validateAnalysis(data, modifierText).sentences[0];
+    assert.equal(out.clauses, undefined, String(value));
+    assert.equal(out.segments.map(part => part.text).join(''), modifierText);
+  }
+  // All-invalid clauses also leave the previous output shape without an empty array.
+  assert.equal(clausesOf([{ start: 1, end: 2, type: 'relative' }, { start: 7, end: 8, type: 'relative' }]), undefined);
+});
+
+test('the three clause types, adverbial subtypes, single-segment and adjacent ranges are kept', () => {
+  const out = clausesOf([
+    { start: 0, end: 2, type: 'relative' },
+    { start: 4, end: 6, type: 'object' },
+    { start: 4, end: 7, type: 'adverbial', subtype: 'condition' },
+    { start: 6, end: 7, type: 'adverbial' },
+  ]);
+  assert.deepEqual(out.map(({ start, end, type }) => [start, end, type]), [
+    [0, 2, 'relative'], [4, 7, 'adverbial'], [4, 6, 'object'], [6, 7, 'adverbial'],
+  ]);
+  assert.equal(out[1].subtype, 'condition');
+  assert.equal('subtype' in out[0], false);
+  assert.equal('subtype' in out[3], false);
+  for (const subtype of ['time', 'condition', 'reason', 'concession', 'purpose', 'result', 'comparison', 'manner']) {
+    assert.deepEqual(clausesOf([{ start: 0, end: 2, type: 'adverbial', subtype }]),
+      [{ start: 0, end: 2, type: 'adverbial', subtype }]);
+  }
+});
+
+test('only adverbial clauses keep a known subtype; unknown or misplaced subtypes are dropped alone', () => {
+  const out = clausesOf([
+    { start: 0, end: 2, type: 'relative', subtype: 'condition' },
+    { start: 4, end: 6, type: 'object', subtype: 'time' },
+    { start: 6, end: 7, type: 'adverbial', subtype: 'unknown' },
+  ]);
+  assert.deepEqual(out.map(clause => [clause.start, clause.type, clause.subtype]),
+    [[0, 'relative', undefined], [4, 'object', undefined], [6, 'adverbial', undefined]]);
+});
+
+test('invalid clause entries are dropped without rejecting the result', () => {
+  const bad = [
+    null, 'x', 5, true, [], {},
+    { start: 1.5, end: 3, type: 'relative' },
+    { start: NaN, end: 3, type: 'relative' },
+    { start: Infinity, end: 3, type: 'relative' },
+    { start: '0', end: 2, type: 'relative' },
+    { start: -1, end: 2, type: 'relative' },
+    { start: 0, end: 9, type: 'relative' },
+    { start: 4, end: 3, type: 'relative' },
+    { start: 0, end: 2, type: 'unknown' },
+    { start: 0, end: 2 },
+    { start: 1, end: 2, type: 'relative' }, // whitespace only
+    { start: 7, end: 8, type: 'adverbial' }, // punctuation only
+  ];
+  for (const value of bad) {
+    assert.equal(validateAnalysis(clauseResult([value]), modifierText).sentences[0].clauses, undefined, JSON.stringify(value));
+    assert.doesNotThrow(() => validateAnalysis(clauseResult([value]), modifierText));
+  }
+  // Invalid items do not take part in conflict checks and never remove independent valid ones.
+  assert.deepEqual(clausesOf([
+    { start: 0, end: 2, type: 'relative' },
+    { start: 2, end: 5, type: 'unknown' },
+    { start: 6, end: 7, type: 'adverbial' },
+  ]), [{ start: 0, end: 2, type: 'relative' }, { start: 6, end: 7, type: 'adverbial' }]);
+});
+
+test('duplicate ranges keep one deterministic entry regardless of model order', () => {
+  const forward = [
+    { start: 0, end: 2, type: 'relative', id: 'model-id', text: 'copied clause text', depth: 9, parent: 1 },
+    { start: 0, end: 2, type: 'adverbial', subtype: 'time' },
+  ];
+  const backward = [...forward].reverse();
+  const expected = [{ start: 0, end: 2, type: 'adverbial', subtype: 'time' }];
+  assert.deepEqual(clausesOf(forward), expected);
+  assert.deepEqual(clausesOf(backward), expected);
+  // Unknown model fields never leak into the normalized output.
+  assert.equal('id' in clausesOf([forward[0]])[0], false);
+});
+
+test('partially crossing ranges are both dropped and independent ranges survive', () => {
+  const ranges = [
+    { start: 0, end: 4, type: 'relative' },
+    { start: 2, end: 5, type: 'object' },
+    { start: 6, end: 7, type: 'adverbial' },
+  ];
+  for (const clauses of [ranges, [...ranges].reverse(), [ranges[1], ranges[2], ranges[0]]]) {
+    assert.deepEqual(clausesOf(clauses), [{ start: 6, end: 7, type: 'adverbial' }]);
+  }
+});
+
+test('input order does not change conflict-free output', () => {
+  const canonical = [...clausesOf([
+    { start: 0, end: 2, type: 'relative' },
+    { start: 2, end: 4, type: 'object' },
+    { start: 4, end: 7, type: 'adverbial' },
+  ])].map(clause => ({ ...clause }));
+  assert.deepEqual(canonical.map(clause => clause.start), [0, 2, 4]);
+  assert.deepEqual(clausesOf(canonical.slice().reverse()), canonical);
+});
+
+test('nesting with the same start or same end keeps three levels and drops the fourth', () => {
+  const sameStart = clausesOf([
+    { start: 0, end: 7, type: 'relative' },
+    { start: 0, end: 5, type: 'object' },
+    { start: 0, end: 3, type: 'adverbial' },
+    { start: 0, end: 1, type: 'relative' },
+  ]);
+  assert.deepEqual(sameStart.map(clause => [clause.start, clause.end]), [[0, 7], [0, 5], [0, 3]]);
+  const sameEnd = clausesOf([
+    { start: 0, end: 7, type: 'relative' },
+    { start: 2, end: 7, type: 'object' },
+    { start: 4, end: 7, type: 'adverbial' },
+    { start: 6, end: 7, type: 'relative' },
+  ]);
+  assert.deepEqual(sameEnd.map(clause => [clause.start, clause.end]), [[0, 7], [2, 7], [4, 7]]);
+});
+
+test('clause candidate count is capped and an oversized list is ignored safely', () => {
+  const atLimit = Array.from({ length: 200 }, () => ({ start: 0, end: 2, type: 'relative' }));
+  assert.deepEqual(clausesOf(atLimit), [{ start: 0, end: 2, type: 'relative' }]);
+  const overLimit = [...atLimit, { start: 0, end: 2, type: 'relative' }];
+  const out = validateAnalysis(clauseResult(overLimit), modifierText);
+  assert.equal(out.sentences[0].clauses, undefined);
+  assert.equal(out.sentences[0].segments.map(part => part.text).join(''), modifierText);
+});

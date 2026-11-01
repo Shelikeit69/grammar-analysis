@@ -37,6 +37,29 @@ test('readable references, whitelist, empty fields and punctuation filtering', (
  assert.ok(!body.includes('- .!?')); assert.ok(!body.includes('-  ｜'));
  assert.ok(!body.includes('secret')); assert.ok(!body.includes('undefined'));
  assert.ok(!body.includes('翻译：')); assert.ok(!body.includes('时态：')); assert.ok(!body.includes('说明：'));
+ assert.ok(!body.includes('从句：'));
+});
+
+test('clause list in the report rebuilds text from segments and names types and subtypes', () => {
+ const segments=[{text:'If',role:'other'},{text:' ',role:'other'},{text:'it',role:'subject',translation:'它'},{text:' ',role:'other'},{text:'rains',role:'predicate',translation:'下雨',lemma:'rain'},{text:', ',role:'other'},{text:'we',role:'subject',translation:'我们'},{text:' ',role:'other'},{text:'will stay',role:'predicate',translation:'待',lemma:'stay'},{text:' ',role:'other'},{text:'at home',role:'adverbial',translation:'在家'},{text:'.',role:'other'}];
+ const sentence={text:'If it rains, we will stay at home.',segments,clauses:[
+  {start:0,end:5,type:'adverbial',subtype:'condition'},
+  {start:6,end:11,type:'object',id:'model-id',copiedText:'secret-copied',depth:9,parent:1},
+  {start:10,end:11,type:'adverbial',subtype:'manner'},
+ ]};
+ const body=createFeedback({sentence,version:'v'}).body;
+ assert.match(body,/从句：\n- 条件状语从句：If it rains\n- 宾语从句：we will stay at home\n- 方式状语从句：at home/);
+ assert.ok(!body.includes('secret')); assert.ok(!body.includes('model-id')); assert.ok(!body.includes('depth'));
+ const plain=createFeedback({sentence:{...sentence,clauses:undefined},version:'v'}).body;
+ assert.ok(!plain.includes('从句：'));
+ assert.ok(!serializeSentence({...sentence,clauses:undefined}).clauses);
+});
+
+test('clause text in the report stays literal when it contains markup', () => {
+ const sentence={text:'<script>alert(1)</script>',segments:[{text:'<script>alert(1)</script>',role:'other'}],clauses:[{start:0,end:1,type:'relative'}]};
+ const body=createFeedback({sentence,version:'v'}).body;
+ assert.match(body,/- 定语从句：<script>alert\(1\)<\/script>/);
+ assert.ok(!body.includes('&lt;script'));
 });
 
 test('failure reports ignore chip values and keep the safe hint', () => {

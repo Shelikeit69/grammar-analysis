@@ -1,6 +1,6 @@
 # 技术架构
 
-最后更新：2026-10-29（对应仓库 main 提交 676ecb0，含 PR #20–#28）
+最后更新：2026-11-01（任务 B PR 1「数据基础、反馈及时态规则」，分支 `feat/clause-data`，待独立审核与负责人合并）
 
 ## 三种运行方式（共用同一套页面 public/）
 | 方式 | 密钥在哪里 | 页面怎么判断 |
@@ -20,14 +20,14 @@
 - `public/deepseek.js`：Node 和浏览器共用的 DeepSeek 客户端，系统提示词常量 `SYSTEM` 和「格式修正一次」的逻辑都在这里。
 - `public/analysis.js`：`validateInput`、`validateAnalysis`、`AnalysisValidationError`，Node 和浏览器共用。
 - `public/feedback.js`：`FEEDBACK_TYPES`（5 个问题类型）、反馈标题和易读正文生成（只放白名单字段）、GitHub Issue 预填链接（上限 6000 字符；超过时只带真实标题和粘贴说明，正文由用户粘贴）（PR #21、#25、#28）。
-- `public/version.js`：`TOOL_VERSION`，写进反馈正文。当前为 `2026-10-28.2`（PR #28）。发布影响分析或反馈的改动时要更新，用实际合并日期加序号。
+- `public/version.js`：`TOOL_VERSION`，写进反馈正文。本分支为 `2026-11-01.1`（任务 B PR 1），实际合并日改变时由负责人在合并前调整。发布影响分析或反馈的改动时要更新，用实际合并日期加序号。
 - `public/server-client.js`：本地和 Codespaces 模式下读取服务器返回结果（支持 NDJSON 进度消息，旧的纯 JSON 也兼容）。
 - `public/demo.js`：内置例句和它的分析结果（含 `modifies`）。
 - `lib/analysis.mjs`、`lib/deepseek.mjs`：只是转发 `public/` 里的共用模块。
 - `lib/access.mjs`：本地和 Codespaces 的访问来源校验（只允许 127.0.0.1 和本 Codespace 的域名）。
 - `server.mjs`：本地和 Codespaces 用的 HTTP 服务，只监听 127.0.0.1。新增的 `public/` 文件要加进它的资源白名单，也要加进 `scripts/browser-pages-check.cjs` 的白名单。
-- `tests/`：node --test 单元测试，共 64 项。
-- `scripts/browser-check.cjs`：Playwright 排版与交互检查（62 项，含 #26 新增的分离谓语点击说明检查）；`scripts/browser-pages-check.cjs`：模拟 Pages 静态网页的检查（11 项）；`scripts/browser-feedback-check.cjs`：反馈流程检查（150 项断言，PR #28 起包含长链接两步流程和 380/390px 排版检查，会生成截图到 `artifacts/feedback/`）。都用模拟响应，不调用真实 DeepSeek，也不提交真实 Issue。
+- `tests/`：node --test 单元测试，共 78 项（任务 B PR 1 新增 14 项：clauses 归一化/容错、提示词关键句、反馈从句清单与 HTML 安全）。
+- `scripts/browser-check.cjs`：Playwright 排版与交互检查（62 项，含 #26 新增的分离谓语点击说明检查）；`scripts/browser-pages-check.cjs`：模拟 Pages 静态网页的检查（11 项）；`scripts/browser-feedback-check.cjs`：反馈流程检查（154 项断言，PR #28 起包含长链接两步流程和 380/390px 排版检查，任务 B PR 1 新增从句清单的 XSS/字段白名单断言，会生成截图到 `artifacts/feedback/`）。都用模拟响应，不调用真实 DeepSeek，也不提交真实 Issue。
 - `.gitignore`：`artifacts/` 已加入（PR #28），测试生成的截图不提交。
 - `.github/ISSUE_TEMPLATE/analysis-error.md`：「分析问题反馈」Issue 模板，标题和网页生成的正文一致：问题类型 / 具体说明 / 用户认为正确的 / 原句 / AI 分析结果 / 调用模型 / 工具版本。
 - `.github/workflows/ci.yml`：每次 push 和 PR 都跑 `npm test`，再装 Playwright 跑 `npm run test:browser`。任务名叫 `test`（分支保护依赖这个名字，别改）。
@@ -50,6 +50,9 @@
       {"text": "原文片段", "role": "subject|predicate|linking|object|predicative|complement|adverbial|attribute|other",
        "translation": "中文", "lemma": "原形", "detail": "说明", "level": "core|detail",
        "modifies": 2, "predicateOf": 2}
+    ],
+    "clauses": [
+      {"start": 2, "end": 9, "type": "relative|object|adverbial", "subtype": "可选，仅 adverbial"}
     ]
   }],
   "translation": "整段翻译"
@@ -57,6 +60,7 @@
 ```
 - `modifies`（可选）：这个片段修饰的是同一句 `segments` 里第几个片段，从 0 开始数，空格和标点也要算。只对 attribute、adverbial、complement 有效。
 - `predicateOf`（可选，PR #20）：被宾语隔开的短语动词小品词（如 `give it up` 的 up）指向前面的主谓语片段下标。规则见 [prompt-rules.md](prompt-rules.md)。
+- `clauses`（可选，任务 B PR 1）：每句的从句范围数组。`start` 是句内 `segments` 的零起始下标（包含），`end` 是结束下标（不包含），空格和标点片段同样计入。`type` 只有 relative（定语从句）、object（宾语从句）、adverbial（状语从句）；`subtype` 只对 adverbial 有效，可选 time、condition、reason、concession、purpose、result、comparison、manner，非法时只丢 subtype。模型不输出 id、depth、编号、重复的从句原文或 parent 引用；范围包含引导词，尽量不含从句外的首尾空白和分隔标点。第一版不记录主句范围。
 
 ## 校验（validateAnalysis）
 严格检查（不合规就拒绝整个结果，并触发一次格式修正）：
@@ -68,6 +72,7 @@
 - `tense`、`tenseReason`：不是字符串或超长就当成空。
 - `modifies`：必须是整数、在范围内、不指向自己、不指向 other、而且只放在修饰类角色上；否则丢掉。
 - `predicateOf`：两端都是 predicate/core、只能向前指、目标不能再带 predicateOf、两端 lemma 相同、中间有实质成分；否则丢掉。
+- `clauses`（任务 B PR 1）：不是数组时整体忽略；非对象项、非法 type、非整数/非有限/负数下标、`start >= end`、`end` 越界、范围只有空白或标点、以及未知字段一律丢弃。合法项按 `start` 升序、同起点 `end` 降序排序；同范围重复项只留一项（再按 type、subtype 确定性取舍）。同起点或同终点允许嵌套，但不能完全同范围。部分交叉的两项先全部标记，再一起删除，不受数组顺序影响；非法项不参与冲突判定，也不会连带删除独立合法项。冲突处理后按包含关系计算嵌套深度（最外层为第 1 层），超过 3 层的内层项丢弃、外层保留。候选超过 200 项时直接忽略整句 clauses（上限见代码常量 `MAX_CLAUSE_CANDIDATES`，用于把两两比较限制在 19,900 次内），不拒绝句子、不触发修正。任何 clauses 错误都不抛 `AnalysisValidationError`。
 
 校验**不能**保证语法判断是对的。
 
@@ -84,7 +89,7 @@
 - 底部固定：公开提示、「我知道内容会公开」、一行操作说明、左边「取消」、右边深绿实心主按钮（至少 44px、16px 加粗）。按钮禁用时旁边写明原因（PR #28）。
 - 提交按钮要同时满足：勾了公开确认，且选了至少一个类型或写了说明。改动内容后要重新勾选。
 - 标题自动生成：「分析问题：<原句前 40 字>…」，失败时为「请求失败：…」。
-- 正文是易读 Markdown，不再是 JSON：问题类型 / 具体说明 / 用户认为正确的 / 原句 / AI 分析结果（翻译、时态、依据、每个成分一行「原文｜角色｜原形－释义｜说明」、整句说明）/ 调用模型 / 工具版本。跳过空格和标点片段；`predicateOf` 写成「谓语组成部分（与 …）」，`modifies` 写成「（修饰 …）」。
+- 正文是易读 Markdown，不再是 JSON：问题类型 / 具体说明 / 用户认为正确的 / 原句 / AI 分析结果（翻译、时态、依据、每个成分一行「原文｜角色｜原形－释义｜说明」、整句说明、有合法 `clauses` 时追加「从句：」清单）/ 调用模型 / 工具版本。跳过空格和标点片段；`predicateOf` 写成「谓语组成部分（与 …）」，`modifies` 写成「（修饰 …）」。从句清单只写类型（定语/宾语/状语从句，状语可带时间、条件等小类）和按 `segments` 范围拼出的原文，不写模型可能重复生成的从句文本、id、depth 等未知字段；没有合法 clauses 时正文与旧版一致。
 - 不带密钥、设置、请求头、浏览器存储、服务商原始错误。草稿只在内存里，关闭、清空、新请求、看例句都会清掉。
 - 短链接模式（预填链接不超过 6000 字符，内置例句约 5200）：一个主按钮「去 GitHub 提交 →」，标题和正文都预填。
 - 长链接模式（超过 6000 字符，PR #28）：链接带真实标题，正文只放粘贴说明（Ctrl+V / Cmd+V、手机长按粘贴，再点 Create）；底部两步「① 复制反馈内容」「② 打开 GitHub 粘贴 →」，复制成功或失败后才能点第 2 步；复制失败时展开预览并全选正文。改任何字段会重置复制状态和公开确认。剪贴板可能保留内容，有提醒。
@@ -93,8 +98,9 @@
 - 2026-10-28 电脑实测通过（长链接两步、短链接）：标题预填、粘贴完整（没点 Create）。
 
 ## 数据结构的限制
-- 片段是平铺的，不能嵌套。从句不能整体框成一个状语，只能拆成从句里的主谓宾，再靠说明文字解释。任务 B（`clauses`）用来解决这个问题。
-- 长从句常被整块标成一个片段（Issue #27），内部结构只能靠说明文字讲；按片段下标画括号也画不出来。见 decisions.md 2026-10-28。
+- 片段仍是平铺的，不能嵌套。任务 B PR 1 只新增了可选的句级 `clauses` 范围（并进入反馈正文）；页面上还没有范围条带，从句仍然只能拆成从句里的主谓宾，再靠说明文字解释。条带渲染和长从句拆分在 PR 2。
+- 长从句常被整块标成一个片段（Issue #27），内部结构只能靠说明文字讲；按片段下标画括号也画不出来。**PR 1 不修复 #27**，见 decisions.md 2026-10-28 与 2026-11-01。
+- `clauses` 不记录主句范围；第一版只有定、宾、状三种从句，最多三层。中文小类只用于状语从句。
 - `modifies` 只能指向一个片段。「状语修饰整个从句」这类关系，目前只能指向谓语。
 - 目标片段如果在当前视图里是隐藏的细节，只显示「修饰：…」文字，没有高亮。
 - 分离谓语的两个红框不联动高亮，也没有连线。点击时下方说明只用主谓语框的 detail；主谓语框没有 detail 时才用小品词框的（PR #26）。

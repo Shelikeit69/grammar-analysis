@@ -35,6 +35,77 @@ function optionalString(value, max) {
 // Only these roles can modify another segment (see `modifies` below).
 const modifierRoles = new Set(['attribute', 'adverbial', 'complement']);
 
+// Clause ranges are a visual hint over the flat segments (see `clauses` below).
+const clauseTypes = new Set(['relative', 'object', 'adverbial']);
+const adverbialSubtypes = new Set([
+  'time', 'condition', 'reason', 'concession', 'purpose', 'result', 'comparison', 'manner',
+]);
+// A list longer than this is treated as untrusted: the pairwise overlap check
+// stays bounded (200 items = 19,900 comparisons), and the sentence still shows
+// its core analysis without any clause ranges.
+const MAX_CLAUSE_CANDIDATES = 200;
+
+// `clauses` is optional. Invalid entries only drop themselves, never the
+// sentence: core coverage and field checks above stay strict.
+function normalizeClauses(value, segments) {
+  if (!Array.isArray(value) || value.length > MAX_CLAUSE_CANDIDATES) return null;
+  let candidates = [];
+  for (const raw of value) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue;
+    // Only the four documented fields are copied; ids, depth, numbering, copied
+    // clause text and parent references from the model are ignored.
+    if (!clauseTypes.has(raw.type) || !Number.isInteger(raw.start) || !Number.isInteger(raw.end)) continue;
+    if (raw.start < 0 || raw.end > segments.length || raw.start >= raw.end) continue;
+    const text = segments.slice(raw.start, raw.end).map(part => part.text).join('');
+    if (!/[\p{L}\p{N}]/u.test(text)) continue;
+    const clause = { start: raw.start, end: raw.end, type: raw.type };
+    if (raw.type === 'adverbial' && adverbialSubtypes.has(raw.subtype)) clause.subtype = raw.subtype;
+    candidates.push(clause);
+  }
+  if (!candidates.length) return null;
+  // Canonical order comes from the ranges, never from the model's array order:
+  // start ascending, then end descending. Ties on the same range fall back to
+  // type and subtype so one range is described exactly once.
+  candidates.sort((a, b) =>
+    a.start - b.start || b.end - a.end ||
+    (a.type < b.type ? -1 : a.type > b.type ? 1 : 0) ||
+    ((a.subtype || '') < (b.subtype || '') ? -1 : (a.subtype || '') > (b.subtype || '') ? 1 : 0));
+  candidates = candidates.filter((clause, index) => {
+    const previous = candidates[index - 1];
+    return index === 0 || clause.start !== previous.start || clause.end !== previous.end;
+  });
+  // Partially overlapping ranges are ambiguous: mark every crossing pair first,
+  // then drop all marked ranges, so array order cannot decide the survivor.
+  const crossing = new Set();
+  for (let i = 0; i < candidates.length; i++) {
+    for (let j = i + 1; j < candidates.length; j++) {
+      const a = candidates[i];
+      const b = candidates[j];
+      if (
+        (a.start < b.start && b.start < a.end && a.end < b.end) ||
+        (b.start < a.start && a.start < b.end && b.end < a.end)
+      ) {
+        crossing.add(i);
+        crossing.add(j);
+      }
+    }
+  }
+  const kept = candidates.filter((_, index) => !crossing.has(index));
+  // Remaining ranges are disjoint or nested, so the number of enclosing ranges
+  // is the nesting depth (outermost = 1). Keep at most three levels; inner
+  // ranges beyond level 3 are dropped and their valid outer ranges stay.
+  const result = kept
+    .map(clause => ({
+      ...clause,
+      depth: 1 + kept.filter(other =>
+        other.start <= clause.start && other.end >= clause.end &&
+        (other.start < clause.start || other.end > clause.end)).length,
+    }))
+    .filter(clause => clause.depth <= 3)
+    .map(({ depth, ...clause }) => clause);
+  return result.length ? result : null;
+}
+
 export function validateAnalysis(data, input) {
   if (!data || !Array.isArray(data.sentences) || !data.sentences.length || data.sentences.length > 300) {
     throw new AnalysisValidationError('sentences must be an array containing 1 to 300 sentences.');
@@ -107,6 +178,7 @@ export function validateAnalysis(data, input) {
         segments[index].modifies = target;
       }
     });
+    const clauses = normalizeClauses(sentence.clauses, segments);
     return {
       text,
       translation: string(sentence.translation, 12000, `${field}.translation`, true),
@@ -115,6 +187,9 @@ export function validateAnalysis(data, input) {
       tense: optionalString(sentence.tense, 100),
       tenseReason: optionalString(sentence.tenseReason, 600),
       segments,
+      // Only present when at least one valid range survives, so old results and
+      // all-invalid clauses produce exactly the previous output shape.
+      ...(clauses ? { clauses } : {}),
     };
   });
   if (input.slice(offset).trim()) {
