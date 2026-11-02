@@ -101,6 +101,16 @@ export function nestedThree() {
   return analysis(segments, clauses, '在楼上办公室工作的管理员推荐的那份指南很有帮助。');
 }
 
+// One legal segment that is long enough to wrap inside itself at phone widths.
+// The plain nested three-level case keeps short spans; this fixture only proves
+// that the layout survives line breaks inside a single span. It does not claim
+// the live model produces this split.
+export function longAdverbialSpan() {
+  const {segments, clauses} = relativeSegments(true);
+  segments[16].text = 'near the very old and unusually spacious reception room on the far eastern side of the building';
+  return analysis(segments, clauses, '在楼上办公室工作的管理员推荐的那份指南很有帮助。');
+}
+
 export function sameEnd() {
   return analysis([
     span('I', 'subject', '我'), gap(),

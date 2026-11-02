@@ -322,10 +322,13 @@ button {
   line-height:1;
   overflow-wrap:anywhere
 }
-/* Detailed view with clause ranges: extra leading leaves room for the bracket
-   tracks inside every visual line, and every row reserves space below it. */
+/* Detailed view with clause ranges: every visual line reserves room for the
+   bracket tracks. A span that wraps internally gets no margin between its own
+   rows, so app.js raises --clause-row-height to the measured height that line
+   needs; --clause-base-row stays the floor for short lines. */
 .clause-brackets .english {
-  line-height:2
+  --clause-base-row: 2;
+  line-height: var(--clause-row-height, var(--clause-base-row))
 }
 .clause-brackets .phrase {
   margin-bottom:42px
@@ -338,6 +341,16 @@ button {
   inset:0;
   pointer-events:none;
   z-index:4
+}
+/* Measured once per redraw to turn zoomed device pixels back into style pixels. */
+.clause-probe {
+  position:absolute;
+  top:0;
+  left:0;
+  width:1000px;
+  height:0;
+  visibility:hidden;
+  pointer-events:none
 }
 .clause-track {
   position:absolute;

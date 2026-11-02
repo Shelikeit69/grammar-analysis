@@ -320,8 +320,8 @@ async function main() {
       await page.waitForTimeout(260);
     }
 
-    async function clauseGeometry(fixture) {
-      return page.evaluate(({clauses, segmentTexts}) => {
+    async function clauseGeometry(fixture, targetText) {
+      return page.evaluate(({clauses, segmentTexts, target}) => {
         const line = document.querySelector('.annotation-line');
         const lineRect = line.getBoundingClientRect();
         const rel = rect => ({left: rect.left - lineRect.left, right: rect.right - lineRect.left,
@@ -332,42 +332,55 @@ async function main() {
           range.selectNodeContents(node);
           return [...range.getClientRects()].filter(rect => rect.width > .5 && rect.height > .5);
         };
+        const groupRows = rects => {
+          const rows = [];
+          rects.forEach(rect => {
+            const center = (rect.top + rect.bottom) / 2;
+            const row = rows.find(candidate => Math.abs(center - candidate.center) < 9);
+            if (row) {
+              row.top = Math.min(row.top, rect.top);
+              row.bottom = Math.max(row.bottom, rect.bottom);
+              row.left = Math.min(row.left, rect.left);
+              row.right = Math.max(row.right, rect.right);
+              row.center = (row.top + row.bottom) / 2;
+            } else {
+              rows.push({center, top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right});
+            }
+          });
+          return rows.sort((a, b) => a.top - b.top)
+            .map(row => ({top: row.top - lineRect.top, bottom: row.bottom - lineRect.top,
+              left: row.left - lineRect.left, right: row.right - lineRect.left}));
+        };
         const nodes = [...line.querySelectorAll('.english')];
         const allText = nodes.flatMap(glyphs);
         const labels = [...line.querySelectorAll('.label')].map(node => node.getBoundingClientRect());
+        const overlaps = (box, rect) => box.left < rect.right && box.right > rect.left && box.top < rect.bottom && box.bottom > rect.top;
+        // A range ends with 4px end ticks below the hairline. Measure the drawn
+        // band, not just the 1.5px border box, so the ticks count as a collision.
+        const probe = document.createElement('span');
+        probe.className = 'clause-probe';
+        line.append(probe);
+        const zoom = probe.getBoundingClientRect().width / 1000 || 1;
+        probe.remove();
+        const tickBox = box => ({left: box.left, right: box.right, top: box.top, bottom: box.bottom + 4 * zoom});
         const tracks = [...line.querySelectorAll('.clause-track')].map(node => {
-          const rect = rel(node.getBoundingClientRect());
           const box = node.getBoundingClientRect();
-          const textHit = allText.some(text => box.left < text.right && box.right > text.left && box.top < text.bottom && box.bottom > text.top);
-          const labelHit = labels.some(label => box.left < label.right && box.right > label.left && box.top < label.bottom && box.bottom > label.top);
-          return {clause: Number(node.dataset.clause), depth: Number(node.dataset.depth), rect, textHit, labelHit};
+          const band = tickBox(box);
+          return {clause: Number(node.dataset.clause), depth: Number(node.dataset.depth), rect: rel(box), drawn: rel(band),
+            textHit: allText.some(text => overlaps(band, text)), labelHit: labels.some(label => overlaps(band, label))};
         });
         const marks = [...line.querySelectorAll('.clause-mark')].map(node => {
           const box = node.getBoundingClientRect();
           const rect = rel(box);
-          const textHit = allText.some(text => box.left < text.right && box.right > text.left && box.top < text.bottom && box.bottom > text.top);
-          const labelHit = labels.some(label => box.left < label.right && box.right > label.left && box.top < label.bottom && box.bottom > label.top);
-          return {clause: Number(node.textContent), rect, textHit, labelHit};
+          return {clause: Number(node.textContent), depth: Number(node.parentElement ? node.dataset.depth : 0), rect,
+            textHit: allText.some(text => overlaps(box, text)), labelHit: labels.some(label => overlaps(box, label))};
         });
         const perClause = clauses.map(clause => {
           const rects = [];
           for (let index = clause.start; index < clause.end; index += 1) {
             if (nodes[index] && /[\p{L}\p{N}]/u.test(segmentTexts[index])) rects.push(...glyphs(nodes[index]));
           }
-          const rows = [];
-          rects.forEach(rect => {
-            const center = (rect.top + rect.bottom) / 2;
-            const row = rows.find(candidate => Math.abs(center - candidate.center) < 9);
-            if (row) {
-              row.top = Math.min(row.top, rect.top - lineRect.top);
-              row.bottom = Math.max(row.bottom, rect.bottom - lineRect.top);
-              row.left = Math.min(row.left, rect.left - lineRect.left);
-              row.right = Math.max(row.right, rect.right - lineRect.left);
-            } else {
-              rows.push({center, top: rect.top - lineRect.top, bottom: rect.bottom - lineRect.top,
-                left: rect.left - lineRect.left, right: rect.right - lineRect.left});
-            }
-          });
+          const rows = groupRows(rects);
           return {
             left: rows.length ? Math.min(...rows.map(row => row.left)) : 0,
             right: rows.length ? Math.max(...rows.map(row => row.right)) : 0,
@@ -375,9 +388,22 @@ async function main() {
           };
         });
         const layer = line.querySelector('.clause-layer');
+        const targetNode = target ? nodes.find(node => node.textContent === target) : null;
+        const card = line.closest('.sentence-card');
+        const tailBoxes = [...(card?.querySelectorAll('.clause-panel, .structure-note, .translation-row, .report-button') || [])]
+          .map(node => node.getBoundingClientRect());
+        const tailHit = [...line.querySelectorAll('.clause-track, .clause-mark')].some(node => {
+          const box = node.getBoundingClientRect();
+          const band = node.classList.contains('clause-track') ? tickBox(box) : box;
+          return tailBoxes.some(other => overlaps(band, other));
+        });
         return {
           width: lineRect.width, height: lineRect.height,
-          tracks, marks, perClause,
+          rows: groupRows(allText), tracks, marks, perClause,
+          targetRows: targetNode ? groupRows(glyphs(targetNode)).length : 0,
+          rowHeight: parseFloat(getComputedStyle(targetNode || nodes.find(node => node)).fontSize) * 2,
+          appliedRowHeight: line.style.getPropertyValue('--clause-row-height').trim(),
+          tailHit,
           panel: [...document.querySelectorAll('.clause-item')].map(node => ({
             number: node.querySelector('.clause-number')?.textContent,
             type: node.querySelector('.clause-type')?.textContent,
@@ -397,7 +423,7 @@ async function main() {
           markTextHit: marks.some(mark => mark.textHit),
           markLabelHit: marks.some(mark => mark.labelHit),
         };
-      }, {clauses: fixture.sentences[0].clauses, segmentTexts: fixture.sentences[0].segments.map(part => part.text)});
+      }, {clauses: fixture.sentences[0].clauses, segmentTexts: fixture.sentences[0].segments.map(part => part.text), target: targetText || ''});
     }
 
     async function checkClauseFixture(name, fixture, expectedDepths) {
@@ -496,6 +522,110 @@ async function main() {
     await checkClauseFixture('nested-large-text', nested, [1, 2]);
     await page.locator('#text-size').click();
     await page.waitForTimeout(220);
+
+    // A single legal span that wraps inside itself still gets one lane per
+    // visual row. longAdverbialSpan() is a rendering fixture, not a claim that
+    // the live model produces this split.
+    const longSpan = clauseFixtures.longAdverbialSpan();
+    const longTarget = longSpan.sentences[0].segments[16].text;
+    async function checkWrappedSpan(label, expectWrap) {
+      const sentence = longSpan.sentences[0];
+      const geometry = await clauseGeometry(longSpan, longTarget);
+      assert.ok(geometry.rows.length >= 2, `${label}: the line has several text rows`);
+      if (expectWrap) assert.ok(geometry.targetRows >= 2, `${label}: one span breaks inside itself (${geometry.targetRows} rows)`);
+      assert.deepEqual([...new Set(geometry.tracks.map(track => track.depth))].sort((a, b) => a - b), [1, 2, 3],
+        `${label}: three lanes`);
+      for (const [name, value] of Object.entries({
+        trackTextHit: geometry.trackTextHit, trackLabelHit: geometry.trackLabelHit,
+        markTextHit: geometry.markTextHit, markLabelHit: geometry.markLabelHit,
+        markOverlap: geometry.markOverlap, tailHit: geometry.tailHit, overflow: geometry.overflow,
+      })) assert.equal(value, false, `${label}: ${name}`);
+      if (geometry.targetRows >= 2) {
+        assert.ok(parseFloat(geometry.appliedRowHeight) >= geometry.rowHeight,
+          `${label}: wrapped rows reserve lanes (${geometry.appliedRowHeight} >= ${geometry.rowHeight})`);
+      }
+      const lanes = [];
+      for (const [index] of sentence.clauses.entries()) {
+        const rows = geometry.perClause[index].rows;
+        const own = geometry.tracks.filter(track => track.clause === index + 1);
+        assert.ok(own.length >= rows.length, `${label} clause ${index + 1}: a lane per text row`);
+        assert.equal(geometry.marks.filter(mark => mark.clause === index + 1).length, own.length,
+          `${label} clause ${index + 1}: one number per lane`);
+        for (const track of own) {
+          // The lane belongs to the row whose clause text it covers (same
+          // horizontal extent), sits under that row and stops above the next.
+          const below = rows.filter(row => row.bottom <= track.rect.top - 2 &&
+            track.rect.left >= row.left - 1.5 && track.rect.right <= row.right + 1.5);
+          assert.ok(below.length, `${label} clause ${index + 1}: lane under its own row`);
+          const owner = below.reduce((best, row) => row.bottom > best.bottom ? row : best);
+          const next = geometry.rows.filter(row => row.top > owner.bottom).sort((a, b) => a.top - b.top)[0];
+          if (next) assert.ok(track.drawn.bottom <= next.top - 0.5,
+            `${label} clause ${index + 1}: lane clears the next row`);
+          const mark = geometry.marks.find(candidate => candidate.clause === track.clause &&
+            Math.abs((candidate.rect.top + candidate.rect.bottom) / 2 - track.rect.top) < 1.5);
+          assert.ok(mark, `${label} clause ${index + 1}: number on its lane`);
+          lanes.push({clause: track.clause, depth: track.depth, row: Math.round(owner.bottom), top: track.rect.top});
+        }
+      }
+      for (const lane of lanes) {
+        for (const other of lanes.filter(candidate => candidate.row === lane.row)) {
+          if (other.depth === lane.depth) assert.ok(Math.abs(other.top - lane.top) < 1,
+            `${label}: one lane per depth and row`);
+          else if (other.depth > lane.depth) assert.ok(other.top > lane.top + 8,
+            `${label}: depth ${other.depth} lane clears depth ${lane.depth}`);
+        }
+      }
+      checks++;
+    }
+
+    await page.setViewportSize({width: 1280, height: 1000});
+    await showClauseFixture(longSpan, true);
+    await checkWrappedSpan('long-span-wide', false);
+    for (const width of [390, 380]) {
+      await page.setViewportSize({width, height: 844});
+      await page.waitForTimeout(300);
+      await checkWrappedSpan(`long-span-${width}`, true);
+    }
+    // Back to desktop, then large text at phone width; measurements must settle
+    // instead of re-triggering the observer loop.
+    await page.setViewportSize({width: 1280, height: 1000});
+    await page.waitForTimeout(300);
+    await checkWrappedSpan('long-span-wide-again', false);
+    await page.locator('#text-size').click();
+    await page.waitForTimeout(300);
+    await page.setViewportSize({width: 390, height: 844});
+    await page.waitForTimeout(320);
+    await checkWrappedSpan('long-span-390-large', true);
+    const laneSignature = geometry => geometry.tracks.map(track =>
+      `${track.clause}/${track.depth}:${Math.round(track.rect.top * 100) / 100},${Math.round(track.rect.left * 100) / 100}`).join('|');
+    const settled = await clauseGeometry(longSpan, longTarget);
+    await page.waitForTimeout(300);
+    const again = await clauseGeometry(longSpan, longTarget);
+    assert.equal(again.appliedRowHeight, settled.appliedRowHeight, 'wrapped row height settles');
+    assert.equal(laneSignature(again), laneSignature(settled), 'wrapped lanes settle');
+    checks++;
+    await page.locator('#text-size').click();
+    await page.waitForTimeout(300);
+    // Detail off, back on, then re-analyze and clear at phone width.
+    await page.locator('#detail-toggle').uncheck();
+    await page.waitForTimeout(180);
+    assert.equal(await page.locator('.clause-track').count(), 0, 'core view hides wrapped lanes');
+    assert.equal(await page.locator('.clause-panel').count(), 0, 'core view hides wrapped list');
+    await page.locator('#detail-toggle').check();
+    await page.waitForTimeout(320);
+    await checkWrappedSpan('long-span-after-toggle', true);
+    const wrappedLanes = await page.locator('.clause-track').count();
+    await page.locator('#clear-button').click();
+    assert.equal(await page.locator('#results').isVisible(), false);
+    assert.equal(await page.locator('.clause-layer').count(), 0, 'clear drops wrapped lanes');
+    assert.equal(await page.locator('.clause-panel').count(), 0, 'clear drops wrapped list');
+    checks++;
+    await showClauseFixture(longSpan, true);
+    await page.waitForTimeout(320);
+    assert.equal(await page.locator('.clause-track').count(), wrappedLanes, 're-analysis redraws the same lanes');
+    await checkWrappedSpan('long-span-after-rerun', true);
+    await page.setViewportSize({width: 1280, height: 1000});
+    await page.waitForTimeout(300);
 
     // Built-in example: a five-word clause gets a list entry but no line.
     await page.unroute('**/api/analyze');

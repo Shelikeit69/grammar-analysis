@@ -180,9 +180,16 @@ function textRects(node) {
 }
 // Large text applies CSS zoom, so measured device pixels must be divided by
 // the zoom factor before they become style offsets inside the zoomed line.
-function localScale(line, lineRect) {
-  const scale = lineRect.width && line.offsetWidth ? lineRect.width / line.offsetWidth : 1;
-  return scale > 0 && Number.isFinite(scale) ? scale : 1;
+// offsetWidth is rounded to whole pixels, and that ratio drifts by a couple of
+// pixels at the bottom of a tall wrapped sentence, so a 1000px probe measures
+// the factor exactly instead.
+function localScale(line) {
+  const probe = element('span', 'clause-probe');
+  probe.setAttribute('aria-hidden', 'true');
+  line.append(probe);
+  const width = probe.getBoundingClientRect().width;
+  probe.remove();
+  return width > 0 && Number.isFinite(width) ? width / 1000 : 1;
 }
 function localRect(rect, lineRect, scale) {
   return {
@@ -214,8 +221,9 @@ function nearestRow(rows, center) {
 }
 function collectClauseRows(line, nodes, scale) {
   const lineRect = line.getBoundingClientRect();
-  const rows = groupTextRows(nodes.flatMap(node =>
-    textRects(node).map(rect => localRect(rect, lineRect, scale))));
+  const rects = nodes.flatMap(node =>
+    textRects(node).map(rect => localRect(rect, lineRect, scale)));
+  const rows = groupTextRows(rects);
   nodes.forEach(node => {
     const phrase = node?.closest?.('.phrase');
     const own = groupTextRows(textRects(node).map(rect => localRect(rect, lineRect, scale)));
@@ -227,43 +235,77 @@ function collectClauseRows(line, nodes, scale) {
     if (last && phrase.classList.contains('has-bottom')) last.bottom = Math.max(last.bottom, box.bottom);
     if (last) last.hasBottom = last.hasBottom || phrase.classList.contains('has-bottom');
   });
-  return {lineRect, rows};
+  return {lineRect, rows, rects};
 }
-function drawClauseLayer(line, sentence, nodes, clauses) {
-  line.querySelector('.clause-layer')?.remove();
+// Room a text row needs under itself: a 10px gap, one 13px lane per nesting
+// level, and the number badge centred on its lane. A row inside one wrapped
+// span has no line box of its own, so the leading has to carry this space.
+const CLAUSE_TRACK_BASE = 10;
+function clauseTrackGap(depth) {
+  return CLAUSE_TRACK_BASE + (depth - 1) * 13 + 6 + 3;
+}
+function clauseGeometry(line, sentence, nodes, clauses) {
   const lineRect = line.getBoundingClientRect();
-  const scale = localScale(line, lineRect);
-  const rows = collectClauseRows(line, nodes, scale).rows;
-  if (!rows.length || !lineRect.width) return;
-  const layer = element('div', 'clause-layer');
-  layer.setAttribute('aria-hidden', 'true');
+  const scale = localScale(line);
+  const {rows, rects} = collectClauseRows(line, nodes, scale);
+  const entries = [];
   clauses.forEach((clause, clauseIndex) => {
     if (!clauseHasTwoContentSpans(sentence, clause)) return;
     const depth = clauseDepth(clauses, clause);
-    const rects = [];
+    const spans = [];
     for (let index = clause.start; index < clause.end; index += 1) {
       if (nodes[index] && /[\p{L}\p{N}]/u.test(sentence.segments[index].text)) {
-        rects.push(...textRects(nodes[index]).map(rect => localRect(rect, lineRect, scale)));
+        spans.push(...textRects(nodes[index]).map(rect => localRect(rect, lineRect, scale)));
       }
     }
-    const parts = groupTextRows(rects);
-    parts.forEach(part => {
+    groupTextRows(spans).forEach(part => {
       const row = nearestRow(rows, part.center);
-      if (!row) return;
-      const base = row.hasBottom ? row.bottom + 58 + 8 : part.bottom + 8;
-      const y = base + (depth - 1) * 13;
-      const width = Math.max(2, part.right - part.left);
-      const track = element('span', `clause-track type-${clause.type}`);
-      track.style.left = `${part.left}px`;
-      track.style.width = `${width}px`;
-      track.style.top = `${y}px`;
-      track.dataset.clause = String(clauseIndex + 1);
-      track.dataset.depth = String(depth);
-      const number = element('span', `clause-mark type-${clause.type}`, String(clauseIndex + 1));
-      number.style.left = `${part.left}px`;
-      number.style.top = `${y}px`;
-      layer.append(track, number);
+      if (row) entries.push({clause, clauseIndex, depth, part, row});
     });
+  });
+  return {lineRect, rows, rects, entries};
+}
+// Only a line that wraps inside itself has rows without their own line box; a
+// single-row line already reserves room with the card padding and row margins.
+function clauseRowHeight(nodes, geometry) {
+  if (geometry.rows.length < 2 || !geometry.entries.length) return 0;
+  const node = nodes.find(candidate => candidate?.isConnected) || nodes[0];
+  if (!node) return 0;
+  const style = getComputedStyle(node);
+  const base = (parseFloat(style.fontSize) || 0) * (parseFloat(style.getPropertyValue('--clause-base-row')) || 2);
+  const textHeight = Math.max(...geometry.rects.map(rect => rect.bottom - rect.top));
+  const gap = Math.max(...geometry.entries.map(entry => clauseTrackGap(entry.depth)));
+  // Round up so repeated measurements settle on one value instead of jittering.
+  return Math.ceil(Math.max(base, textHeight + gap));
+}
+function drawClauseLayer(line, sentence, nodes, clauses) {
+  line.querySelector('.clause-layer')?.remove();
+  let geometry = clauseGeometry(line, sentence, nodes, clauses);
+  if (!geometry.lineRect.width || !geometry.entries.length) return;
+  const height = clauseRowHeight(nodes, geometry);
+  const applied = parseFloat(line.style.getPropertyValue('--clause-row-height')) || 0;
+  if (height !== applied) {
+    if (height) line.style.setProperty('--clause-row-height', `${height}px`);
+    else line.style.removeProperty('--clause-row-height');
+    geometry = clauseGeometry(line, sentence, nodes, clauses);
+  }
+  if (!geometry.rows.length) return;
+  const layer = element('div', 'clause-layer');
+  layer.setAttribute('aria-hidden', 'true');
+  geometry.entries.forEach(({clause, clauseIndex, depth, part, row}) => {
+    const base = row.hasBottom ? row.bottom + 58 + CLAUSE_TRACK_BASE : part.bottom + CLAUSE_TRACK_BASE;
+    const y = base + (depth - 1) * 13;
+    const width = Math.max(2, part.right - part.left);
+    const track = element('span', `clause-track type-${clause.type}`);
+    track.style.left = `${part.left}px`;
+    track.style.width = `${width}px`;
+    track.style.top = `${y}px`;
+    track.dataset.clause = String(clauseIndex + 1);
+    track.dataset.depth = String(depth);
+    const number = element('span', `clause-mark type-${clause.type}`, String(clauseIndex + 1));
+    number.style.left = `${part.left}px`;
+    number.style.top = `${y}px`;
+    layer.append(track, number);
   });
   if (layer.childElementCount) line.append(layer);
 }

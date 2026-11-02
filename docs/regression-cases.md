@@ -32,6 +32,7 @@
 | 条件状语从句 | If it rains, we will stay at home. | 从句范围覆盖 `If it rains`；类型为条件状语从句；主句将来时在前、从句现在时在后。 |
 | 单片段短从句 | 内置例句中的 `who keep going every day`（5 词） | 清单显示编号、定语从句、原文；不画条带，并标明「单片段短从句，不画范围线」；不要为展示条带改写原句。 |
 | 同终点/相邻范围 | `I know that she left because he called.`；`I know that she was working and that he was resting.` | 两个范围可区分，编号不同，轨道不重叠；相邻范围不合并成一个。 |
+| 单片段内部换行 | 上表三层句中的 `upstairs` 换成 `near the very old and unusually spacious reception room on the far eastern side of the building`（仍是一个 adverbial 片段、同一组三层范围） | 手机宽度下这个片段自身折成多行；每一行英文下方各有该行需要的三层条带和编号，不压下一行文字、成分标签或清单；末行条带不碰撞后续内容；普通、大字、380/390px 都成立。这是渲染夹具，不代表模型必须这样切分。 |
 
 人工检查顺序：先确认原文完整和主干正确，再确认清单编号/类型/原文，最后确认条带属于哪一行、是否落在对应文字下方。手机 390px 和 380px、大字模式各看一次；切换详细视图、重新分析、换例句、清空后不应有旧线残留。
 

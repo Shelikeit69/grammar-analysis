@@ -174,3 +174,29 @@
 - 复测手机 390/380px、大字模式和长正文反馈；确认条带不遮挡成分标签，复制到 GitHub 的清单完整。
 - Issue #27 只有在上述复测通过后才能视为修复；未通过就 Reopen。
 - 本记录不声明真实模型拆分质量、准确率、实网延迟或云端环境已验证；上述工具夹具只证明渲染和数据路径。
+
+## 任务 B PR 2 追加修复：单个长片段内部换行（2026-11-01，分支 `feat/clause-brackets`，未合并）
+
+**问题**
+- 独立审核在 PR #34 基线 `6b015ec` 上复现 `[P2]`：手机宽度下，同一个合法片段自身折成多行时，三层从句条带和编号压住下一行英文；390px 普通与大字体模式均可复现。
+- 根因：`.clause-brackets .english` 的固定 `line-height:2` 只给行间约 20px 空间，而三层轨道需要约 45px。片段内部的换行发生在同一个 `.phrase` 行内盒里，内部行距只由行高决定；`.phrase` 的 `margin-bottom` 只移动片段之后的内容，无法解决片段内部各行之间的碰撞。
+
+**修复**
+- `public/styles.css`：固定行高改为 `line-height:var(--clause-row-height, var(--clause-base-row))`，`--clause-base-row:2` 作为未换行/短行的下限；新增 `.clause-probe`（绝对定位、隐藏、宽 1000px）精确测量 CSS zoom。
+- `public/app.js`：`drawClauseLayer` 先测量整行实际文字行和每个从句在每行的范围，按最深层轨道算出该行需要的行高（文字高 + 10 + 13×(层数-1) + 6 + 3，向上取整），只在行内有两个及以上文字行时写入该行的 `--clause-row-height`；单行保持基础行高，不用固定大行距掩盖问题。值相同不重设，避免观察器循环。轨道仍从每行文字下方起算，`hasBottom` 行保留标签空间。
+- `localScale` 从 `lineRect.width / line.offsetWidth` 改为探针测量：`offsetWidth` 取整使缩放系数偏高约 0.15%，长句底部累计漂移约 2.5px，大字模式下编号与文字矩形亚像素接触；探针测得精确 zoom（大字 1.25）。
+- `tests/fixtures/clauses.mjs` 新增 `longAdverbialSpan()`：`nestedThree()` 的 `segments[16]` 换成 `near the very old and unusually spacious reception room on the far eastern side of the building`，仍是同一个 adverbial 片段和同一组三层 clauses，`sentence.text` 由 segments 重建。原有夹具未改动，未削弱断言。该夹具只证明布局，不代表模型一定这样切分，也不要求该短语只有一种语法切分。
+- `scripts/browser-check.cjs`：`clauseGeometry` 增加目标片段内部行数、整行文字行、`--clause-row-height`、末行与清单/翻译/反馈按钮的碰撞测量；条带的绘制区域按「细线 + 4px 端点竖线 × zoom」计算，避免只检查 1.5px 边框盒。新增长片段内部换行用例。
+- `TOOL_VERSION` 仍为 `2026-11-01.2`：本次追加提交仍属未合并的 PR #34，不新增发布序号；仅实际合并日期变化时按仓库规则统一调整。
+
+**已自动验证（本机，全部模拟响应，未调用真实 DeepSeek）**
+- `npm test`：85 项通过，0 失败，退出码 0。
+- `npm run test:browser`：排版与交互 95 项（新增 9 项）、静态 Pages 11 项、反馈 154 项断言通过，退出码 0。
+- 390px 普通模式实测：目标长片段自身 4 个文字行，整行 11 个文字行，`--clause-row-height:73px`（基础 50px）；三层共 22 段条带（9/7/6）与 22 个编号。
+- 390px 大字模式实测：目标长片段 5 个文字行，整行 12 个文字行，`--clause-row-height:74px`；三层共 24 段条带（10/8/6）与 24 个编号。
+- 新增断言覆盖：390 普通/大字、380、1280 桌面、桌面→手机→桌面、详细视图关闭再打开、重新分析、清空。断言目标单个 `.english` 确实产生多个文字行；三层深度都存在；条带与编号不与任何英文行文字矩形、成分标签、清单/翻译/反馈按钮相交；同一行内不同深度轨道分离、同深度只有一条；每条轨道按横向范围归属到自己的文字行，纵向在该行文字下方且不越过下一行；两次测量行高与位置一致（无观察器循环）；清空后无 `.clause-layer` / `.clause-panel` 残留；无 pageerror、无横向溢出。
+- `git diff --check` 通过。
+
+**待真实验收（负责人）**
+- 用真实密钥确认移动端长片段自身换行时条带不压字；本记录不声明模型会生成同样的片段切分。
+- 截图 `artifacts/wrap-390-normal.png`、`artifacts/wrap-390-normal-span.png`、`artifacts/wrap-390-large.png`、`artifacts/wrap-390-large-span.png` 为本地生成，未提交。

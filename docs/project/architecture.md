@@ -27,8 +27,8 @@
 - `lib/access.mjs`：本地和 Codespaces 的访问来源校验（只允许 127.0.0.1 和本 Codespace 的域名）。
 - `server.mjs`：本地和 Codespaces 用的 HTTP 服务，只监听 127.0.0.1。新增的 `public/` 文件要加进它的资源白名单，也要加进 `scripts/browser-pages-check.cjs` 的白名单。
 - `tests/`：node --test 单元测试，共 85 项（任务 B PR 1 新增 14 项：clauses 归一化/容错、提示词关键句、反馈从句清单与 HTML 安全；PR 2 新增 7 项：长从句拆分与 core/detail 提示词关键句、从句 `predicateOf` 边界、内置例句 clauses）。
-- `tests/fixtures/clauses.mjs`：从句渲染夹具（条件、宾语、两层/三层嵌套、同终点、相邻范围），句子为虚构改写，供浏览器检查模拟响应使用。
-- `scripts/browser-check.cjs`：Playwright 排版与交互检查（86 项，含 PR 2 的从句清单、跨行条带位置、嵌套轨道、单片段短从句、清理、窄屏和大字检查）；`scripts/browser-pages-check.cjs`：模拟 Pages 静态网页的检查（11 项）；`scripts/browser-feedback-check.cjs`：反馈流程检查（154 项断言，PR #28 起包含长链接两步流程和 380/390px 排版检查，任务 B PR 1 新增从句清单的 XSS/字段白名单断言，会生成截图到 `artifacts/feedback/`）。都用模拟响应，不调用真实 DeepSeek，也不提交真实 Issue。
+- `tests/fixtures/clauses.mjs`：从句渲染夹具（条件、宾语、两层/三层嵌套、同终点、相邻范围，以及只用于验证同一片段内部换行的长状语），句子为虚构改写，供浏览器检查模拟响应使用。
+- `scripts/browser-check.cjs`：Playwright 排版与交互检查（95 项，含 PR 2 的从句清单、跨行条带位置、嵌套轨道、单片段短从句、单片段内部换行、清理、窄屏和大字检查）；`scripts/browser-pages-check.cjs`：模拟 Pages 静态网页的检查（11 项）；`scripts/browser-feedback-check.cjs`：反馈流程检查（154 项断言，PR #28 起包含长链接两步流程和 380/390px 排版检查，任务 B PR 1 新增从句清单的 XSS/字段白名单断言，会生成截图到 `artifacts/feedback/`）。都用模拟响应，不调用真实 DeepSeek，也不提交真实 Issue。
 - `.gitignore`：`artifacts/` 已加入（PR #28），测试生成的截图不提交。
 - `.github/ISSUE_TEMPLATE/analysis-error.md`：「分析问题反馈」Issue 模板，标题和网页生成的正文一致：问题类型 / 具体说明 / 用户认为正确的 / 原句 / AI 分析结果 / 调用模型 / 工具版本。
 - `.github/workflows/ci.yml`：每次 push 和 PR 都跑 `npm test`，再装 Playwright 跑 `npm run test:browser`。任务名叫 `test`（分支保护依赖这个名字，别改）。
