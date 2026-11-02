@@ -19,6 +19,15 @@ test('example keeps the original text, marks the core and modifiers, and meets t
   assert.match(sentence.tense, /一般将来时/);
 });
 
+test('example ships a validated clause list with the single-span short clause', () => {
+  const sentence = validateAnalysis(demoAnalysis, demoText).sentences[0];
+  assert.deepEqual(sentence.clauses, [{start: 4, end: 5, type: 'relative'}]);
+  assert.equal(sentence.segments[4].text, 'who keep going every day');
+  // Five English words and no nested clause: the short clause may stay one span,
+  // so the detailed view lists it without drawing a range line.
+  assert.equal((sentence.segments[4].text.match(/[A-Za-z]+(?:['’-][A-Za-z]+)*/g) || []).length, 5);
+});
+
 test('example modifier relations: each modifier points to the word it modifies', () => {
   const sentence = validateAnalysis(demoAnalysis, demoText).sentences[0];
   const target = text => {

@@ -52,5 +52,62 @@ test('bad optional predicate links never cause a repair request', async () => {
 test('prompt explicitly permits separated predicates without swallowing their object', () => {
   assert.match(SYSTEM, /predicateOf/);
   assert.match(SYSTEM, /You should give it up/);
+  assert.match(SYSTEM, /Main-clause separated predicates keep predicateOf/);
   assert.doesNotMatch(SYSTEM, /The predicate is ONE contiguous span/);
+});
+
+// "The book that she gave the note back is useful." -> the clause internal
+// predicate is split open, so both ends are level detail and predicateOf is
+// not applicable; the validator drops only that link.
+test('a predicateOf inside a split clause is dropped because clause internals are detail', () => {
+  const segment = (text, role, translation = '', lemma = '', level = 'core') =>
+    ({text, role, translation, lemma, detail: '测试', level});
+  const gap = () => segment(' ', 'other', '', '', 'detail');
+  const text = 'The book that she gave the note back is useful.';
+  const segments = [
+    segment('The book', 'subject', '这本书'), gap(),
+    segment('that', 'object', '引导定语从句', '', 'detail'), gap(),
+    segment('she', 'subject', '她', '', 'detail'), gap(),
+    segment('gave', 'predicate', '还', 'give back', 'detail'), gap(),
+    segment('the note', 'object', '笔记', '', 'detail'), gap(),
+    segment('back', 'predicate', '还', 'give back', 'detail'), gap(),
+    segment('is', 'linking', '是', 'be'), gap(),
+    segment('useful', 'predicative', '有用的'),
+    segment('.', 'other', '', '', 'detail'),
+  ];
+  segments[10].predicateOf = 6;
+  const out = validateAnalysis({
+    sentences: [{text, translation: '她把笔记还了的那本书很有用。', note: '', clauses: [{start: 2, end: 11, type: 'relative'}], segments}],
+    translation: '她把笔记还了的那本书很有用。',
+  }, text);
+  assert.equal('predicateOf' in out.sentences[0].segments[10], false);
+  assert.equal(out.sentences[0].segments[6].role, 'predicate');
+  assert.equal(out.sentences[0].segments[6].level, 'detail');
+  assert.deepEqual(out.sentences[0].clauses, [{start: 2, end: 11, type: 'relative'}]);
+  assert.equal(out.sentences[0].segments.map(part => part.text).join(''), text);
+});
+
+test('a main-clause separated predicate keeps predicateOf even when the sentence has a clause', () => {
+  const segment = (text, role, translation = '', lemma = '', level = 'core') =>
+    ({text, role, translation, lemma, detail: '测试', level});
+  const gap = () => segment(' ', 'other', '', '', 'detail');
+  const text = 'You should give the note that she picked up back.';
+  const segments = [
+    segment('You', 'subject', '你'), gap(),
+    segment('should give', 'predicate', '还', 'give back'), gap(),
+    segment('the note', 'object', '笔记'), gap(),
+    segment('that', 'object', '引导定语从句', '', 'detail'), gap(),
+    segment('she', 'subject', '她', '', 'detail'), gap(),
+    segment('picked up', 'predicate', '捡起', 'pick up', 'detail'), gap(),
+    segment('back', 'predicate', '还', 'give back'),
+    segment('.', 'other', '', '', 'detail'),
+  ];
+  segments[12].predicateOf = 2;
+  const out = validateAnalysis({
+    sentences: [{text, translation: '你应该把她捡到的笔记还回去。', note: '', clauses: [{start: 6, end: 11, type: 'relative'}], segments}],
+    translation: '你应该把她捡到的笔记还回去。',
+  }, text);
+  assert.equal(out.sentences[0].segments[12].predicateOf, 2);
+  assert.equal(out.sentences[0].segments[10].level, 'detail');
+  assert.deepEqual(out.sentences[0].clauses, [{start: 6, end: 11, type: 'relative'}]);
 });

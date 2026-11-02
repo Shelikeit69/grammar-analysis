@@ -317,9 +317,80 @@ button {
   color:#8a7632
 }
 .annotation-line {
+  position:relative;
   padding:5px 24px 9px;
   line-height:1;
   overflow-wrap:anywhere
+}
+/* Detailed view with clause ranges: every visual line reserves room for the
+   bracket tracks. A span that wraps internally gets no margin between its own
+   rows, so app.js raises --clause-row-height to the measured height that line
+   needs; --clause-base-row stays the floor for short lines. */
+.clause-brackets .english {
+  --clause-base-row: 2;
+  line-height: var(--clause-row-height, var(--clause-base-row))
+}
+.clause-brackets .phrase {
+  margin-bottom:42px
+}
+.clause-brackets .phrase.has-bottom {
+  margin-bottom:calc(var(--label-space) + 42px)
+}
+.clause-layer {
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  z-index:4
+}
+/* Measured once per redraw to turn zoomed device pixels back into style pixels. */
+.clause-probe {
+  position:absolute;
+  top:0;
+  left:0;
+  width:1000px;
+  height:0;
+  visibility:hidden;
+  pointer-events:none
+}
+.clause-track {
+  position:absolute;
+  height:0;
+  border-top:1.5px solid currentColor;
+  opacity:.8
+}
+.clause-track:before,.clause-track:after {
+  content:"";
+  position:absolute;
+  top:0;
+  width:1px;
+  height:4px;
+  background:currentColor
+}
+.clause-track:before {
+  left:0
+}
+.clause-track:after {
+  right:0
+}
+.clause-mark {
+  position:absolute;
+  transform:translateY(-50%);
+  padding:0 2px;
+  border-radius:2px;
+  background:var(--paper);
+  font-size:10px;
+  font-weight:700;
+  line-height:1.2;
+  pointer-events:none
+}
+.type-relative {
+  color:#5f5a50
+}
+.type-object {
+  color:var(--object)
+}
+.type-adverbial {
+  color:var(--adverbial)
 }
 /* Labels share the english cell and overflow outward (height:0), so a line only
    grows when one of its phrases really has a top/bottom label. */
@@ -485,6 +556,50 @@ button {
   color:var(--muted);
   line-height:1.8
 }
+.clause-panel {
+  margin:0 23px 18px;
+  padding:12px 15px;
+  background:#f7f6ef;
+  border-left:2px solid #8fa185;
+  font-size:12px;
+  line-height:1.7
+}
+.clause-panel-title {
+  margin:0 0 8px;
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:1px;
+  color:var(--muted)
+}
+.clause-list {
+  list-style:none;
+  margin:0;
+  padding:0;
+  display:grid;
+  gap:6px
+}
+.clause-item {
+  display:flex;
+  flex-wrap:wrap;
+  align-items:baseline;
+  gap:6px;
+  overflow-wrap:anywhere
+}
+.clause-number {
+  font-weight:700
+}
+.clause-type {
+  font-weight:600
+}
+.clause-text {
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:13px;
+  color:var(--ink)
+}
+.clause-note {
+  font-size:10px;
+  color:var(--muted)
+}
 .paragraph {
   font-size:13px;
   background:#eeefe8;
@@ -606,7 +721,7 @@ textarea {
 .translation-text {
   font-size:13px
 }
-.structure-note,.phrase-detail {
+.structure-note,.phrase-detail,.clause-panel {
   margin-left:16px;
   margin-right:16px
 }

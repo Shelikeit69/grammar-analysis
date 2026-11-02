@@ -8,6 +8,7 @@ export const demoAnalysis = {
     tense: '一般将来时 · 主动语态；一般现在时 · 主动语态',
     tenseReason: '因为谓语是 will see（will + 动词原形），所以是一般将来时；主语 learners 是「看到」的发出者，所以是主动语态。定语从句 who keep going every day 的谓语是 keep going（动词原形，主语 who 指复数的 learners），且有时间词 every day，所以是一般现在时。',
     note: '主干是 learners will see the beauty（学习者会看到美）。Tired 和 who keep going every day 都在修饰 learners，前者放在名词前面，后者是放在名词后面的定语从句；of English grammar 修饰 the beauty；in the end 说明「什么时候」，是时间状语。先找主干，再把修饰部分一块块挂回去，长句就不难了。',
+    clauses: [{start: 4, end: 5, type: 'relative'}],
     segments: [
       part('Tired', 'attribute', '疲惫的', '', '形容词放在名词前作定语，修饰 learners。', 'detail', 2),
       gap(),

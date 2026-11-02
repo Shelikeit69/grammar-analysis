@@ -21,6 +21,34 @@ let controller = null;
 let generation = 0;
 let pasteTimer;
 let composing = false;
+// Clause brackets are re-measured after fonts, zoom and width changes. Every
+// rerender replaces the cards, so these handles must be cleared first.
+let clauseObserver = null;
+let clauseLayoutFrame = 0;
+let clauseLayoutTimer = 0;
+let clauseLayouts = [];
+function teardownClauseLayout() {
+  cancelAnimationFrame(clauseLayoutFrame);
+  clearTimeout(clauseLayoutTimer);
+  clauseLayoutFrame = 0;
+  clauseLayoutTimer = 0;
+  clauseObserver?.disconnect();
+  clauseObserver = null;
+  clauseLayouts = [];
+  // Clear leaves the old cards in place until the next render; drop their
+  // overlays and lists so no stale clause markup survives a clear or rerender.
+  document.querySelectorAll('.clause-layer, .clause-panel').forEach(node => node.remove());
+}
+function runClauseLayout() {
+  clauseLayouts.forEach(layout => { try { layout(); } catch { /* ignore one card */ } });
+}
+function scheduleClauseLayout() {
+  if (!clauseLayouts.length) return;
+  cancelAnimationFrame(clauseLayoutFrame);
+  clearTimeout(clauseLayoutTimer);
+  clauseLayoutFrame = requestAnimationFrame(runClauseLayout);
+  clauseLayoutTimer = setTimeout(runClauseLayout, 180);
+}
 // 'server': a local/Codespaces backend holds the key. 'browser': static hosting
 // (GitHub Pages); the visitor's own key is used directly from this browser.
 let mode = 'unknown';
@@ -49,6 +77,7 @@ const SIZE_STORE = 'grammar-analysis.textSize';
 function applyTextSize(large) {
   document.documentElement.classList.toggle('large-text', large);
   $('text-size').setAttribute('aria-pressed', String(large));
+  scheduleClauseLayout();
 }
 function toggleTextSize() {
   const large = !document.documentElement.classList.contains('large-text');
@@ -115,6 +144,189 @@ function browserError(error) {
   return 'AI 返回的结果不完整或与原文对不上，请重试。';
 }
 
+const clauseTypeNames = {relative: '定语从句', object: '宾语从句', adverbial: '状语从句'};
+const clauseSubtypeNames = {time: '时间', condition: '条件', reason: '原因', concession: '让步', purpose: '目的', result: '结果', comparison: '比较', manner: '方式'};
+function clauseName(clause) {
+  if (clause.type !== 'adverbial') return clauseTypeNames[clause.type] || '从句';
+  return `${clauseSubtypeNames[clause.subtype] || ''}状语从句`;
+}
+function sentenceClauses(sentence) {
+  if (!Array.isArray(sentence.clauses)) return [];
+  const segments = Array.isArray(sentence.segments) ? sentence.segments : [];
+  return sentence.clauses.filter(clause => clause && clauseTypeNames[clause.type] &&
+    Number.isInteger(clause.start) && Number.isInteger(clause.end) &&
+    clause.start >= 0 && clause.end <= segments.length && clause.start < clause.end &&
+    /[\p{L}\p{N}]/u.test(segments.slice(clause.start, clause.end).map(part => part.text).join('')));
+}
+function clauseDepth(clauses, clause) {
+  return Math.min(3, 1 + clauses.filter(other =>
+    other.start <= clause.start && other.end >= clause.end &&
+    (other.start < clause.start || other.end > clause.end)).length);
+}
+function clauseText(sentence, clause) {
+  return sentence.segments.slice(clause.start, clause.end).map(part => part.text).join('');
+}
+function clauseHasTwoContentSpans(sentence, clause) {
+  return sentence.segments.slice(clause.start, clause.end)
+    .filter(part => /[\p{L}\p{N}]/u.test(part.text)).length >= 2;
+}
+function textRects(node) {
+  if (!node?.firstChild) return [];
+  const range = document.createRange();
+  range.selectNodeContents(node);
+  const rects = Array.from(range.getClientRects()).filter(rect => rect.width > .5 && rect.height > .5);
+  range.detach?.();
+  return rects;
+}
+// Large text applies CSS zoom, so measured device pixels must be divided by
+// the zoom factor before they become style offsets inside the zoomed line.
+// offsetWidth is rounded to whole pixels, and that ratio drifts by a couple of
+// pixels at the bottom of a tall wrapped sentence, so a 1000px probe measures
+// the factor exactly instead.
+function localScale(line) {
+  const probe = element('span', 'clause-probe');
+  probe.setAttribute('aria-hidden', 'true');
+  line.append(probe);
+  const width = probe.getBoundingClientRect().width;
+  probe.remove();
+  return width > 0 && Number.isFinite(width) ? width / 1000 : 1;
+}
+function localRect(rect, lineRect, scale) {
+  return {
+    left: (rect.left - lineRect.left) / scale,
+    right: (rect.right - lineRect.left) / scale,
+    top: (rect.top - lineRect.top) / scale,
+    bottom: (rect.bottom - lineRect.top) / scale,
+  };
+}
+function groupTextRows(rects) {
+  const rows = [];
+  for (const rect of rects.slice().sort((a, b) => a.top - b.top || a.left - b.left)) {
+    const center = (rect.top + rect.bottom) / 2;
+    const row = rows.find(candidate => Math.abs(center - candidate.center) < 9);
+    if (row) {
+      row.top = Math.min(row.top, rect.top);
+      row.bottom = Math.max(row.bottom, rect.bottom);
+      row.left = Math.min(row.left, rect.left);
+      row.right = Math.max(row.right, rect.right);
+      row.center = (row.top + row.bottom) / 2;
+    } else {
+      rows.push({top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right, center});
+    }
+  }
+  return rows;
+}
+function nearestRow(rows, center) {
+  return rows.reduce((best, row) => !best || Math.abs(row.center - center) < Math.abs(best.center - center) ? row : best, null);
+}
+function collectClauseRows(line, nodes, scale) {
+  const lineRect = line.getBoundingClientRect();
+  const rects = nodes.flatMap(node =>
+    textRects(node).map(rect => localRect(rect, lineRect, scale)));
+  const rows = groupTextRows(rects);
+  nodes.forEach(node => {
+    const phrase = node?.closest?.('.phrase');
+    const own = groupTextRows(textRects(node).map(rect => localRect(rect, lineRect, scale)));
+    if (!phrase || !own.length) return;
+    const box = localRect(phrase.getBoundingClientRect(), lineRect, scale);
+    const first = nearestRow(rows, own[0].center);
+    const last = nearestRow(rows, own.at(-1).center);
+    if (first && phrase.classList.contains('has-top')) first.top = Math.min(first.top, box.top);
+    if (last && phrase.classList.contains('has-bottom')) last.bottom = Math.max(last.bottom, box.bottom);
+    if (last) last.hasBottom = last.hasBottom || phrase.classList.contains('has-bottom');
+  });
+  return {lineRect, rows, rects};
+}
+// Room a text row needs under itself: a 10px gap, one 13px lane per nesting
+// level, and the number badge centred on its lane. A row inside one wrapped
+// span has no line box of its own, so the leading has to carry this space.
+const CLAUSE_TRACK_BASE = 10;
+function clauseTrackGap(depth) {
+  return CLAUSE_TRACK_BASE + (depth - 1) * 13 + 6 + 3;
+}
+function clauseGeometry(line, sentence, nodes, clauses) {
+  const lineRect = line.getBoundingClientRect();
+  const scale = localScale(line);
+  const {rows, rects} = collectClauseRows(line, nodes, scale);
+  const entries = [];
+  clauses.forEach((clause, clauseIndex) => {
+    if (!clauseHasTwoContentSpans(sentence, clause)) return;
+    const depth = clauseDepth(clauses, clause);
+    const spans = [];
+    for (let index = clause.start; index < clause.end; index += 1) {
+      if (nodes[index] && /[\p{L}\p{N}]/u.test(sentence.segments[index].text)) {
+        spans.push(...textRects(nodes[index]).map(rect => localRect(rect, lineRect, scale)));
+      }
+    }
+    groupTextRows(spans).forEach(part => {
+      const row = nearestRow(rows, part.center);
+      if (row) entries.push({clause, clauseIndex, depth, part, row});
+    });
+  });
+  return {lineRect, rows, rects, entries};
+}
+// Only a line that wraps inside itself has rows without their own line box; a
+// single-row line already reserves room with the card padding and row margins.
+function clauseRowHeight(nodes, geometry) {
+  if (geometry.rows.length < 2 || !geometry.entries.length) return 0;
+  const node = nodes.find(candidate => candidate?.isConnected) || nodes[0];
+  if (!node) return 0;
+  const style = getComputedStyle(node);
+  const base = (parseFloat(style.fontSize) || 0) * (parseFloat(style.getPropertyValue('--clause-base-row')) || 2);
+  const textHeight = Math.max(...geometry.rects.map(rect => rect.bottom - rect.top));
+  const gap = Math.max(...geometry.entries.map(entry => clauseTrackGap(entry.depth)));
+  // Round up so repeated measurements settle on one value instead of jittering.
+  return Math.ceil(Math.max(base, textHeight + gap));
+}
+function drawClauseLayer(line, sentence, nodes, clauses) {
+  line.querySelector('.clause-layer')?.remove();
+  let geometry = clauseGeometry(line, sentence, nodes, clauses);
+  if (!geometry.lineRect.width || !geometry.entries.length) return;
+  const height = clauseRowHeight(nodes, geometry);
+  const applied = parseFloat(line.style.getPropertyValue('--clause-row-height')) || 0;
+  if (height !== applied) {
+    if (height) line.style.setProperty('--clause-row-height', `${height}px`);
+    else line.style.removeProperty('--clause-row-height');
+    geometry = clauseGeometry(line, sentence, nodes, clauses);
+  }
+  if (!geometry.rows.length) return;
+  const layer = element('div', 'clause-layer');
+  layer.setAttribute('aria-hidden', 'true');
+  geometry.entries.forEach(({clause, clauseIndex, depth, part, row}) => {
+    const base = row.hasBottom ? row.bottom + 58 + CLAUSE_TRACK_BASE : part.bottom + CLAUSE_TRACK_BASE;
+    const y = base + (depth - 1) * 13;
+    const width = Math.max(2, part.right - part.left);
+    const track = element('span', `clause-track type-${clause.type}`);
+    track.style.left = `${part.left}px`;
+    track.style.width = `${width}px`;
+    track.style.top = `${y}px`;
+    track.dataset.clause = String(clauseIndex + 1);
+    track.dataset.depth = String(depth);
+    const number = element('span', `clause-mark type-${clause.type}`, String(clauseIndex + 1));
+    number.style.left = `${part.left}px`;
+    number.style.top = `${y}px`;
+    layer.append(track, number);
+  });
+  if (layer.childElementCount) line.append(layer);
+}
+function clausePanel(sentence, clauses) {
+  const panel = element('section', 'clause-panel');
+  panel.append(element('h3', 'clause-panel-title', '从句清单'));
+  const list = element('ul', 'clause-list');
+  clauses.forEach((clause, index) => {
+    const item = element('li', 'clause-item');
+    item.append(
+      element('span', `clause-number type-${clause.type}`, String(index + 1)),
+      element('span', `clause-type type-${clause.type}`, clauseName(clause)),
+      element('span', 'clause-text', clauseText(sentence, clause)),
+    );
+    if (!clauseHasTwoContentSpans(sentence, clause)) item.append(element('span', 'clause-note', '单片段短从句，不画范围线'));
+    list.append(item);
+  });
+  panel.append(list);
+  return panel;
+}
+
 function element(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -143,6 +355,7 @@ function countWords() {
 }
 function invalidate() {
   cancelPending();
+  teardownClauseLayout();
   countWords();
   current = null;
   $('results').hidden = true;
@@ -151,6 +364,7 @@ function invalidate() {
 
 function render() {
   if (!current) return;
+  teardownClauseLayout();
   const detailed = $('detail-toggle').checked;
   const list = $('sentence-list');
   list.replaceChildren();
@@ -171,6 +385,7 @@ function render() {
     detail.id = `phrase-detail-${sentenceIndex}`;
     // Visible (clickable) phrase buttons by segment index, so a click can find its `modifies` target.
     const buttons = new Map();
+    const englishNodes = [];
     let annotatedIndex = 0;
     sentence.segments.forEach((segment, segmentIndex) => {
       const visible = segment.role !== 'other' && (detailed || segment.level === 'core');
@@ -232,8 +447,16 @@ function render() {
       phrase.append(english);
       if (annotationNode) phrase.append(annotationNode);
       line.append(phrase);
+      englishNodes.push(english);
     });
-    card.append(line, detail);
+    const clauses = detailed ? sentenceClauses(sentence) : [];
+    if (clauses.length) {
+      line.classList.add('clause-brackets');
+      card.append(line, clausePanel(sentence, clauses), detail);
+      clauseLayouts.push(() => drawClauseLayer(line, sentence, englishNodes, clauses));
+    } else {
+      card.append(line, detail);
+    }
     if (detailed && sentence.note) card.append(element('p', 'structure-note', sentence.note));
     const translation = element('div', 'translation-row');
     translation.append(element('span', 'translation-label', '整句翻译'), element('p', 'translation-text', sentence.translation));
@@ -247,6 +470,12 @@ function render() {
   $('paragraph-translation').hidden = current.sentences.length < 2;
   $('paragraph-translation').querySelector('p').textContent = current.translation;
   $('results').hidden = false;
+  if (clauseLayouts.length) {
+    clauseObserver = new ResizeObserver(scheduleClauseLayout);
+    clauseObserver.observe($('sentence-list'));
+    document.fonts?.ready.then(scheduleClauseLayout);
+    scheduleClauseLayout();
+  }
 }
 
 function showExample() {
@@ -264,6 +493,7 @@ function showExample() {
 async function analyze() {
   if (composing) return;
   cancelPending();
+  teardownClauseLayout();
   if (mode === 'unknown') { setStatus('正在检查运行环境，请稍候再试。'); return; }
   const text = input.value;
   if (!text.trim()) { setStatus('先输入一句英文吧。', true); input.focus(); return; }
@@ -432,6 +662,8 @@ analyzeButton.addEventListener('click', analyze);
 $('example-button').addEventListener('click', showExample);
 $('clear-button').addEventListener('click', () => {input.value = ''; invalidate(); input.focus();});
 $('detail-toggle').addEventListener('change', render);
+window.addEventListener('resize', scheduleClauseLayout);
+document.fonts?.addEventListener('loadingdone', scheduleClauseLayout);
 showExample();
 $('save-key').addEventListener('click', saveSettings);
 $('text-size').addEventListener('click', toggleTextSize);

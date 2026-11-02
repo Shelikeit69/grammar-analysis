@@ -106,7 +106,7 @@
 
 没记录：是否触发格式修正；in the stadium 的修饰高亮没截图确认。每句只测一到三次，样本少，不代表模型每次都稳定输出正确关系；本记录不是准确率评测。
 
-## 任务 B PR 1：从句数据基础（2026-11-01，分支 `feat/clause-data`）
+## 任务 B PR 1：从句数据基础（2026-11-01，分支 `feat/clause-data`，已合并 #33）
 
 **已实现**
 - `public/analysis.js` 新增可选句级 `clauses` 的归一化与容错：只保留 `start`、`end`、`type`、合法 `subtype`；缺失或非法时输出形状与旧版一致。合法项按 `start` 升序、同起点 `end` 降序；同范围去重；部分交叉的两项先整体标记再一起删除；非法项不参与冲突判定；嵌套深度从包含关系计算，超过 3 层的内层项丢弃；候选超过 200 项（`MAX_CLAUSE_CANDIDATES`）时忽略整句 clauses。任何 clauses 错误都不抛 `AnalysisValidationError`，也不触发格式修正。核心逐字覆盖和字段校验未放宽。
@@ -120,8 +120,83 @@
 - `npm run test:browser`（本机 Edge，全部模拟响应）：排版与交互 62 项、静态 Pages 11 项、反馈 154 项断言通过，退出码 0。反馈检查新增从句清单渲染、原文重建、`<img onerror>` 不执行、未知字段不显示等断言。
 - `git diff --check` 通过。
 
+**状态**：PR 1 已合并（#33），合并前自动检查通过；下面的有限真实验收只覆盖了 PR 1 的输出规则，不构成准确率评测。
+
 **待真实验收（负责人）**
 - 用真实密钥在 Pages 或本地分析真实句子，确认模型是否输出合法 `clauses`、类型和小类是否合理、时态是否真的主句优先。
 - 确认反馈正文的从句清单在真实长结果、6000 字符两步流程下仍完整且不泄露字段。
-- Issue #27 仍未修复（长从句仍可能被整块标成一个框）；长从句拆分和范围条带在 PR 2，需真实模型与上线实测。
+- Issue #27 在 PR 1 阶段未修复（长从句仍可能被整块标成一个框）；长从句拆分和范围条带在 PR 2，需真实模型与上线实测。
 - 本记录不声明真实模型准确率、实网延迟或云端环境已验证。
+
+**有限真实验收（2026-11-01，版本 2026-11-01.1，deepseek-flash，GitHub Pages）**
+负责人做了少量真实调用，只记录观察，不是准确率评测：
+
+| 原句 | 观察 | 分类 |
+|---|---|---|
+| If it rains, we will stay at home. | 条件状语从句范围 `If it rains` 正确；时态主句将来时在前、从句现在时在后，依据正确 | 通过 |
+| The book that the teacher who lives next door recommended is useful. | 时态现在时在前、过去时在后，重复的现在时没有重复列出；但外层长定语从句仍整块一个片段，反馈只有外层范围、缺少 `who lives next door`，范围数据没有完整表达两层嵌套，时态依据未提 `lives` | 限制 / PR 2 复测重点 |
+| I know that she was working. | 宾语从句范围、时态顺序和依据通过；原形释义出现「work－正在工作」，属于既有释义混入时态问题 | 通过（释义限制另记） |
+| The children played outside yesterday. | 时态和依据正确，没有多余从句清单 | 通过 |
+| 长正文复制到 GitHub | 标题、从句清单、模型名、版本号保留；直接粘贴时会残留占位提示尾部，先全选替换后正常 | 通过（文案优化另开小修） |
+
+这轮观察**不**证明嵌套范围已经通过；第二句正是 PR 2 要复测的结构。
+
+## 任务 B PR 2：长从句拆分与从句条带渲染（2026-11-01，分支 `feat/clause-brackets`）
+
+**已实现**
+- `public/deepseek.js` 的 `SYSTEM` 重写长从句规则：超过 6 个英文单词或内部含嵌套从句时拆出内部主语、谓语和其他必要成分；6 词及以下且无嵌套的短从句可整框（6 词 `who lives next door to me`、7 词 `...my parents` 作为边界示例）；仅介词短语不强制拆、不逐词拆。清理旧的「一成分一框」措辞（限定为 `Outside the long-clause rule below, one constituent is one span`），旧示例的 5 词短从句保留整框。
+- `level` 规则：主句主干和并列主句 `core`；从句内部拆分成分（含内部主谓）`detail`。长从句拆开后 `clauses` 范围仍覆盖全部片段，嵌套时内外层都输出。
+- 时态依据要求覆盖去重后从句的关键谓语（如 `lives`、`rains`）。
+- `predicateOf` 边界保持原契约：两端 predicate/core，只服务主句分离短语动词；SYSTEM 明确从句 `detail` 不输出不适用的 predicateOf。校验未放宽，主句分离谓语行为保留。
+- `public/app.js`：详细视图渲染「从句清单」和英文下方范围条带。编号按规范化 `clauses` 顺序；原文由 `segments` 重建；单片段短从句只列清单并标注不画线；范围跨多片段时按文字矩形分视觉行绘制，深度 1/2/3 不同轨道；条带层 `aria-hidden`、`pointer-events:none`、无 tabindex。
+- 布局刷新与清理：ResizeObserver、窗口 resize、字体加载、大字切换后重排；重分析、换例句、清空移除旧 `.clause-layer` 和 `.clause-panel`。大字 CSS zoom 下先把测量矩形换算回本地 CSS 像素再绘制。
+- `public/demo.js` 内置例句补 `clauses`（`who keep going every day`，5 词短从句，保持单片段）。
+- `TOOL_VERSION` 为 `2026-11-01.2`（预定合并日 + 序号，合并日变更时由负责人合并前调整）。
+
+**已自动验证（本机，全部模拟响应，未调用真实 DeepSeek）**
+- `npm test`：85 项通过，0 失败，退出码 0。新增覆盖：SYSTEM 长/短/嵌套拆分关键句、6/7 词边界和含嵌套短从句示例、core/detail 规则、从句 detail 的 `predicateOf` 被丢弃、主句分离谓语保留、内置例句 clauses。PR 1 的 clauses 归一化、容错和反馈断言全部保留。
+- `npm run test:browser`（本机 Chromium，全部模拟响应）：排版与交互 86 项、静态 Pages 11 项、反馈 154 项断言通过，退出码 0。新增断言不只检查元素存在，还检查：
+  - 清单编号/类型/原文与规范化 clauses 一致；条带编号与清单对应。
+  - 每条轨道属于哪一行、横向落在该从句文字范围内、纵向在该行文字下方；同一从句跨行时每行一段且编号相同。
+  - 两层、三层嵌套的轨道深度不重叠；相邻、同起点、同终点范围可区分。
+  - 单片段短从句有清单、无条带。
+  - 默认视图只显示 `core`，详细视图显示从句内部 `detail` 和外层范围。
+  - 桌面 1280、900、390、380px、大字模式、动态改宽后位置更新；无横向溢出。
+  - 条带不在 Tab 顺序、不拦截成分点击；清单文本完整。
+  - 重新分析、换例句、清空后无 `.clause-track`/`.clause-panel` 残留，无 pageerror。
+  - 无 clauses、全非法 clauses、旧结果正常显示。
+  - `modifies` 点击高亮、`predicateOf` 主句分离谓语和反馈长短流程不回归。
+- `git diff --check` 通过。
+
+**待真实验收（负责人，PR 2 上线后）**
+- 用真实密钥复测 `The book that the teacher who lives next door recommended is useful.` 同类结构：外层长定语从句是否拆开、内外层 `clauses` 是否完整、详细视图是否出现两层条带、默认视图主干是否简洁、`tenseReason` 是否提及 `lives`。
+- 复测简单定语、宾语、条件状语从句，确认条文位置和清单没有错位。
+- 复测手机 390/380px、大字模式和长正文反馈；确认条带不遮挡成分标签，复制到 GitHub 的清单完整。
+- Issue #27 只有在上述复测通过后才能视为修复；未通过就 Reopen。
+- 本记录不声明真实模型拆分质量、准确率、实网延迟或云端环境已验证；上述工具夹具只证明渲染和数据路径。
+
+## 任务 B PR 2 追加修复：单个长片段内部换行（2026-11-01，分支 `feat/clause-brackets`，未合并）
+
+**问题**
+- 独立审核在 PR #34 基线 `6b015ec` 上复现 `[P2]`：手机宽度下，同一个合法片段自身折成多行时，三层从句条带和编号压住下一行英文；390px 普通与大字体模式均可复现。
+- 根因：`.clause-brackets .english` 的固定 `line-height:2` 只给行间约 20px 空间，而三层轨道需要约 45px。片段内部的换行发生在同一个 `.phrase` 行内盒里，内部行距只由行高决定；`.phrase` 的 `margin-bottom` 只移动片段之后的内容，无法解决片段内部各行之间的碰撞。
+
+**修复**
+- `public/styles.css`：固定行高改为 `line-height:var(--clause-row-height, var(--clause-base-row))`，`--clause-base-row:2` 作为未换行/短行的下限；新增 `.clause-probe`（绝对定位、隐藏、宽 1000px）精确测量 CSS zoom。
+- `public/app.js`：`drawClauseLayer` 先测量整行实际文字行和每个从句在每行的范围，按最深层轨道算出该行需要的行高（文字高 + 10 + 13×(层数-1) + 6 + 3，向上取整），只在行内有两个及以上文字行时写入该行的 `--clause-row-height`；单行保持基础行高，不用固定大行距掩盖问题。值相同不重设，避免观察器循环。轨道仍从每行文字下方起算，`hasBottom` 行保留标签空间。
+- `localScale` 从 `lineRect.width / line.offsetWidth` 改为探针测量：`offsetWidth` 取整使缩放系数偏高约 0.15%，长句底部累计漂移约 2.5px，大字模式下编号与文字矩形亚像素接触；探针测得精确 zoom（大字 1.25）。
+- `tests/fixtures/clauses.mjs` 新增 `longAdverbialSpan()`：`nestedThree()` 的 `segments[16]` 换成 `near the very old and unusually spacious reception room on the far eastern side of the building`，仍是同一个 adverbial 片段和同一组三层 clauses，`sentence.text` 由 segments 重建。原有夹具未改动，未削弱断言。该夹具只证明布局，不代表模型一定这样切分，也不要求该短语只有一种语法切分。
+- `scripts/browser-check.cjs`：`clauseGeometry` 增加目标片段内部行数、整行文字行、`--clause-row-height`、末行与清单/翻译/反馈按钮的碰撞测量；条带的绘制区域按「细线 + 4px 端点竖线 × zoom」计算，避免只检查 1.5px 边框盒。新增长片段内部换行用例。
+- `TOOL_VERSION` 仍为 `2026-11-01.2`：本次追加提交仍属未合并的 PR #34，不新增发布序号；仅实际合并日期变化时按仓库规则统一调整。
+
+**已自动验证（本机，全部模拟响应，未调用真实 DeepSeek）**
+- `npm test`：85 项通过，0 失败，退出码 0。
+- `npm run test:browser`：排版与交互 95 项（新增 9 项）、静态 Pages 11 项、反馈 154 项断言通过，退出码 0。
+- 390px 普通模式实测：目标长片段自身 4 个文字行，整行 11 个文字行，`--clause-row-height:73px`（基础 50px）；三层共 22 段条带（9/7/6）与 22 个编号。
+- 390px 大字模式实测：目标长片段 5 个文字行，整行 12 个文字行，`--clause-row-height:74px`；三层共 24 段条带（10/8/6）与 24 个编号。
+- 新增断言覆盖：390 普通/大字、380、1280 桌面、桌面→手机→桌面、详细视图关闭再打开、重新分析、清空。断言目标单个 `.english` 确实产生多个文字行；三层深度都存在；条带与编号不与任何英文行文字矩形、成分标签、清单/翻译/反馈按钮相交；同一行内不同深度轨道分离、同深度只有一条；每条轨道按横向范围归属到自己的文字行，纵向在该行文字下方且不越过下一行；两次测量行高与位置一致（无观察器循环）；清空后无 `.clause-layer` / `.clause-panel` 残留；无 pageerror、无横向溢出。
+- `git diff --check` 通过。
+
+**待真实验收（负责人）**
+- 用真实密钥确认移动端长片段自身换行时条带不压字；本记录不声明模型会生成同样的片段切分。
+- 截图 `artifacts/wrap-390-normal.png`、`artifacts/wrap-390-normal-span.png`、`artifacts/wrap-390-large.png`、`artifacts/wrap-390-large-span.png` 为本地生成，未提交。
