@@ -1,6 +1,6 @@
 # 提示词规则
 
-最后更新：2026-10-27（对应仓库 main 提交 ddffd24，含 PR #20 的分离短语动词规则、PR #23 的标签修正、PR #26 的说明去重；Issue #19 已验收关闭）
+最后更新：2026-11-02（PR #34 已合并；新增主句长宾语从句的 core 主干例外；Issue #19 已验收关闭）
 
 提示词原文在 `public/deepseek.js` 的 `SYSTEM` 常量里，是英文。下面是中文摘要，方便讨论；要改的时候以原文为准。
 
@@ -68,10 +68,11 @@
 - 6 个及以下英文单词、且没有嵌套从句的短从句可以保留一个整框。例：`who lives next door to me`（6 词）可整框；`who lives next door to my parents`（7 词）必须拆。
 - 仅包含介词短语不是强制拆分条件，也不逐词拆框。
 - 词数沿用现有英文词数口径，缩写和连字符按现有规则计数；客户端不猜测语法、不强行切分 segments，判断只在模型输出层。
-- 主句主干和并列主句用 `level: "core"`；为解释从句内部结构拆出的片段用 `level: "detail"`，包括从句内部的主语和谓语。默认视图只显示 core，详细视图显示全部。
+- 主句主干和并列主句用 `level: "core"`；从句内部拆出的片段通常用 `level: "detail"`，宾语从句主干例外见下。默认视图只显示 core，详细视图显示全部。
+- 仅主句的长宾语从句拆开时，其自身主语中心词、谓语或系动词、宾语或表语保留 core；引导词、修饰语及嵌套从句均为 detail。定语从句、状语从句拆开后仍全部 detail，宾语从句内嵌的定语或状语从句也不例外。6 词以内、无嵌套且保持整框的宾语从句仍是 object/core。拆开的从句内部不输出 predicateOf，即使宾语从句谓语为 core；主句分离谓语和 predicateOf 校验不变。
 - 长从句拆开后，`clauses` 范围仍要覆盖它的全部片段；嵌套时内外层范围都要给出。示例：`The book that the teacher who lives next door recommended is useful.` 的外层 `that the teacher who lives next door recommended` 和内层 `who lives next door` 都要进 clauses。
 - 时态依据：多个时态仍按「主句优先，再按从句原文顺序，相同组合只写一次」；`tenseReason` 必须引用你依据过的每个从句的关键谓语（例如 rains、lives），即使该从句的时态组合已被去重。
-- `predicateOf` 边界（第一版不变）：只用于主句里被宾语隔开的短语动词（如 `give it up` 的 up），两端必须 predicate/core，目标不能再带 predicateOf，两端 lemma 相同；从句内部拆出的 `detail` 片段**不输出** predicateOf，因为校验会丢弃它。主句分离谓语的原有行为保留。
+- `predicateOf` 边界（第一版不变）：只用于主句里被宾语隔开的短语动词（如 `give it up` 的 up），两端必须 predicate/core，目标不能再带 predicateOf，两端 lemma 相同；拆开的从句内部片段**不输出** predicateOf，包括按宾语从句例外保留为 core 的谓语。主句分离谓语的原有行为保留。
 - 旧的「一成分一框」措辞已限定为「Outside the long-clause rule below, one constituent is one span」；旧示例里的 5 词短从句保留整框，不作为长从句的示例。
 
 ## 上线复测：Issue #19（2026-10-27，GitHub Pages，deepseek-flash）—— 已验收，#19 已关闭

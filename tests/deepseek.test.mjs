@@ -358,8 +358,8 @@ test('system prompt splits long or nested clauses and keeps short ones whole', (
 
 test('system prompt uses core for the main clause and detail for split clause internals', () => {
   for (const phrase of [
-    'The main clause backbone uses level core; spans created by splitting a long clause open use level detail',
-    'Every span created by splitting a long clause is level detail, including its internal subject and predicate',
+    'The main clause backbone uses level core; spans created by splitting a long clause open use level detail except for the main-clause object-clause backbone',
+    'Except for the main-clause object-clause backbone described below, every span created by splitting a long clause is level detail, including its internal subject and predicate',
     'the main clause backbone stays level core, and coordinated main clauses keep their core spans',
     'When a long clause is split open, its clause range still covers all of its split spans',
     'The clause who keep going every day has 5 words and no nested clause, so it MAY stay one span',
@@ -370,7 +370,7 @@ test('system prompt keeps predicateOf for the main clause and forbids it inside 
   for (const phrase of [
     'predicateOf is only for a separated phrasal verb in the main clause: both ends must be predicate/core',
     'Do NOT output predicateOf for a predicate inside a clause that the long-clause rule split open',
-    'because such a span is level detail and the validator drops the link',
+    'even when its predicate is core under the object-clause exception',
     'Main-clause separated predicates keep predicateOf as described here',
   ]) assert.ok(SYSTEM.includes(phrase), phrase);
 });
@@ -410,4 +410,9 @@ test('clauses survive the provider path; invalid ranges are dropped without a re
     assert.deepEqual(result.sentences[0].clauses, expected, JSON.stringify(clauses));
     assert.equal(result.sentences[0].segments.map(part => part.text).join(''), text);
   }
+});
+
+test("system prompt preserves the main-clause object-clause backbone", () => {
+  assert.ok(SYSTEM.includes("Exception for object clauses: when a long object clause of the main clause is split open, the object clause's own backbone (its subject head, its predicate or linking verb, and its own object or predicative) keeps level core so the default view still shows the whole main-clause backbone; everything else inside it, including the introducing word, modifiers and nested clauses, stays level detail."));
+  for (const phrase of ["Example: in \"I know that she was working when you called.\", that is other/detail, she is subject/core, was working is predicate/core (lemma work), and when you called is an adverbial clause span with level detail; clauses are [{object range from that to called}, {adverbial range for when you called, subtype time}].","This exception applies only to object clauses of the main clause","remain entirely level detail","remains object/core"]) assert.ok(SYSTEM.includes(phrase), phrase);
 });

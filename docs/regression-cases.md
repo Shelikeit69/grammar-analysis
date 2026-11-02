@@ -14,7 +14,7 @@
 | 06 | The book that you lent me is interesting. | 主干 The book … is interesting；is 为系动词，interesting 为表语；that you lent me 是修饰 book 的定语从句，lent 原形 lend。主句现在时、从句过去时。 |
 | 07 | If it rains, we will stay at home. | 条件从句 If it rains；主句 we will stay at home；从句一般现在时、主句一般将来时；at home 修饰 stay。 |
 | 08 | The book that the teacher who lives next door recommended is useful. | 主干 The book … is useful；外层定语从句修饰 book，内层 who lives next door 修饰 teacher；两个从句范围嵌套，不交叉。 |
-| 09 | I know that she was working when you called. | 主句一般现在时；宾语从句中 was working 为过去进行时；when you called 为时间状语从句、一般过去时。不能只写一个时态就覆盖全句。 |
+| 09 | I know that she was working when you called. | 主句一般现在时；宾语从句中 was working 为过去进行时；when you called 为时间状语从句、一般过去时。不能只写一个时态就覆盖全句。默认视图应显示 I know … she was working，不能只剩 I know。 |
 | 10 | Tom opened the door and Mary walked in. | 两个并列分句各有主语和谓语，均为一般过去时；opened 原形 open，walked 原形 walk；in 与第二个动作相关，不能附到 door 上。 |
 
 涉及复杂或不连续结构时，优先检查原文对应和解释是否正确。不能为了让展示「好看」而强行合并不相邻的词。格式校验通过只说明数据可显示，不能充当语法正确性评分。
@@ -28,7 +28,7 @@
 | 两层嵌套定语从句 | The guide that the caretaker who works upstairs recommended is helpful. | 外层 `that the caretaker who works upstairs recommended` 和内层 `who works upstairs` 都在清单里；两层范围不交叉；详细视图两条不同轨道；默认视图只留主句主干；时态依据要提到 `works`（若依据了这层时态）。 |
 | 三层嵌套 | The guide that the caretaker who works in the office that stands upstairs recommended is helpful. | 三层范围按包含关系排列，条带占三条轨道、互不重叠；不超过三层。 |
 | 简单定语从句 | The book that you lent me is interesting. | 从句范围线在英文下方、编号与清单一致；`lent` 和 `me` 在详细视图里可见。 |
-| 简单宾语从句 | I know that she was working. | 宾语从句范围正确；主句 `I know` 保持 `core`，从句内部主语/谓语为 `detail`。 |
+| 简单宾语从句 | I know that she was working. | 宾语从句范围正确；6 词以内、无嵌套且保持整框时仍是 object/core，行为不变。 |
 | 条件状语从句 | If it rains, we will stay at home. | 从句范围覆盖 `If it rains`；类型为条件状语从句；主句将来时在前、从句现在时在后。 |
 | 单片段短从句 | 内置例句中的 `who keep going every day`（5 词） | 清单显示编号、定语从句、原文；不画条带，并标明「单片段短从句，不画范围线」；不要为展示条带改写原句。 |
 | 同终点/相邻范围 | `I know that she left because he called.`；`I know that she was working and that he was resting.` | 两个范围可区分，编号不同，轨道不重叠；相邻范围不合并成一个。 |

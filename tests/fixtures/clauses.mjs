@@ -145,3 +145,21 @@ export function adjacentObjects() {
     {start: 12, end: 17, type: 'object'},
   ], '我知道她在工作，而他在休息。');
 }
+
+// Regression case 09: the object clause contributes to the main backbone.
+export function objectBackbone() {
+  return analysis([
+    span('I', 'subject', '我'), gap(),
+    span('know', 'predicate', '知道', 'know'), gap(),
+    span('that', 'other', '', '', 'detail'), gap(),
+    span('she', 'subject', '她'), gap(),
+    span('was working', 'predicate', '工作', 'work'), gap(),
+    span('when', 'other', '', '', 'detail'), gap(),
+    span('you', 'subject', '你', '', 'detail'), gap(),
+    span('called', 'predicate', '打电话', 'call', 'detail'),
+    span('.', 'other', '', '', 'detail'),
+  ], [
+    {start: 4, end: 15, type: 'object'},
+    {start: 10, end: 15, type: 'adverbial', subtype: 'time'},
+  ], '我知道你打电话时她正在工作。');
+}

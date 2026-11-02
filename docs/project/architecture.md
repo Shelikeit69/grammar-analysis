@@ -1,6 +1,6 @@
 # 技术架构
 
-最后更新：2026-11-01（任务 B PR 2「长从句拆分与从句条带渲染」，分支 `feat/clause-brackets`，已实现并完成自动检查，待独立审核与上线实测）
+最后更新：2026-11-02（PR #34 已合并；补充长宾语从句主干例外，真实模型效果仍待实测）
 
 ## 三种运行方式（共用同一套页面 public/）
 | 方式 | 密钥在哪里 | 页面怎么判断 |
@@ -20,13 +20,13 @@
 - `public/deepseek.js`：Node 和浏览器共用的 DeepSeek 客户端，系统提示词常量 `SYSTEM` 和「格式修正一次」的逻辑都在这里。
 - `public/analysis.js`：`validateInput`、`validateAnalysis`、`AnalysisValidationError`，Node 和浏览器共用。
 - `public/feedback.js`：`FEEDBACK_TYPES`（5 个问题类型）、反馈标题和易读正文生成（只放白名单字段）、GitHub Issue 预填链接（上限 6000 字符；超过时只带真实标题和粘贴说明，正文由用户粘贴）（PR #21、#25、#28）。
-- `public/version.js`：`TOOL_VERSION`，写进反馈正文。本分支为 `2026-11-01.2`（任务 B PR 2），实际合并日改变时由负责人在合并前调整。发布影响分析或反馈的改动时要更新，用实际合并日期加序号。
+- `public/version.js`：`TOOL_VERSION`，写进反馈正文。当前值为 `2026-11-02.1`。发布影响分析或反馈的改动时要更新，用实际合并日期加序号。
 - `public/server-client.js`：本地和 Codespaces 模式下读取服务器返回结果（支持 NDJSON 进度消息，旧的纯 JSON 也兼容）。
 - `public/demo.js`：内置例句和它的分析结果（含 `modifies` 和 `clauses`）。例句的 `who keep going every day` 是 5 词短从句，保持单片段，只显示清单不画条带。
 - `lib/analysis.mjs`、`lib/deepseek.mjs`：只是转发 `public/` 里的共用模块。
 - `lib/access.mjs`：本地和 Codespaces 的访问来源校验（只允许 127.0.0.1 和本 Codespace 的域名）。
 - `server.mjs`：本地和 Codespaces 用的 HTTP 服务，只监听 127.0.0.1。新增的 `public/` 文件要加进它的资源白名单，也要加进 `scripts/browser-pages-check.cjs` 的白名单。
-- `tests/`：node --test 单元测试，共 85 项（任务 B PR 1 新增 14 项：clauses 归一化/容错、提示词关键句、反馈从句清单与 HTML 安全；PR 2 新增 7 项：长从句拆分与 core/detail 提示词关键句、从句 `predicateOf` 边界、内置例句 clauses）。
+- `tests/`：node --test 单元测试，共 86 项（任务 B PR 1 新增 14 项：clauses 归一化/容错、提示词关键句、反馈从句清单与 HTML 安全；PR 2 新增 7 项：长从句拆分与 core/detail 提示词关键句、从句 `predicateOf` 边界、内置例句 clauses）。
 - `tests/fixtures/clauses.mjs`：从句渲染夹具（条件、宾语、两层/三层嵌套、同终点、相邻范围，以及只用于验证同一片段内部换行的长状语），句子为虚构改写，供浏览器检查模拟响应使用。
 - `scripts/browser-check.cjs`：Playwright 排版与交互检查（95 项，含 PR 2 的从句清单、跨行条带位置、嵌套轨道、单片段短从句、单片段内部换行、清理、窄屏和大字检查）；`scripts/browser-pages-check.cjs`：模拟 Pages 静态网页的检查（11 项）；`scripts/browser-feedback-check.cjs`：反馈流程检查（154 项断言，PR #28 起包含长链接两步流程和 380/390px 排版检查，任务 B PR 1 新增从句清单的 XSS/字段白名单断言，会生成截图到 `artifacts/feedback/`）。都用模拟响应，不调用真实 DeepSeek，也不提交真实 Issue。
 - `.gitignore`：`artifacts/` 已加入（PR #28），测试生成的截图不提交。
@@ -62,7 +62,7 @@
 - `modifies`（可选）：这个片段修饰的是同一句 `segments` 里第几个片段，从 0 开始数，空格和标点也要算。只对 attribute、adverbial、complement 有效。
 - `predicateOf`（可选，PR #20）：被宾语隔开的短语动词小品词（如 `give it up` 的 up）指向前面的主谓语片段下标。规则见 [prompt-rules.md](prompt-rules.md)。
 - `clauses`（可选，任务 B PR 1 数据约定，PR 2 开始渲染）：每句的从句范围数组。`start` 是句内 `segments` 的零起始下标（包含），`end` 是结束下标（不包含），空格和标点片段同样计入。`type` 只有 relative（定语从句）、object（宾语从句）、adverbial（状语从句）；`subtype` 只对 adverbial 有效，可选 time、condition、reason、concession、purpose、result、comparison、manner，非法时只丢 subtype。模型不输出 id、depth、编号、重复的从句原文或 parent 引用；范围包含引导词，尽量不含从句外的首尾空白和分隔标点。不记录主句范围。
-- `level`：主句主干和并列主句用 `core`；为解释长从句内部结构而拆出的主语、谓语等用 `detail`。默认视图只显示 `core`，详细视图显示全部。长从句（超过 6 个英文单词或内部含嵌套从句）按 SYSTEM 要求拆开，短从句可保留整框；客户端不猜测语法、不强行切分 segments。
+- `level`：主句主干和并列主句用 `core`；为解释长从句内部结构而拆出的主语、谓语等通常用 `detail`。仅主句的长宾语从句拆开时，其自身主语中心词、谓语或系动词、宾语或表语保留 core；引导词、修饰语及嵌套从句均为 detail。定语从句、状语从句拆开后仍全部 detail，宾语从句内嵌的定语或状语从句也不例外。6 词以内、无嵌套且保持整框的宾语从句仍是 object/core。拆开的从句内部不输出 predicateOf，即使宾语从句谓语为 core；主句分离谓语和 predicateOf 校验不变。默认视图只显示 `core`，详细视图显示全部。长从句（超过 6 个英文单词或内部含嵌套从句）按 SYSTEM 要求拆开，短从句可保留整框；客户端不猜测语法、不强行切分 segments。
 
 ## 校验（validateAnalysis）
 严格检查（不合规就拒绝整个结果，并触发一次格式修正）：
@@ -107,7 +107,7 @@
 - 条带层 `aria-hidden`、`pointer-events: none`、无 tabindex，不进入 Tab 顺序，也不拦截成分框点击；完整信息由清单的可访问文本提供。
 - 布局刷新：`ResizeObserver` 观察句子列表，监听窗口 resize、字体加载完成、大字切换；先取消上一帧和定时器再重排。重新分析、换例句或清空时移除旧 `.clause-layer` 和 `.clause-panel`，避免残留。
 - 大字模式的 CSS zoom 会放大测量结果，绘制前按 `实际宽度 / 本地宽度` 换算回本地 CSS 像素。
-- 已知边界：从句内部拆分出的片段是 `detail`，SYSTEM 要求不输出 `predicateOf`；`predicateOf` 校验仍要求两端 predicate/core，只服务主句里被宾语隔开的短语动词。这条边界由 `tests/predicate.test.mjs` 覆盖。
+- 已知边界：SYSTEM 要求拆开的从句内部不输出 `predicateOf`，包括保留为 core 的宾语从句谓语；`predicateOf` 校验仍要求两端 predicate/core，只服务主句里被宾语隔开的短语动词。这条边界由 `tests/predicate.test.mjs` 覆盖。
 
 ## 数据结构的限制
 - 片段仍是平铺的，不能嵌套。从句关系由句级 `clauses` 范围加上详细视图的条带和清单表达；默认视图只保留主句主干（`core`）。
