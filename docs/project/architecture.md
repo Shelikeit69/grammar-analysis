@@ -1,6 +1,6 @@
 # 技术架构
 
-最后更新：2026-11-02（PR #35 已合并并有真实复测；补充时态语态与并列分词规则，从句范围问题仍未修复）
+最后更新：2026-11-02（PR #36 已合并并有真实复测；从句范围改用原文锚点，补充嵌套宾语从句反例，待上线实测）
 
 ## 三种运行方式（共用同一套页面 public/）
 | 方式 | 密钥在哪里 | 页面怎么判断 |
@@ -20,15 +20,15 @@
 - `public/deepseek.js`：Node 和浏览器共用的 DeepSeek 客户端，系统提示词常量 `SYSTEM` 和「格式修正一次」的逻辑都在这里。
 - `public/analysis.js`：`validateInput`、`validateAnalysis`、`AnalysisValidationError`，Node 和浏览器共用。
 - `public/feedback.js`：`FEEDBACK_TYPES`（5 个问题类型）、反馈标题和易读正文生成（只放白名单字段）、GitHub Issue 预填链接（上限 6000 字符；超过时只带真实标题和粘贴说明，正文由用户粘贴）（PR #21、#25、#28）。
-- `public/version.js`：`TOOL_VERSION`，写进反馈正文。当前值为 `2026-11-02.2`。发布影响分析或反馈的改动时要更新，用实际合并日期加序号。
+- `public/version.js`：`TOOL_VERSION`，写进反馈正文。当前值为 `2026-11-02.3`。发布影响分析或反馈的改动时要更新，用实际合并日期加序号。
 - `public/server-client.js`：本地和 Codespaces 模式下读取服务器返回结果（支持 NDJSON 进度消息，旧的纯 JSON 也兼容）。
 - `public/demo.js`：内置例句和它的分析结果（含 `modifies` 和 `clauses`）。例句的 `who keep going every day` 是 5 词短从句，保持单片段，只显示清单不画条带。
 - `lib/analysis.mjs`、`lib/deepseek.mjs`：只是转发 `public/` 里的共用模块。
 - `lib/access.mjs`：本地和 Codespaces 的访问来源校验（只允许 127.0.0.1 和本 Codespace 的域名）。
 - `server.mjs`：本地和 Codespaces 用的 HTTP 服务，只监听 127.0.0.1。新增的 `public/` 文件要加进它的资源白名单，也要加进 `scripts/browser-pages-check.cjs` 的白名单。
-- `tests/`：node --test 单元测试，共 88 项（任务 B PR 1 新增 14 项：clauses 归一化/容错、提示词关键句、反馈从句清单与 HTML 安全；PR 2 新增 7 项：长从句拆分与 core/detail 提示词关键句、从句 `predicateOf` 边界、内置例句 clauses）。
+- `tests/`：node --test 单元测试，共 91 项（任务 B PR 1 新增 14 项：clauses 归一化/容错、提示词关键句、反馈从句清单与 HTML 安全；PR 2 新增 7 项：长从句拆分与 core/detail 提示词关键句、从句 `predicateOf` 边界、内置例句 clauses）。
 - `tests/fixtures/clauses.mjs`：从句渲染夹具（条件、宾语、两层/三层嵌套、同终点、相邻范围，以及只用于验证同一片段内部换行的长状语），句子为虚构改写，供浏览器检查模拟响应使用。
-- `scripts/browser-check.cjs`：Playwright 排版与交互检查（97 项，含 PR 2 的从句清单、跨行条带位置、嵌套轨道、单片段短从句、单片段内部换行、清理、窄屏和大字检查）；`scripts/browser-pages-check.cjs`：模拟 Pages 静态网页的检查（11 项）；`scripts/browser-feedback-check.cjs`：反馈流程检查（154 项断言，PR #28 起包含长链接两步流程和 380/390px 排版检查，任务 B PR 1 新增从句清单的 XSS/字段白名单断言，会生成截图到 `artifacts/feedback/`）。都用模拟响应，不调用真实 DeepSeek，也不提交真实 Issue。
+- `scripts/browser-check.cjs`：Playwright 排版与交互检查（99 项，含 PR 2 的从句清单、跨行条带位置、嵌套轨道、单片段短从句、单片段内部换行、清理、窄屏和大字检查）；`scripts/browser-pages-check.cjs`：模拟 Pages 静态网页的检查（11 项）；`scripts/browser-feedback-check.cjs`：反馈流程检查（154 项断言，PR #28 起包含长链接两步流程和 380/390px 排版检查，任务 B PR 1 新增从句清单的 XSS/字段白名单断言，会生成截图到 `artifacts/feedback/`）。都用模拟响应，不调用真实 DeepSeek，也不提交真实 Issue。
 - `.gitignore`：`artifacts/` 已加入（PR #28），测试生成的截图不提交。
 - `.github/ISSUE_TEMPLATE/analysis-error.md`：「分析问题反馈」Issue 模板，标题和网页生成的正文一致：问题类型 / 具体说明 / 用户认为正确的 / 原句 / AI 分析结果 / 调用模型 / 工具版本。
 - `.github/workflows/ci.yml`：每次 push 和 PR 都跑 `npm test`，再装 Playwright 跑 `npm run test:browser`。任务名叫 `test`（分支保护依赖这个名字，别改）。
@@ -53,7 +53,7 @@
        "modifies": 2, "predicateOf": 2}
     ],
     "clauses": [
-      {"start": 2, "end": 9, "type": "relative|object|adverbial", "subtype": "可选，仅 adverbial"}
+      {"type": "relative|object|adverbial", "subtype": "可选，仅 adverbial", "text": "从句原文"}
     ]
   }],
   "translation": "整段翻译"
@@ -61,7 +61,8 @@
 ```
 - `modifies`（可选）：这个片段修饰的是同一句 `segments` 里第几个片段，从 0 开始数，空格和标点也要算。只对 attribute、adverbial、complement 有效。
 - `predicateOf`（可选，PR #20）：被宾语隔开的短语动词小品词（如 `give it up` 的 up）指向前面的主谓语片段下标。规则见 [prompt-rules.md](prompt-rules.md)。
-- `clauses`（可选，任务 B PR 1 数据约定，PR 2 开始渲染）：每句的从句范围数组。`start` 是句内 `segments` 的零起始下标（包含），`end` 是结束下标（不包含），空格和标点片段同样计入。`type` 只有 relative（定语从句）、object（宾语从句）、adverbial（状语从句）；`subtype` 只对 adverbial 有效，可选 time、condition、reason、concession、purpose、result、comparison、manner，非法时只丢 subtype。模型不输出 id、depth、编号、重复的从句原文或 parent 引用；范围包含引导词，尽量不含从句外的首尾空白和分隔标点。不记录主句范围。
+- `clauses`：上面的 JSON 是模型输入格式，模型用 `{type,subtype?,text}` 照抄从句原文，不再数下标。normalizeClauses 在片段边界上唯一精确匹配后生成内部 `{start,end,type,subtype?}`；app.js、反馈、demo 和归一化夹具仍用内部范围。type 支持 relative、object、adverbial；subtype 仅给 adverbial，不确定就省略。范围从引导词到最后一词，不记录主句范围。
+- 只有直接充当主句谓语宾语的宾语从句才保留自身 core 主干；被定语从句、状语从句或另一个从句包住的宾语从句不适用。反例 `She thanked the nurse who said that the results were good.` 中 the results、were、good 全部 detail，默认只显示 She thanked the nurse。
 - `level`：主句主干和并列主句用 `core`；为解释长从句内部结构而拆出的主语、谓语等通常用 `detail`。仅主句的长宾语从句拆开时，其自身主语中心词、谓语或系动词、宾语或表语保留 core；引导词、修饰语及嵌套从句均为 detail。定语从句、状语从句拆开后仍全部 detail，宾语从句内嵌的定语或状语从句也不例外。6 词以内、无嵌套且保持整框的宾语从句仍是 object/core。拆开的从句内部不输出 predicateOf，即使宾语从句谓语为 core；主句分离谓语和 predicateOf 校验不变。默认视图只显示 `core`，详细视图显示全部。长从句（超过 6 个英文单词或内部含嵌套从句）按 SYSTEM 要求拆开，短从句可保留整框；客户端不猜测语法、不强行切分 segments。
 
 ## 校验（validateAnalysis）
@@ -74,7 +75,7 @@
 - `tense`、`tenseReason`：不是字符串或超长就当成空。
 - `modifies`：必须是整数、在范围内、不指向自己、不指向 other、而且只放在修饰类角色上；否则丢掉。
 - `predicateOf`：两端都是 predicate/core、只能向前指、目标不能再带 predicateOf、两端 lemma 相同、中间有实质成分；否则丢掉。
-- `clauses`（任务 B PR 1）：不是数组时整体忽略；非对象项、非法 type、非整数/非有限/负数下标、`start >= end`、`end` 越界、范围只有空白或标点、以及未知字段一律丢弃。合法项按 `start` 升序、同起点 `end` 降序排序；同范围重复项只留一项（再按 type、subtype 确定性取舍）。同起点或同终点允许嵌套，但不能完全同范围。部分交叉的两项先全部标记，再一起删除，不受数组顺序影响；非法项不参与冲突判定，也不会连带删除独立合法项。冲突处理后按包含关系计算嵌套深度（最外层为第 1 层），超过 3 层的内层项丢弃、外层保留。候选超过 200 项时直接忽略整句 clauses（上限见代码常量 `MAX_CLAUSE_CANDIDATES`，用于把两两比较限制在 19,900 次内），不拒绝句子、不触发修正。任何 clauses 错误都不抛 `AnalysisValidationError`。
+- `clauses`：不是数组或候选超过 200 项时整句忽略；非对象项、非法 type、非字符串/空白/纯标点 text、text 长于句子、无精确匹配、多处片段边界匹配或仅有 start/end 时丢弃该项。text 首尾空白先去掉，再匹配；匹配后收掉首尾不含字母数字的片段。只拷贝内部 start/end/type 与有效 adverbial subtype。合法项仍按 start 升序、同起点 end 降序排序，同范围去重；部分交叉两项都丢、最多三层、非法项不影响独立合法项。任何错误都不抛 AnalysisValidationError、不触发付费修正。
 
 校验**不能**保证语法判断是对的。
 
@@ -101,7 +102,7 @@
 
 ## 从句条带渲染（任务 B PR 2）
 - 只在详细视图渲染；默认视图不显示清单和条带。
-- 句子下方追加「从句清单」：按规范化后的 `clauses` 顺序编号，每项写编号、中文类型（状语可带小类）和按 `segments` 范围重建的原文。模型不重复提供从句文本。
+- 句子下方追加「从句清单」：按规范化后的 `clauses` 顺序编号，每项写编号、中文类型（状语可带小类）和按 `segments` 范围重建的原文。模型提供 text 锚点用于匹配，清单仍按内部范围重建文本。
 - 范围跨两个及以上含字母或数字的片段时，在英文下方画细线，编号与清单一致；只有一个这样的片段时只列清单，写明「单片段短从句，不画范围线」。
 - 跨行范围按实际文字矩形分行绘制，每行一条线；同一从句每行的编号相同，不在每行重复清单。深度 1/2/3 分别使用不同轨道（间隔 13px），行内有底标签时先留出 58px，避免与成分标签重叠。
 - 条带层 `aria-hidden`、`pointer-events: none`、无 tabindex，不进入 Tab 顺序，也不拦截成分框点击；完整信息由清单的可访问文本提供。
@@ -111,7 +112,7 @@
 
 ## 数据结构的限制
 - 片段仍是平铺的，不能嵌套。从句关系由句级 `clauses` 范围加上详细视图的条带和清单表达；默认视图只保留主句主干（`core`）。
-- 长从句拆分依赖模型按 SYSTEM 规则输出，客户端不做语法猜测；2026-11-02 负责人真实复测 #27 长句 4 次均拆开，但从句范围 4 次均不对，#27 已重新打开。下一个 PR 按原文锚点唯一匹配得到 start/end，不能唯一匹配就丢弃该项，不抛错、不触发付费修正；PR #36 仅记录决定，当前 clauses 格式、校验和渲染不变。
+- 长从句拆分依赖模型按 SYSTEM 规则输出，客户端不做语法猜测；2026-11-02 负责人真实复测 #27 长句 4 次均拆开，但从句范围 4 次均不对，#27 已重新打开。现已改为原文锚点唯一匹配得到 start/end，不能唯一匹配就丢弃该项，不抛错、不触发付费修正；内部结构和渲染不变，真实长句效果待上线实测。
 - `clauses` 不记录主句范围；第一版只有定、宾、状三种从句，最多三层。中文小类只用于状语从句。
 - `modifies` 只能指向一个片段。「状语修饰整个从句」这类关系，目前只能指向谓语。
 - 目标片段如果在当前视图里是隐藏的细节，只显示「修饰：…」文字，没有高亮。

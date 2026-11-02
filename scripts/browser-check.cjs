@@ -482,6 +482,7 @@ async function main() {
       ['object-backbone', clauseFixtures.objectBackbone(), [1, 2]],
       ['nested', clauseFixtures.nestedRelative(), [1, 2]],
       ['three', clauseFixtures.nestedThree(), [1, 2, 3]],
+      ['long-text-anchors', clauseFixtures.longTextAnchors(), [1, 2, 3]],
       ['same-end', clauseFixtures.sameEnd(), [1, 2]],
       ['adjacent', clauseFixtures.adjacentObjects(), [1]],
     ];
@@ -503,6 +504,9 @@ async function main() {
         core.filter(part => part.role === 'subject').map(part => part.text), `${name} core subject`);
       if (name === 'object-backbone') {
         assert.deepEqual(await page.locator('.annotated .english').allTextContents(), ['I', 'know', 'she', 'was working']);
+      }
+      if (name === 'long-text-anchors') {
+        assert.deepEqual(await page.locator('.annotated .english').allTextContents(), ['Our town', 'has', 'a new library']);
       }
       await page.locator('#detail-toggle').check();
       await page.waitForTimeout(260);

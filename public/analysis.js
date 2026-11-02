@@ -49,16 +49,36 @@ const MAX_CLAUSE_CANDIDATES = 200;
 // sentence: core coverage and field checks above stay strict.
 function normalizeClauses(value, segments) {
   if (!Array.isArray(value) || value.length > MAX_CLAUSE_CANDIDATES) return null;
+  const sentenceText = segments.map(part => part.text).join('');
+  const boundaries = new Map([[0, 0]]);
+  let offset = 0;
+  segments.forEach((part, index) => {
+    offset += part.text.length;
+    boundaries.set(offset, index + 1);
+  });
   let candidates = [];
   for (const raw of value) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue;
-    // Only the four documented fields are copied; ids, depth, numbering, copied
-    // clause text and parent references from the model are ignored.
-    if (!clauseTypes.has(raw.type) || !Number.isInteger(raw.start) || !Number.isInteger(raw.end)) continue;
-    if (raw.start < 0 || raw.end > segments.length || raw.start >= raw.end) continue;
-    const text = segments.slice(raw.start, raw.end).map(part => part.text).join('');
-    if (!/[\p{L}\p{N}]/u.test(text)) continue;
-    const clause = { start: raw.start, end: raw.end, type: raw.type };
+    if (!clauseTypes.has(raw.type) || typeof raw.text !== 'string' || raw.text.length > sentenceText.length) continue;
+    const anchor = raw.text.trim();
+    if (!/[\p{L}\p{N}]/u.test(anchor)) continue;
+    // Count exact matches at segment boundaries only, including overlapping
+    // occurrences. Never fall back to model-supplied start/end indexes.
+    let match;
+    let ambiguous = false;
+    for (let at = sentenceText.indexOf(anchor); at !== -1; at = sentenceText.indexOf(anchor, at + 1)) {
+      const start = boundaries.get(at);
+      const end = boundaries.get(at + anchor.length);
+      if (start === undefined || end === undefined) continue;
+      if (match) { ambiguous = true; break; }
+      match = {start, end};
+    }
+    if (!match || ambiguous) continue;
+    let {start, end} = match;
+    while (start < end && !/[\p{L}\p{N}]/u.test(segments[start].text)) start++;
+    while (end > start && !/[\p{L}\p{N}]/u.test(segments[end - 1].text)) end--;
+    if (start === end) continue;
+    const clause = {start, end, type: raw.type};
     if (raw.type === 'adverbial' && adverbialSubtypes.has(raw.subtype)) clause.subtype = raw.subtype;
     candidates.push(clause);
   }

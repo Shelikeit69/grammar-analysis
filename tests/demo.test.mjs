@@ -1,10 +1,11 @@
+import {withTextAnchors} from './fixtures/clauses.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {demoAnalysis, demoText} from '../public/demo.js';
 import {validateAnalysis} from '../lib/analysis.mjs';
 
 test('example keeps the original text, marks the core and modifiers, and meets the live contract', () => {
-  const result = validateAnalysis(demoAnalysis, demoText);
+  const result = validateAnalysis(withTextAnchors(demoAnalysis), demoText);
   const sentence = result.sentences[0];
   const byText = text => sentence.segments.find(part => part.text === text);
   assert.equal(sentence.segments.map(part => part.text).join(''), demoText);
@@ -20,7 +21,7 @@ test('example keeps the original text, marks the core and modifiers, and meets t
 });
 
 test('example ships a validated clause list with the single-span short clause', () => {
-  const sentence = validateAnalysis(demoAnalysis, demoText).sentences[0];
+  const sentence = validateAnalysis(withTextAnchors(demoAnalysis), demoText).sentences[0];
   assert.deepEqual(sentence.clauses, [{start: 4, end: 5, type: 'relative'}]);
   assert.equal(sentence.segments[4].text, 'who keep going every day');
   // Five English words and no nested clause: the short clause may stay one span,
@@ -29,7 +30,7 @@ test('example ships a validated clause list with the single-span short clause', 
 });
 
 test('example modifier relations: each modifier points to the word it modifies', () => {
-  const sentence = validateAnalysis(demoAnalysis, demoText).sentences[0];
+  const sentence = validateAnalysis(withTextAnchors(demoAnalysis), demoText).sentences[0];
   const target = text => {
     const segment = sentence.segments.find(part => part.text === text);
     return sentence.segments[segment.modifies]?.text;

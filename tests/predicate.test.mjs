@@ -77,7 +77,7 @@ test('a predicateOf inside a split clause is dropped because clause internals ar
   ];
   segments[10].predicateOf = 6;
   const out = validateAnalysis({
-    sentences: [{text, translation: '她把笔记还了的那本书很有用。', note: '', clauses: [{start: 2, end: 11, type: 'relative'}], segments}],
+    sentences: [{text, translation: '她把笔记还了的那本书很有用。', note: '', clauses: [{text: 'that she gave the note back', type: 'relative'}], segments}],
     translation: '她把笔记还了的那本书很有用。',
   }, text);
   assert.equal('predicateOf' in out.sentences[0].segments[10], false);
@@ -104,7 +104,7 @@ test('a main-clause separated predicate keeps predicateOf even when the sentence
   ];
   segments[12].predicateOf = 2;
   const out = validateAnalysis({
-    sentences: [{text, translation: '你应该把她捡到的笔记还回去。', note: '', clauses: [{start: 6, end: 11, type: 'relative'}], segments}],
+    sentences: [{text, translation: '你应该把她捡到的笔记还回去。', note: '', clauses: [{text: 'that she picked up', type: 'relative'}], segments}],
     translation: '你应该把她捡到的笔记还回去。',
   }, text);
   assert.equal(out.sentences[0].segments[12].predicateOf, 2);
