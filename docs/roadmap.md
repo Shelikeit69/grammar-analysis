@@ -46,6 +46,8 @@
 - 待复测（任务 B PR 2 上线后）：用 Issue #27 同类结构的虚构句确认长从句拆开、内外层范围完整、详细视图两层条带位置正确、`tenseReason` 提及内层关键谓语；未通过就 Reopen #27。
 - **Structured Outputs 核对（2026-10-18）：** 当前使用 `response_format: { type: "json_object" }`。[DeepSeek JSON 模式](https://api-docs.deepseek.com/guides/json_mode/)与严格 Schema 不应混为一谈。[官方工具调用文档](https://api-docs.deepseek.com/guides/tool_calls/#strict-mode-beta)已提供 Beta `strict`，需使用 Beta 地址并设置 `tools[].function.strict`。#15 未迁移请求及解析协议，也不声称 DeepSeek 不支持严格 Schema；后续单独评估兼容性、收益和 Schema 子集限制，即使接入仍保留原文覆盖校验。
 
+- 2026-11-02 补充：主句的长宾语从句拆开后保留自己的主干为 core（仅提示词）；待真实密钥复测样例 09，默认视图应显示 I know … she was working，不能只剩 I know。
+
 ## 暂缓扩展
 
 - 难点强化：先考虑用户主动标记「没看懂」，仅存在本机浏览器；点击次数不直接等同于没学会。反馈与学习记录分开处理。

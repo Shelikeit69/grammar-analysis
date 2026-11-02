@@ -479,6 +479,7 @@ async function main() {
     const fixtures = [
       ['conditional', clauseFixtures.conditional(), [1]],
       ['object', clauseFixtures.objectClause(), [1]],
+      ['object-backbone', clauseFixtures.objectBackbone(), [1, 2]],
       ['nested', clauseFixtures.nestedRelative(), [1, 2]],
       ['three', clauseFixtures.nestedThree(), [1, 2, 3]],
       ['same-end', clauseFixtures.sameEnd(), [1, 2]],
@@ -488,7 +489,10 @@ async function main() {
       await page.setViewportSize({width: 1280, height: 1000});
       await showClauseFixture(fixture, true);
       await checkClauseFixture(name, fixture, depths);
-      // The core view hides every clause-internal detail span and all brackets.
+      if (name === 'object-backbone') {
+        assert.deepEqual(await page.locator('.clause-item .clause-type').allTextContents(), ['宾语从句', '时间状语从句']);
+      }
+      // The core view hides detail spans and all brackets.
       await page.locator('#detail-toggle').uncheck();
       await page.waitForTimeout(120);
       const core = fixture.sentences[0].segments.filter(part => part.role !== 'other' && part.level === 'core');
@@ -497,6 +501,9 @@ async function main() {
       assert.equal(await page.locator('.annotated').count(), core.length, `${name} core spans`);
       assert.deepEqual(await page.locator('.role-subject.annotated .english').allTextContents(),
         core.filter(part => part.role === 'subject').map(part => part.text), `${name} core subject`);
+      if (name === 'object-backbone') {
+        assert.deepEqual(await page.locator('.annotated .english').allTextContents(), ['I', 'know', 'she', 'was working']);
+      }
       await page.locator('#detail-toggle').check();
       await page.waitForTimeout(260);
       await checkClauseFixture(name, fixture, depths);
