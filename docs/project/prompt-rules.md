@@ -55,14 +55,13 @@
 - `tenseReason` 用一句中文说明理由，格式是「因为……所以是……」，而且必须引用句子里真实出现的动词形式和时间词。不能编造句子里没有的时间词；如果没有时间词，就说明只根据动词形式判断。
 - 从句或并列分句的「时态 + 语态」组合和主句不同时，在 `tense` 里用「；」分别列出：**主句优先，然后按从句在原文中的顺序**；相同的时态和语态组合只写一次。这是给模型的输出要求，不在本地靠字符串重排猜测主句。即使从句在原文里排在前面也一样，例如 `If it rains, we will stay at home.` 写成「一般将来时 · 主动语态；一般现在时 · 主动语态」。`tenseReason` 要能区分主句和从句的依据；仅从句的时态和语态都与已列组合相同时才不重复列出。同一时态但语态不同必须分别列出；tenseReason 必须为每个列出的组合引用对应谓语。虚构句中的 has、argued / were common、were needed / could be funded 分别对应「一般现在时 · 主动语态；一般过去时 · 主动语态；一般过去时 · 被动语态」。
 
-## 从句范围 clauses（任务 B PR 1 数据约定，PR 2 渲染）
-- 可选字段，每句一个数组：`{"start": 下标, "end": 下标, "type": "relative|object|adverbial", "subtype": "可选"}`。
-- `start` 是句内 `segments` 的零起始下标（包含），`end` 是不包含的结束下标；空格和标点片段也计数。
-- `type` 只用 relative（定语从句）、object（宾语从句）、adverbial（状语从句）。`subtype` 只给状语从句，可选 time、condition、reason、concession、purpose、result、comparison、manner；不确定时只写「状语从句」，不填 subtype。
-- 范围包含引导词，尽量不含从句外的首尾空白和分隔标点；不记录主句范围。
-- 当前版本不让模型输出 id、depth、编号、重复的从句原文或 parent 引用，深度和编号从合法范围计算。2026-11-02 已决定下一个 PR 改用从句原文锚点唯一匹配片段范围，不能唯一匹配就丢弃，不抛错、不触发付费修正；PR #36 不改现有格式，见 decisions.md。
-- 嵌套最多三层；同一句里有多个从句时按原文顺序给出即可，最终顺序由程序按 `start` 升序、同起点 `end` 降序规范化。
-- 示例：内置例句 `Tired learners who keep going every day will see the beauty of English grammar in the end.` 的 `clauses` 是 `[{"start":4,"end":5,"type":"relative"}]`。
+## 从句原文锚点 clauses
+- 模型输出可选数组：`{"type":"relative|object|adverbial","subtype":"可选","text":"从句原文"}`，不输出 start/end。text 从引导词到最后一个词逐字照抄，不含从句外空格标点；嵌套时内外层都给。
+- text 去掉首尾空白后，必须在 segments 的片段边界上有且只有一处完整精确匹配。无匹配、多处匹配、起止位于片段中间、缺少 text、text 超过句子长度或无字母数字时丢弃该项；只有 start/end 的旧格式也丢弃。匹配后收掉范围首尾纯空白、标点片段。
+- 内部仍归一化为 `{start,end,type,subtype?}` 供渲染、反馈、demo 和测试夹具使用；未知字段不传入内部。type 只支持 relative、object、adverbial；subtype 仅给 adverbial，可选 time、condition、reason、concession、purpose、result、comparison、manner，不确定就省略。
+- 同范围去重，按 start 升序、同起点 end 降序排列；部分交叉两项都丢，最多三层，超过 200 个候选忽略整句 clauses。错误不抛 AnalysisValidationError、不触发付费修正。
+- 不输出 id、depth、编号或 parent；这些信息由合法内部范围计算。不记录主句范围。
+- 内置例句 text 示例：`[{"type":"relative","text":"who keep going every day"}]`。样例 08：`[{"type":"relative","text":"that the teacher who lives next door recommended"},{"type":"relative","text":"who lives next door"}]`。样例 09：`[{"type":"object","text":"that she was working when you called"},{"type":"adverbial","subtype":"time","text":"when you called"}]`。
 
 ## 长从句拆分与 core/detail（任务 B PR 2）
 - 从句超过 6 个英文单词，或内部包含嵌套从句时，拆出内部的 subject、predicate 和其他必要成分，不要整块塞进一个片段。
@@ -71,6 +70,7 @@
 - 词数沿用现有英文词数口径，缩写和连字符按现有规则计数；客户端不猜测语法、不强行切分 segments，判断只在模型输出层。
 - 主句主干和并列主句用 `level: "core"`；从句内部拆出的片段通常用 `level: "detail"`，宾语从句主干例外见下。默认视图只显示 core，详细视图显示全部。
 - 仅主句的长宾语从句拆开时，其自身主语中心词、谓语或系动词、宾语或表语保留 core；引导词、修饰语及嵌套从句均为 detail。定语从句、状语从句拆开后仍全部 detail，宾语从句内嵌的定语或状语从句也不例外。6 词以内、无嵌套且保持整框的宾语从句仍是 object/core。拆开的从句内部不输出 predicateOf，即使宾语从句谓语为 core；主句分离谓语和 predicateOf 校验不变。
+- 只有直接充当主句谓语宾语的宾语从句才保留自身 core 主干；被定语从句、状语从句或另一个从句包住的宾语从句不适用。反例 `She thanked the nurse who said that the results were good.` 中 the results、were、good 全部 detail，默认只显示 She thanked the nurse。
 - 长从句拆开后，`clauses` 范围仍要覆盖它的全部片段；嵌套时内外层范围都要给出。示例：`The book that the teacher who lives next door recommended is useful.` 的外层 `that the teacher who lives next door recommended` 和内层 `who lives next door` 都要进 clauses。
 - 时态依据：多个时态仍按「主句优先，再按从句原文顺序，相同组合只写一次」；`tenseReason` 必须引用你依据过的每个从句的关键谓语（例如 rains、lives），即使该从句的时态组合已被去重。
 - `predicateOf` 边界（第一版不变）：只用于主句里被宾语隔开的短语动词（如 `give it up` 的 up），两端必须 predicate/core，目标不能再带 predicateOf，两端 lemma 相同；拆开的从句内部片段**不输出** predicateOf，包括按宾语从句例外保留为 core 的谓语。主句分离谓语的原有行为保留。
@@ -92,8 +92,8 @@
 2. `must have been working` 这类情态完成结构，时态名称可能被简化。情态动词句一律标「一般现在时」（如 should give up）也属于这一类命名问题。
 3. 模型输出有随机性，同一句话多次分析，框的位置和措辞可能略有不同。2026-10-19 实测：06 一次框 `The book`、一次只框 `book`；04 和 07 的结果两次也不一样。
 4. **原形释义混入时态或情态的意思**：stay 写成「将待」「将停留」，walk in 写成「走了进来」。原形后面的释义应该只写原形本身的意思（待、走进），情态和时态放在 detail 里说明。（2026-10-19 发现；give 的「应该给」在 PR #20 后已不再出现。）
-5. **多个时态的排列顺序有歧义**：规则只写了「按顺序」，没说是主句优先还是按原文顺序。样例 07 分析两次，一次主句在前，一次从句在前。（2026-10-19 发现）任务 B PR 1 已把规则写清楚：主句优先，再按从句原文顺序，相同组合只写一次；PR 2 补充判断依据必须引用去重后从句的关键谓语。真实模型 4 次中 2 次漏语态，已改为按时态 + 语态判断；新提示词效果仍待真实密钥复测。
-6. **长句从句范围不可靠**（Issue #27，已于 2026-11-02 重新打开）：PR #34、#35 合并后真实模型 4 次均拆开长从句，但范围 4 次均不对，包括偏短、错位、缺失或越界被丢弃。另有嵌套层 core/detail 与第三层长从句未拆分的偶发问题；范围问题留给下一个原文锚点 PR，PR #36 不声明修复 #27。
+5. **多个时态的排列顺序有歧义**：规则只写了「按顺序」，没说是主句优先还是按原文顺序。样例 07 分析两次，一次主句在前，一次从句在前。（2026-10-19 发现）任务 B PR 1 已把规则写清楚：主句优先，再按从句原文顺序，相同组合只写一次；PR 2 补充判断依据必须引用去重后从句的关键谓语。此前真实模型 4 次中 2 次漏语态，PR #36 改为按时态 + 语态判断后，虚构长句真实复测 2 次均列出三项组合；Issue #27 原句留到锚点方案上线后复测。
+6. **长句从句范围不可靠**（Issue #27，已于 2026-11-02 重新打开）：PR #34、#35 合并后真实模型 4 次均拆开长从句，但范围 4 次均不对，包括偏短、错位、缺失或越界被丢弃。另有嵌套层 core/detail 与第三层长从句未拆分的偶发问题；现已实现原文锚点唯一匹配，待上线实测；模型仍可能漏拆或分错从句类型。
 
 已修：「购买/选购」已统一为「选购」（PR #15）；`give it up` 拆框错误（PR #20，Issue #19）；分离粒子标签「与 turned」改为「与 turn」（PR #23）；点击分离谓语时说明重复、半句没有主语（PR #26，2026-10-27 上线检查通过）。
 

@@ -1,3 +1,4 @@
+import {longTextAnchors, withTextAnchors} from './fixtures/clauses.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { AnalysisValidationError, validateInput, validateAnalysis } from '../lib/analysis.mjs';
@@ -206,139 +207,116 @@ test('a bad modifies does not relax other checks', () => {
   assert.throws(() => validateAnalysis(wrongText, 'Big dogs bark quietly.'));
 });
 
-// "Big dogs bark loudly." -> 0 Big, 1 ' ', 2 dogs, 3 ' ', 4 bark, 5 ' ', 6 loudly, 7 '.'
-const clauseResult = clauses => {
+// Anchors are model input; assertions use the unchanged internal range format.
+const clausesOf = clauses => {
   const data = modifierResult();
   data.sentences[0].clauses = clauses;
-  return data;
+  return validateAnalysis(data, modifierText).sentences[0].clauses;
 };
-const clausesOf = clauses => validateAnalysis(clauseResult(clauses), modifierText).sentences[0].clauses;
 
-test('clauses are optional, legacy results keep their exact shape and non-arrays are ignored', () => {
-  assert.equal('clauses' in validateAnalysis(modifierResult(), modifierText).sentences[0], false);
-  for (const value of ['', null, {}, 'x', 5, true, undefined]) {
-    const data = modifierResult();
-    data.sentences[0].clauses = value;
-    const out = validateAnalysis(data, modifierText).sentences[0];
-    assert.equal(out.clauses, undefined, String(value));
-    assert.equal(out.segments.map(part => part.text).join(''), modifierText);
+test('clauses are optional and malformed metadata never rejects valid core analysis', () => {
+  for (const value of [undefined, null, '', {}, 5, true]) {
+    assert.equal(clausesOf(value), undefined);
   }
-  // All-invalid clauses also leave the previous output shape without an empty array.
-  assert.equal(clausesOf([{ start: 1, end: 2, type: 'relative' }, { start: 7, end: 8, type: 'relative' }]), undefined);
-});
-
-test('the three clause types, adverbial subtypes, single-segment and adjacent ranges are kept', () => {
-  const out = clausesOf([
-    { start: 0, end: 2, type: 'relative' },
-    { start: 4, end: 6, type: 'object' },
-    { start: 4, end: 7, type: 'adverbial', subtype: 'condition' },
-    { start: 6, end: 7, type: 'adverbial' },
-  ]);
-  assert.deepEqual(out.map(({ start, end, type }) => [start, end, type]), [
-    [0, 2, 'relative'], [4, 7, 'adverbial'], [4, 6, 'object'], [6, 7, 'adverbial'],
-  ]);
-  assert.equal(out[1].subtype, 'condition');
-  assert.equal('subtype' in out[0], false);
-  assert.equal('subtype' in out[3], false);
-  for (const subtype of ['time', 'condition', 'reason', 'concession', 'purpose', 'result', 'comparison', 'manner']) {
-    assert.deepEqual(clausesOf([{ start: 0, end: 2, type: 'adverbial', subtype }]),
-      [{ start: 0, end: 2, type: 'adverbial', subtype }]);
+  for (const item of [null, 'x', 5, true, [], {}, {type:'relative', text:5},
+    {type:'relative', text:''}, {type:'relative', text:' '}, {type:'relative', text:'.'},
+    {type:'unknown', text:'Big'}, {text:'Big'}, {type:'relative', text:'x'.repeat(100)},
+    {type:'relative', start:0, end:1}, {type:'relative', text:'no match'},
+    {type:'relative', text:'ig'}, {type:'relative', text:'Big dog'},
+  ]) {
+    assert.doesNotThrow(() => clausesOf([item]));
+    assert.equal(clausesOf([item]), undefined, JSON.stringify(item));
   }
 });
 
-test('only adverbial clauses keep a known subtype; unknown or misplaced subtypes are dropped alone', () => {
-  const out = clausesOf([
-    { start: 0, end: 2, type: 'relative', subtype: 'condition' },
-    { start: 4, end: 6, type: 'object', subtype: 'time' },
-    { start: 6, end: 7, type: 'adverbial', subtype: 'unknown' },
-  ]);
-  assert.deepEqual(out.map(clause => [clause.start, clause.type, clause.subtype]),
-    [[0, 'relative', undefined], [4, 'object', undefined], [6, 'adverbial', undefined]]);
+test('unique exact anchors match at segment boundaries and model indexes are ignored', () => {
+  assert.deepEqual(clausesOf([{type:'relative', text:'Big dogs', start:99, end:-1}]),
+    [{start:0, end:3, type:'relative'}]);
+  // An interior substring is not a match, even if it occurs only once.
+  for (const text of ['ig dogs', 'Big dog', 'ark loud']) assert.equal(clausesOf([{type:'relative', text}]), undefined);
 });
 
-test('invalid clause entries are dropped without rejecting the result', () => {
-  const bad = [
-    null, 'x', 5, true, [], {},
-    { start: 1.5, end: 3, type: 'relative' },
-    { start: NaN, end: 3, type: 'relative' },
-    { start: Infinity, end: 3, type: 'relative' },
-    { start: '0', end: 2, type: 'relative' },
-    { start: -1, end: 2, type: 'relative' },
-    { start: 0, end: 9, type: 'relative' },
-    { start: 4, end: 3, type: 'relative' },
-    { start: 0, end: 2, type: 'unknown' },
-    { start: 0, end: 2 },
-    { start: 1, end: 2, type: 'relative' }, // whitespace only
-    { start: 7, end: 8, type: 'adverbial' }, // punctuation only
-  ];
-  for (const value of bad) {
-    assert.equal(validateAnalysis(clauseResult([value]), modifierText).sentences[0].clauses, undefined, JSON.stringify(value));
-    assert.doesNotThrow(() => validateAnalysis(clauseResult([value]), modifierText));
-  }
-  // Invalid items do not take part in conflict checks and never remove independent valid ones.
-  assert.deepEqual(clausesOf([
-    { start: 0, end: 2, type: 'relative' },
-    { start: 2, end: 5, type: 'unknown' },
-    { start: 6, end: 7, type: 'adverbial' },
-  ]), [{ start: 0, end: 2, type: 'relative' }, { start: 6, end: 7, type: 'adverbial' }]);
+test('anchor whitespace is trimmed and punctuation-only edge segments are removed', () => {
+  assert.deepEqual(clausesOf([{type:'adverbial', text:'  bark loudly.  ', subtype:'manner'}]),
+    [{start:4, end:7, type:'adverbial', subtype:'manner'}]);
+  const data = modifierResult();
+  data.sentences[0].segments.unshift({text:',',role:'other',translation:'',lemma:'',detail:'',level:'detail'});
+  data.sentences[0].text = ',' + modifierText;
+  data.sentences[0].clauses = [{type:'relative',text:',' + modifierText}];
+  assert.deepEqual(validateAnalysis(data, ',' + modifierText).sentences[0].clauses,
+    [{start:1,end:8,type:'relative'}]);
 });
 
-test('duplicate ranges keep one deterministic entry regardless of model order', () => {
-  const forward = [
-    { start: 0, end: 2, type: 'relative', id: 'model-id', text: 'copied clause text', depth: 9, parent: 1 },
-    { start: 0, end: 2, type: 'adverbial', subtype: 'time' },
-  ];
-  const backward = [...forward].reverse();
-  const expected = [{ start: 0, end: 2, type: 'adverbial', subtype: 'time' }];
-  assert.deepEqual(clausesOf(forward), expected);
-  assert.deepEqual(clausesOf(backward), expected);
-  // Unknown model fields never leak into the normalized output.
-  assert.equal('id' in clausesOf([forward[0]])[0], false);
+test('repeated exact boundary matches are ambiguous and dropped without affecting siblings', () => {
+  const data = result(); // I see I. Both I occurrences must have segment boundaries.
+  data.sentences[0].segments.splice(3, 1,
+    {text:' ',role:'other',translation:'',lemma:'',detail:'',level:'detail'},
+    {text:'I',role:'object',translation:'我',lemma:'',detail:'',level:'core'},
+    {text:'.',role:'other',translation:'',lemma:'',detail:'',level:'detail'});
+  data.sentences[0].clauses = [{type:'object',text:'I'}, {type:'relative',text:'see'}];
+  assert.deepEqual(validateAnalysis(data, 'I see I.').sentences[0].clauses,
+    [{start:2,end:3,type:'relative'}]);
 });
 
-test('partially crossing ranges are both dropped and independent ranges survive', () => {
-  const ranges = [
-    { start: 0, end: 4, type: 'relative' },
-    { start: 2, end: 5, type: 'object' },
-    { start: 6, end: 7, type: 'adverbial' },
-  ];
-  for (const clauses of [ranges, [...ranges].reverse(), [ranges[1], ranges[2], ranges[0]]]) {
-    assert.deepEqual(clausesOf(clauses), [{ start: 6, end: 7, type: 'adverbial' }]);
+test('clause types and all adverbial subtypes survive; misplaced subtypes are omitted', () => {
+  for (const type of ['relative','object','adverbial']) {
+    for (const subtype of ['time','condition','reason','concession','purpose','result','comparison','manner','unknown']) {
+      assert.deepEqual(clausesOf([{type,subtype,text:'Big'}]), [{start:0,end:1,type,
+        ...(type === 'adverbial' && subtype !== 'unknown' ? {subtype} : {})}]);
+    }
   }
 });
 
-test('input order does not change conflict-free output', () => {
-  const canonical = [...clausesOf([
-    { start: 0, end: 2, type: 'relative' },
-    { start: 2, end: 4, type: 'object' },
-    { start: 4, end: 7, type: 'adverbial' },
-  ])].map(clause => ({ ...clause }));
-  assert.deepEqual(canonical.map(clause => clause.start), [0, 2, 4]);
-  assert.deepEqual(clausesOf(canonical.slice().reverse()), canonical);
+test('duplicate ranges are deterministic after punctuation trimming and copy only internal fields', () => {
+  const items = [{type:'relative',text:'bark loudly.', id:'x',depth:9,parent:1},
+    {type:'adverbial',subtype:'time',text:'bark loudly'}];
+  for (const clauses of [items,[...items].reverse()]) {
+    assert.deepEqual(clausesOf(clauses),[{start:4,end:7,type:'adverbial',subtype:'time'}]);
+  }
 });
 
-test('nesting with the same start or same end keeps three levels and drops the fourth', () => {
-  const sameStart = clausesOf([
-    { start: 0, end: 7, type: 'relative' },
-    { start: 0, end: 5, type: 'object' },
-    { start: 0, end: 3, type: 'adverbial' },
-    { start: 0, end: 1, type: 'relative' },
-  ]);
-  assert.deepEqual(sameStart.map(clause => [clause.start, clause.end]), [[0, 7], [0, 5], [0, 3]]);
-  const sameEnd = clausesOf([
-    { start: 0, end: 7, type: 'relative' },
-    { start: 2, end: 7, type: 'object' },
-    { start: 4, end: 7, type: 'adverbial' },
-    { start: 6, end: 7, type: 'relative' },
-  ]);
-  assert.deepEqual(sameEnd.map(clause => [clause.start, clause.end]), [[0, 7], [2, 7], [4, 7]]);
+test('partially crossing anchors are both dropped and independent anchors survive', () => {
+  const items = [{type:'relative',text:'Big dogs'}, {type:'object',text:'dogs bark'},
+    {type:'adverbial',text:'loudly'}, {type:'relative',text:'missing'}];
+  for (const clauses of [items,[...items].reverse()]) {
+    assert.deepEqual(clausesOf(clauses),[{start:6,end:7,type:'adverbial'}]);
+  }
 });
 
-test('clause candidate count is capped and an oversized list is ignored safely', () => {
-  const atLimit = Array.from({ length: 200 }, () => ({ start: 0, end: 2, type: 'relative' }));
-  assert.deepEqual(clausesOf(atLimit), [{ start: 0, end: 2, type: 'relative' }]);
-  const overLimit = [...atLimit, { start: 0, end: 2, type: 'relative' }];
-  const out = validateAnalysis(clauseResult(overLimit), modifierText);
-  assert.equal(out.sentences[0].clauses, undefined);
-  assert.equal(out.sentences[0].segments.map(part => part.text).join(''), modifierText);
+test('anchor ordering, adjacency and three-level nesting retain the original contracts', () => {
+  const adjacent=[{type:'relative',text:'Big'},{type:'object',text:'dogs'},{type:'adverbial',text:'bark loudly'}];
+  assert.deepEqual(clausesOf(adjacent),clausesOf([...adjacent].reverse()));
+  for (const texts of [['Big dogs bark loudly','Big dogs bark','Big dogs','Big'],
+    ['Big dogs bark loudly','dogs bark loudly','bark loudly','loudly']]) {
+    const out=clausesOf(texts.map(text=>({type:'relative',text})));
+    assert.equal(out.length,3);
+    assert.deepEqual(out.map(c=>[c.start,c.end]), texts[3] === 'Big'
+      ? [[0,7],[0,5],[0,3]] : [[0,7],[2,7],[4,7]]);
+  }
+});
+
+test('candidate cap is applied before matching and no malformed clause triggers a core error', () => {
+  const items=Array.from({length:200},()=>({type:'relative',text:'Big'}));
+  assert.deepEqual(clausesOf(items),[{start:0,end:1,type:'relative'}]);
+  assert.equal(clausesOf([...items,{type:'relative',text:'dogs'}]),undefined);
+});
+
+test('fictional long sentence resolves three text anchors over more than 30 segments', () => {
+  const normalized=longTextAnchors();
+  const data=withTextAnchors(normalized);
+  const sentence=data.sentences[0];
+  assert.equal(sentence.text,'Our town has a new library thanks partly to Leo Grant, a retired teacher who claimed that books were bought not borrowed and could be shared by many local families that were short of money.');
+  assert.ok(sentence.segments.length > 30);
+  assert.deepEqual(normalized.sentences[0].clauses, [
+    {start:13,end:40,type:'relative'},
+    {start:17,end:40,type:'object'},
+    {start:35,end:40,type:'relative'},
+  ]);
+  assert.deepEqual(sentence.clauses.map(c=>c.text),[
+    'who claimed that books were bought not borrowed and could be shared by many local families that were short of money',
+    'that books were bought not borrowed and could be shared by many local families that were short of money',
+    'that were short of money',
+  ]);
+  assert.deepEqual(validateAnalysis(data,sentence.text).sentences[0].clauses,normalized.sentences[0].clauses);
+  assert.deepEqual(sentence.segments.filter(p=>p.level==='core').map(p=>p.text),['Our town','has','a new library']);
 });

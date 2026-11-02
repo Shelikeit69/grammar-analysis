@@ -1,3 +1,4 @@
+import {longTextAnchors, withTextAnchors} from './fixtures/clauses.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { analyzeWithDeepSeek } from '../lib/deepseek.mjs';
@@ -321,12 +322,12 @@ test('modifies survives the provider path, and an invalid one is dropped without
   }
 });
 
-test('system prompt documents optional clause ranges with indexes, types and tolerance', () => {
+test('system prompt documents optional clause ranges with text anchors, types and tolerance', () => {
   for (const phrase of [
     'clauses is OPTIONAL',
-    'end is the index AFTER the last segment',
+    'Do not output start/end indexes for clauses',
     'Use only relative (定语从句), object (宾语从句) and adverbial (状语从句)',
-    'Do not output id, depth, numbering, copied clause text or parent references',
+    'Do not output id, depth, numbering or parent references',
     'Nesting is allowed up to three levels',
     'Omit clauses entirely when the sentence has none',
   ]) assert.ok(SYSTEM.includes(phrase), phrase);
@@ -351,7 +352,7 @@ test('system prompt splits long or nested clauses and keeps short ones whole', (
     '"who lives next door to me" has 6 words and may stay one span',
     '"who lives next door to my parents" has 7 words and must be split into who (subject/detail)',
     'split the outer relative clause that the teacher who lives next door recommended AND its inner clause who lives next door',
-    'give both ranges in clauses',
+    'give both text anchors in clauses',
     'Outside the long-clause rule below, one constituent is one span',
   ]) assert.ok(SYSTEM.includes(phrase), phrase);
 });
@@ -361,7 +362,7 @@ test('system prompt uses core for the main clause and detail for split clause in
     'The main clause backbone uses level core; spans created by splitting a long clause open use level detail except for the main-clause object-clause backbone',
     'Except for the main-clause object-clause backbone described below, every span created by splitting a long clause is level detail, including its internal subject and predicate',
     'the main clause backbone stays level core, and coordinated main clauses keep their core spans',
-    'When a long clause is split open, its clause range still covers all of its split spans',
+    'When a long clause is split open, its clause text still covers all of its split spans',
     'The clause who keep going every day has 5 words and no nested clause, so it MAY stay one span',
   ]) assert.ok(SYSTEM.includes(phrase), phrase);
 });
@@ -394,9 +395,11 @@ test('clauses survive the provider path; invalid ranges are dropped without a re
     translation: '大狗大声叫。',
   });
   const cases = [
-    [[{ start: 0, end: 2, type: 'relative' }, { start: 4, end: 7, type: 'adverbial', subtype: 'manner' }],
-      [{ start: 0, end: 2, type: 'relative' }, { start: 4, end: 7, type: 'adverbial', subtype: 'manner' }]],
+    [[{ text: 'Big', type: 'relative' }, { text: 'bark loudly', type: 'adverbial', subtype: 'manner' }],
+      [{ start: 0, end: 1, type: 'relative' }, { start: 4, end: 7, type: 'adverbial', subtype: 'manner' }]],
     [[{ start: 0, end: 99, type: 'relative' }], undefined],
+    [[{ text: 'missing', type: 'relative' }], undefined],
+    [[{ text: 'ig', type: 'relative' }], undefined],
     [[{ start: 0, end: 2, type: 'unknown' }], undefined],
     ['not-an-array', undefined],
   ];
@@ -414,7 +417,7 @@ test('clauses survive the provider path; invalid ranges are dropped without a re
 
 test("system prompt preserves the main-clause object-clause backbone", () => {
   assert.ok(SYSTEM.includes("Exception for object clauses: when a long object clause of the main clause is split open, the object clause's own backbone (its subject head, its predicate or linking verb, and its own object or predicative) keeps level core so the default view still shows the whole main-clause backbone; everything else inside it, including the introducing word, modifiers and nested clauses, stays level detail."));
-  for (const phrase of ["Example: in \"I know that she was working when you called.\", that is other/detail, she is subject/core, was working is predicate/core (lemma work), and when you called is an adverbial clause span with level detail; clauses are [{object range from that to called}, {adverbial range for when you called, subtype time}].","This exception applies only to object clauses of the main clause","remain entirely level detail","remains object/core"]) assert.ok(SYSTEM.includes(phrase), phrase);
+  for (const phrase of ["Example: in \"I know that she was working when you called.\", that is other/detail, she is subject/core, was working is predicate/core (lemma work), and when you called is an adverbial clause span with level detail; clauses are [{\"type\":\"object\",\"text\":\"that she was working when you called\"},{\"type\":\"adverbial\",\"subtype\":\"time\",\"text\":\"when you called\"}].","This exception applies only to object clauses of the main clause","remain entirely level detail","remains object/core"]) assert.ok(SYSTEM.includes(phrase), phrase);
 });
 
 test('system prompt distinguishes tense and voice combinations with predicate evidence', () => {
@@ -439,4 +442,35 @@ test('system prompt keeps coordinated passive participles together without swall
     "This rule concerns coordinated verbal passive participles, not genuine adjective or noun predicatives",
     "never swallows a predicative, object or complement",
   ]) assert.ok(SYSTEM.includes(phrase), phrase);
+});
+
+
+test('clause anchors copy original text and restrict core to direct main-clause objects', () => {
+  for (const phrase of [
+    'clauses is OPTIONAL: a per-sentence array of exact original-text anchors',
+    '{"type":"relative|object|adverbial","subtype":"optional string","text":"exact original clause text"}',
+    'Copy text character for character from the sentence',
+    '[{"type":"relative","text":"who keep going every day"}]',
+    '[{"type":"relative","text":"that the teacher who lives next door recommended"},{"type":"relative","text":"who lives next door"}]',
+    '[{"type":"object","text":"that she was working when you called"},{"type":"adverbial","subtype":"time","text":"when you called"}]',
+    'She thanked the nurse who said that the results were good.',
+    'The object-clause exception applies only when that clause directly serves as the object of the main-clause predicate.',
+    'An object clause enclosed by any relative clause, adverbial clause or another subordinate clause does not qualify.',
+    'the results, were and good are all level detail',
+  ]) assert.ok(SYSTEM.includes(phrase), phrase);
+  assert.ok(!SYSTEM.slice(SYSTEM.indexOf('clauses is OPTIONAL:')).includes('index AFTER the last segment'));
+});
+
+
+test('long text anchors survive the provider path while bad siblings never cause paid repair', async () => {
+  const expected=longTextAnchors();
+  const raw=withTextAnchors(expected);
+  raw.sentences[0].clauses.push({type:'relative',text:'missing'}, {type:'relative',start:12,end:39});
+  let calls=0;
+  const out=await analyzeWithDeepSeek(raw.sentences[0].text, {
+    apiKey:'test', onRepair:()=>assert.fail('optional anchors must not trigger repair'),
+    fetchImpl:async()=>{calls++;return contentResponse(JSON.stringify(raw));},
+  });
+  assert.equal(calls,1);
+  assert.deepEqual(out.sentences[0].clauses,expected.sentences[0].clauses);
 });

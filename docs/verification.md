@@ -226,3 +226,22 @@
 - npm test：88 项通过，0 失败；npm run test:browser（无头 Edge）：97 项排版与交互、11 项静态 Pages、154 项反馈断言通过。模拟检查不代表真实模型已稳定遵守新规则。
 - 从句原文锚点只记录决定，当前 clauses 数据格式、analysis.js、app.js、validateAnalysis、渲染、付费修正边界和 predicateOf 校验均未修改。历史决策与历史验证段落保持原样。
 - 待负责人验证：用真实密钥测虚构句和 #27 原句各 2 次，确认时态列出主动和被动组合，were … not … 为一个谓语片段。从句范围问题未修，留给原文锚点 PR；#27 保持重新打开状态。
+
+
+## 2026-11-02：PR #36 合并后真实模型复测（负责人，DeepSeek deepseek-flash，TOOL_VERSION 2026-11-02.2）
+
+- 虚构句 `Our town has a new library thanks partly to Leo Grant, a retired teacher who claimed that books were bought not borrowed and could be shared by many local families that were short of money.`：2 次。示例里的 Mara Quinn 句已写进 SYSTEM，不用它验收，避免模型照抄示例。
+- 时态：2 次都是「一般现在时 · 主动语态；一般过去时 · 主动语态；一般过去时 · 被动语态」，依据分别引用 has、claimed、were bought not borrowed / could be shared。PR #36 的时态 + 语态修正通过。
+- were bought not borrowed：1 次是一个谓语片段（lemma buy）；1 次拆成 were bought、not borrowed 两个谓语片段。修正前 4 次都被标成表语或补语，现在拆开时两段也都标成谓语。按偶发记录。
+- 默认视图：2 次都把 who 从句内宾语从句的 books、were bought、not borrowed、could be shared 标成 core，混进主句主干。确认是问题，交给原文锚点 PR 一并修正提示词。
+- 从句范围：2 次都只有一层，其中一次截在「…families that」。由原文锚点 PR 处理。
+- Issue #27 原句本轮未复测，留到原文锚点 PR 合并后一起测。
+
+
+## 2026-11-02：从句原文锚点自动检查（TOOL_VERSION 2026-11-02.3）
+
+- normalizeClauses 改为 text 去首尾空白后的片段边界唯一精确匹配，再收掉首尾纯空白或标点片段；拒绝无 text 的旧模型下标。内部仍为 start/end/type/subtype，app.js、反馈正文、demo 和归一化夹具的格式不变。核心校验、modifies、predicateOf 与付费修正边界保持原样。
+- npm test：91 项通过，0 失败。覆盖唯一/无/多处匹配、片段内部边界、首尾收边、旧下标丢弃、类型与 subtype、去重、交叉两项丢弃、三层上限、200 项上限、不触发付费修正。虚构长句有 41 个片段，三层归一化范围分别为 [13,40)、[17,40)、[35,40)。SYSTEM 三个 text 示例及嵌套宾语从句反例均有防删断言。
+- npm run test:browser（无头 Edge）：99 项排版与交互、11 项静态 Pages、154 项反馈断言通过；新增虚构长句三层条带、三项清单、默认主干 Our town / has / a new library。全部使用模拟数据，不等于真实模型语法验收。
+- 单会话完成差异复核，历史决策与验证只追加；未提交截图或计划文件。测试中的 demo 与分离谓语模拟输入转换为模型 text 格式，原有内部范围和 predicateOf 断言保留；不修改真实 demo 或渲染逻辑。
+- 待负责人用真实密钥测样例 08、样例 09、虚构长句、#27 原句，每句 2 次，检查括号层数和范围、清单及默认视图主干；若 #27 复测仍失败应重新打开。重复原文的边界匹配不唯一时会丢弃从句，模型仍可能漏拆或给错类型。

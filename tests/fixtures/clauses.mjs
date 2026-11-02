@@ -163,3 +163,41 @@ export function objectBackbone() {
     {start: 10, end: 15, type: 'adverbial', subtype: 'time'},
   ], '我知道你打电话时她正在工作。');
 }
+
+// Fictional long sentence: normalized ranges remain the rendering contract.
+export function longTextAnchors() {
+  const parts = [
+    ['Our town', 'subject', 'core'], ['has', 'predicate', 'core', 'have'],
+    ['a new library', 'object', 'core'], ['thanks partly to', 'adverbial'],
+    ['Leo Grant', 'attribute'], [',', 'other'], ['a retired teacher', 'attribute'],
+    ['who', 'subject'], ['claimed', 'predicate', 'detail', 'claim'],
+    ['that', 'other'], ['books', 'subject'], ['were bought not borrowed', 'predicate', 'detail', 'buy'],
+    ['and', 'other'], ['could be shared', 'predicate', 'detail', 'share'],
+    ['by', 'other'], ['many', 'attribute'], ['local', 'attribute'], ['families', 'object'],
+    ['that', 'subject'], ['were', 'linking', 'detail', 'be'], ['short of money', 'predicative'],
+  ];
+  const segments = [];
+  parts.forEach(([text, role, level = 'detail', lemma = '']) => {
+    if (segments.length && text !== ',') segments.push(gap());
+    segments.push(span(text, role, role === 'other' ? '' : '测试', lemma, level));
+  });
+  segments.push(span('.', 'other', '', '', 'detail'));
+  const start = text => segments.findIndex(part => part.text === text);
+  return analysis(segments, [
+    {start: start('who'), end: segments.length - 1, type: 'relative'},
+    {start: start('that'), end: segments.length - 1, type: 'object'},
+    {start: segments.findLastIndex(part => part.text === 'that'), end: segments.length - 1, type: 'relative'},
+  ]);
+}
+
+// Model-wire form for provider/normalization tests, never used by rendering.
+export function withTextAnchors(result) {
+  const data = structuredClone(result);
+  for (const sentence of data.sentences) {
+    if (Array.isArray(sentence.clauses)) sentence.clauses = sentence.clauses.map(({start, end, type, subtype}) => ({
+      type, ...(subtype ? {subtype} : {}),
+      text: sentence.segments.slice(start, end).map(part => part.text).join(''),
+    }));
+  }
+  return data;
+}
