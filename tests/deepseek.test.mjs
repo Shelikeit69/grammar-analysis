@@ -379,7 +379,7 @@ test('system prompt still requires clause predicates as tense evidence after ded
   for (const phrase of [
     "tenseReason must still quote that clause's key predicate (for example lives or rains) as evidence",
     'The judgement must cover the key predicate of every clause you relied on',
-    'even when its tense combination was deduplicated',
+    'even when its tense and voice combination was deduplicated',
   ]) assert.ok(SYSTEM.includes(phrase), phrase);
 });
 
@@ -415,4 +415,28 @@ test('clauses survive the provider path; invalid ranges are dropped without a re
 test("system prompt preserves the main-clause object-clause backbone", () => {
   assert.ok(SYSTEM.includes("Exception for object clauses: when a long object clause of the main clause is split open, the object clause's own backbone (its subject head, its predicate or linking verb, and its own object or predicative) keeps level core so the default view still shows the whole main-clause backbone; everything else inside it, including the introducing word, modifiers and nested clauses, stays level detail."));
   for (const phrase of ["Example: in \"I know that she was working when you called.\", that is other/detail, she is subject/core, was working is predicate/core (lemma work), and when you called is an adverbial clause span with level detail; clauses are [{object range from that to called}, {adverbial range for when you called, subtype time}].","This exception applies only to object clauses of the main clause","remain entirely level detail","remains object/core"]) assert.ok(SYSTEM.includes(phrase), phrase);
+});
+
+test('system prompt distinguishes tense and voice combinations with predicate evidence', () => {
+  for (const phrase of [
+    "Compare tense + voice combinations, not tense alone: subordinate clauses with the same tense but different voices are different combinations and MUST be listed separately; only identical tense and voice combinations appear only once.",
+    "tenseReason must quote the corresponding predicate for every listed tense + voice combination.",
+    "The plan has strong support thanks mainly to Mara Quinn, a young city planner who argued that parks were needed not wanted and could be funded by small local taxes that were common in older towns.",
+    "tense is \"一般现在时 · 主动语态；一般过去时 · 主动语态；一般过去时 · 被动语态\"",
+    "argued for past active",
+    "were needed / could be funded for past passive",
+  ]) assert.ok(SYSTEM.includes(phrase), phrase);
+  assert.ok(!SYSTEM.includes('has a different tense'));
+  assert.ok(!SYSTEM.includes('if its tense is the same as the main clause'));
+});
+
+test('system prompt keeps coordinated passive participles together without swallowing predicatives', () => {
+  for (const phrase of [
+    "When two passive past participles share one be auxiliary in a be + past participle + not + past participle structure, keep the whole sequence as ONE predicate span: \"were needed not wanted\" is ONE predicate span, not a predicative or complement.",
+    "not wanted is coordinated with needed and shares were",
+    "Do not split not from wanted",
+    "could be funded as a separate coordinated predicate span (lemma fund)",
+    "This rule concerns coordinated verbal passive participles, not genuine adjective or noun predicatives",
+    "never swallows a predicative, object or complement",
+  ]) assert.ok(SYSTEM.includes(phrase), phrase);
 });
