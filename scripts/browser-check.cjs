@@ -2,17 +2,6 @@
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const assert = require('node:assert/strict');
 
-// Count valid clauses (same logic as sentenceClauses in app.js)
-function sentenceClauses(sentence) {
-  const clauseTypeNames = {relative: '定语从句', object: '宾语从句', adverbial: '状语从句'};
-  if (!Array.isArray(sentence.clauses)) return [];
-  const segments = Array.isArray(sentence.segments) ? sentence.segments : [];
-  return sentence.clauses.filter(clause => clause && clauseTypeNames[clause.type] &&
-    Number.isInteger(clause.start) && Number.isInteger(clause.end) &&
-    clause.start >= 0 && clause.end <= segments.length && clause.start < clause.end &&
-    /[\p{L}\p{N}]/u.test(segments.slice(clause.start, clause.end).map(part => part.text).join('')));
-}
-
 async function main() {
   const { createServer } = await import('../server.mjs');
   const { demoAnalysis, demoText } = await import('../public/demo.js');
@@ -504,16 +493,37 @@ async function main() {
       if (name === 'object-backbone') {
         assert.deepEqual(await page.locator('.clause-item .clause-type').allTextContents(), ['宾语从句', '时间状语从句']);
       }
+      // Count clause items in detailed view before switching to default.
+      const clauseItemCount = await page.locator('.clause-item').count();
       // The core view hides detail spans and all brackets, but shows a clause count hint.
       await page.locator('#detail-toggle').uncheck();
       await page.waitForTimeout(120);
       const core = fixture.sentences[0].segments.filter(part => part.role !== 'other' && part.level === 'core');
-      const validClauses = sentenceClauses(fixture.sentences[0]);
       assert.equal(await page.locator('.clause-panel').count(), 0, `${name} core panel`);
       assert.equal(await page.locator('.clause-track').count(), 0, `${name} core tracks`);
-      assert.equal(await page.locator('.clause-hint').count(), validClauses.length > 0 ? 1 : 0, `${name} core clause hint`);
-      if (validClauses.length > 0) {
-        assert.match(await page.locator('.clause-hint').innerText(), new RegExp(`这句有 ${validClauses.length} 个从句`), `${name} hint count`);
+      assert.equal(await page.locator('.clause-hint').count(), clauseItemCount > 0 ? 1 : 0, `${name} core clause hint`);
+      if (clauseItemCount > 0) {
+        assert.match(await page.locator('.clause-hint').innerText(), new RegExp(`这句有 ${clauseItemCount} 个从句`), `${name} hint count`);
+        // Position assertion: hint is below the last .english and above .translation-row.
+        const positionCheck = await page.evaluate(() => {
+          const hint = document.querySelector('.clause-hint');
+          const englishNodes = document.querySelectorAll('.english');
+          const translationRow = document.querySelector('.translation-row');
+          if (!hint || !englishNodes.length || !translationRow) return null;
+          const lastEnglish = englishNodes[englishNodes.length - 1];
+          const hintBox = hint.getBoundingClientRect();
+          const englishBox = lastEnglish.getBoundingClientRect();
+          const translationBox = translationRow.getBoundingClientRect();
+          return {
+            hintTop: hintBox.top,
+            englishBottom: englishBox.bottom,
+            translationTop: translationBox.top,
+          };
+        });
+        if (positionCheck) {
+          assert.ok(positionCheck.hintTop > positionCheck.englishBottom, `${name} hint below last english`);
+          assert.ok(positionCheck.hintTop < positionCheck.translationTop, `${name} hint above translation`);
+        }
       }
       assert.equal(await page.locator('.annotated').count(), core.length, `${name} core spans`);
       assert.deepEqual(await page.locator('.role-subject.annotated .english').allTextContents(),

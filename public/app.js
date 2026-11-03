@@ -450,16 +450,16 @@ function render() {
       englishNodes.push(english);
     });
     const clauses = detailed ? sentenceClauses(sentence) : [];
-    const clauseHintCount = sentenceClauses(sentence).length;
-    if (!detailed && clauseHintCount > 0) {
-      card.append(element('p', 'clause-hint', `这句有 ${clauseHintCount} 个从句，勾选右上角「显示详细结构」查看从句范围和清单。`));
-    }
     if (clauses.length) {
       line.classList.add('clause-brackets');
       card.append(line, clausePanel(sentence, clauses), detail);
       clauseLayouts.push(() => drawClauseLayer(line, sentence, englishNodes, clauses));
     } else {
       card.append(line, detail);
+    }
+    const clauseHintCount = sentenceClauses(sentence).length;
+    if (!detailed && clauseHintCount > 0) {
+      card.append(element('p', 'clause-hint', `这句有 ${clauseHintCount} 个从句，勾选右上角「显示详细结构」查看从句范围和清单。`));
     }
     if (detailed && sentence.note) card.append(element('p', 'structure-note', sentence.note));
     const translation = element('div', 'translation-row');
