@@ -34,7 +34,7 @@
 - `.github/workflows/ci.yml`：每次 push 和 PR 都跑 `npm test`，再装 Playwright 跑 `npm run test:browser`。任务名叫 `test`（分支保护依赖这个名字，别改）。
 - `.github/workflows/pages.yml`：推送到 main 时先跑单元测试和浏览器测试，再只发布 `public/`，不用任何 Secrets。
 - `CLAUDE.md`：给 Claude Code 的编码准则。
-- `AGENTS.md`：所有编码工具共用的规则（Codex、Trae、Claude Code）：单会话、不用子代理、不提交计划文件和生成文件、走分支和 PR、修复 PR 用 `Fixes #N`、不放宽校验、版本号和旧说法检查（PR #23、#24，2026-10-29 扩充）。
+- `AGENTS.md`：所有编码工具共用的规则（Codex、Trae、Claude Code、Qoder）：单会话、不用子代理、不提交计划文件和生成文件、走分支和 PR、修复 PR 用 `Fixes #N`、不放宽校验、版本号和旧说法检查（PR #23、#24，2026-10-29 扩充）。
 - `.trae/rules/project_rules.md`：Trae 的项目规则，始终生效，只指向 `AGENTS.md` 和 `CLAUDE.md`。
 - `docs/`：Codespaces 测试指南、验证记录（`verification.md`、`feedback-verification.md`）、`roadmap.md`（仓库里的路线图）、`regression-cases.md`（10 条语法样例 + Issue #19 五句）、`project/`（项目资料，见 `docs/project/README.md`）。
 
@@ -102,7 +102,7 @@
 - 2026-10-28 电脑实测通过（长链接两步、短链接）：标题预填、粘贴完整（没点 Create）。
 
 ## 从句条带渲染（任务 B PR 2）
-- 只在详细视图渲染；默认视图不显示清单和条带。
+- 只在详细视图渲染；默认视图不显示清单和条带，但显示一行从句数量提示（`<p class="clause-hint">`），写法为「这句有 N 个从句，勾选右上角「显示详细结构」查看从句范围和清单。」N = sentenceClauses(sentence).length，含单片段短从句。无从句或从句全部非法时不显示。
 - 句子下方追加「从句清单」：按规范化后的 `clauses` 顺序编号，每项写编号、中文类型（状语可带小类）和按 `segments` 范围重建的原文。模型提供 text 锚点用于匹配，清单仍按内部范围重建文本。
 - 范围跨两个及以上含字母或数字的片段时，在英文下方画细线，编号与清单一致；只有一个这样的片段时只列清单，写明「单片段短从句，不画范围线」。
 - 跨行范围按实际文字矩形分行绘制，每行一条线；同一从句每行的编号相同，不在每行重复清单。深度 1/2/3 分别使用不同轨道（间隔 13px），行内有底标签时先留出 58px，避免与成分标签重叠。

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Shared rules for every coding agent working in this repo (Codex, Trae, Claude Code, others). Claude Code also reads `CLAUDE.md`; its coding guidelines apply to all agents.
+Shared rules for every coding agent working in this repo (Codex, Trae, Claude Code, Qoder, others). Claude Code also reads `CLAUDE.md`; its coding guidelines apply to all agents.
 
 ## Read first
 - `docs/project/README.md`, then the file it points to for your task. Product backlog: `docs/roadmap.md`.
