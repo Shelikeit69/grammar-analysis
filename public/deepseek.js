@@ -79,6 +79,8 @@ export async function analyzeWithDeepSeek(text, {
         response_format: { type: 'json_object' },
         thinking: { type: 'disabled' },
         max_tokens: 16000,
+        // Experimental value (PR-B1). DeepSeek docs list 0.0 for coding/math; no documented value for this task. Revert if verification fails.
+        temperature: 0,
       }),
     });
     if (!response.ok) throw new ProviderError('Provider failed', response.status);

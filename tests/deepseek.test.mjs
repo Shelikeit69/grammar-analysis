@@ -24,6 +24,9 @@ test('provider request and valid structured response', async () => {
       const body = JSON.parse(options.body);
       assert.equal(body.model, 'deepseek-flash');
       assert.equal(body.response_format.type, 'json_object');
+      assert.equal(body.temperature, 0);
+      assert.deepEqual(body.thinking, { type: 'disabled' });
+      assert.equal(body.max_tokens, 16000);
       return Response.json({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(valid) } }] });
     },
   });
