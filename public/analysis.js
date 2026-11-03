@@ -11,6 +11,33 @@ export class AnalysisValidationError extends Error {
   }
 }
 
+// Keep diagnostics complete inside AnalysisValidationError's 280-character cap.
+// Positions use JavaScript string offsets, matching the existing coverage checks.
+function mismatchReason(original, actual, requirement, segments) {
+  let position = 0;
+  while (position < original.length && position < actual.length && original[position] === actual[position]) position++;
+  let nearby = '';
+  if (segments) {
+    let index = 0;
+    let offset = 0;
+    while (index < segments.length && offset + segments[index].text.length <= position) {
+      offset += segments[index].text.length;
+      index++;
+    }
+    const right = Math.min(index, segments.length - 1);
+    nearby = `, around segments ${Math.max(0, right - 1)}-${right}`;
+  }
+  let radius = 12;
+  let reason;
+  do {
+    const start = Math.max(0, position - radius);
+    const end = position + radius + 1;
+    reason = `char ${position} (0-based)${nearby}; original ${JSON.stringify(original.slice(start, end))}; actual ${JSON.stringify(actual.slice(start, end))}. ${requirement} Copy every original character including spaces and punctuation, and add nothing.`;
+    radius--;
+  } while (reason.length > 280 && radius >= 0);
+  return reason;
+}
+
 export function validateInput(text) {
   if (
     typeof text !== 'string' || !text.trim() || text.length > 6000 ||
@@ -142,7 +169,9 @@ export function validateAnalysis(data, input) {
       offset++;
     }
     if (!input.startsWith(text, offset)) {
-      throw new AnalysisValidationError(`${field}.text must match the next original input characters exactly, preserving order and internal whitespace.`);
+      throw new AnalysisValidationError(mismatchReason(
+        input.slice(offset), text, `${field}.text must match the next original input characters exactly.`,
+      ));
     }
     offset += text.length;
 
@@ -166,8 +195,11 @@ export function validateAnalysis(data, input) {
         level: segment.level,
       };
     });
-    if (segments.map(segment => segment.text).join('') !== text) {
-      throw new AnalysisValidationError(`${field}.segments text must concatenate exactly to sentence text, including whitespace and punctuation.`);
+    const joined = segments.map(segment => segment.text).join('');
+    if (joined !== text) {
+      throw new AnalysisValidationError(mismatchReason(
+        text, joined, `${field}.segments must concatenate exactly to sentence text.`, segments,
+      ));
     }
 
     // `modifies` is an optional index of the segment this one modifies. It is
