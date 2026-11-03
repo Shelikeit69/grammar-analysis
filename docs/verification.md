@@ -264,9 +264,9 @@
 - 其他：who 指代有 1 次写成人名而非被修饰的名词；同位语依次被标成 complement、other、other；1 次 modifies 指向空格片段（错一位），被校验丢弃。
 - 费用：4 次合计约 ¥0.15（空闲时段），约为 flash 的 5 倍。暂不更换默认模型。
 
-## 2026-11-02：level 分节结构化试点自动检查（TOOL_VERSION 2026-11-02.4）
+## 2026-11-02：level 分节结构化试点自动检查（TOOL_VERSION 2026-11-03.1）
 - SYSTEM 将四处分散的主干/从句例外描述合为长从句规则后的一节，明确从句归属与支配谓语的判断顺序；正例 I know 与反例 She thanked 原文保留，不新增例句。开头只留一句引用。
 - npm test：93 项通过，0 失败；npm run test:browser（无头 Edge）：99 项排版与交互、11 项静态 Pages、154 项反馈断言通过。旧句断言已逐项换成新关键句，另加顺序/语义覆盖和旧分散描述缺失测试。
 - 对两处 level 改动做反向替换后，public/deepseek.js 与基线逐字一致（统一换行后比较）；确认切分、6 词标准、时态、clauses 原文锚点、modifies、predicateOf、请求参数和 JSON 字段顺序均未改。拆开的从句内部仍不输出 predicateOf，即使谓语按例外保留 core。
-- analysis.js、app.js、normalizeClauses、核心校验、付费修正边界、默认模型和界面均未修改。README 不记录版本号且风险说明原样保留；overview、architecture 当前版本同步为 2026-11-02.4。两段负责人实测记录按所给原文追加，历史记录未改。
+- analysis.js、app.js、normalizeClauses、核心校验、付费修正边界、默认模型和界面均未修改。README 不记录版本号且风险说明原样保留；overview、architecture 当前版本同步为 2026-11-03.1。两段负责人实测记录按所给原文追加，历史记录未改。
 - 真实试点验收待负责人完成：deepseek-flash 测虚构句 2 次、#27 原句 2 次，4 次嵌套宾语从句成分都不能为 core；样例 09 测 2 次，默认仍为 I know … she was working。每次分别记录格式正确、语法正确、显示位置正确。样例 09 已在 SYSTEM 中，通过只说明没倒退。
