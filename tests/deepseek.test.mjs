@@ -1,3 +1,4 @@
+import {repairAnalysis, repairText} from './fixtures/repair.mjs';
 import {longTextAnchors, withTextAnchors} from './fixtures/clauses.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -512,4 +513,26 @@ test('SYSTEM has one level section and no superseded scattered exception wording
     'This exception applies only to object clauses of the main clause;',
     'A short object clause with 6 or fewer English words and no nested clause that stays as ONE span remains object/core.',
   ]) assert.ok(!SYSTEM.includes(old), old);
+});
+
+
+test('one repair receives the missing-space location and succeeds on corrected content', async () => {
+  const correct=repairAnalysis();
+  const broken=structuredClone(correct);
+  broken.sentences[0].segments.splice(1,1);
+  const requests=[];
+  const out=await analyzeWithDeepSeek(repairText, {
+    apiKey:'test',
+    fetchImpl:async (url, options)=>{
+      requests.push(JSON.parse(options.body));
+      return contentResponse(JSON.stringify(requests.length===1 ? broken : correct));
+    },
+  });
+  assert.equal(requests.length,2);
+  const message=requests[1].messages.at(-1).content;
+  assert.ok(message.includes('char 16 (0-based), around segments 0-1;'));
+  assert.ok(message.includes('garden grows'));
+  assert.ok(message.includes('gardengrows'));
+  assert.ok(message.includes('must concatenate exactly to sentence text'));
+  assert.deepEqual(out,correct);
 });

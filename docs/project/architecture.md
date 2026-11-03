@@ -20,13 +20,13 @@
 - `public/deepseek.js`：Node 和浏览器共用的 DeepSeek 客户端，系统提示词常量 `SYSTEM` 和「格式修正一次」的逻辑都在这里。
 - `public/analysis.js`：`validateInput`、`validateAnalysis`、`AnalysisValidationError`，Node 和浏览器共用。
 - `public/feedback.js`：`FEEDBACK_TYPES`（5 个问题类型）、反馈标题和易读正文生成（只放白名单字段）、GitHub Issue 预填链接（上限 6000 字符；超过时只带真实标题和粘贴说明，正文由用户粘贴）（PR #21、#25、#28）。
-- `public/version.js`：`TOOL_VERSION`，写进反馈正文。当前值为 `2026-11-03.1`。发布影响分析或反馈的改动时要更新，用实际合并日期加序号。
+- `public/version.js`：`TOOL_VERSION`，写进反馈正文。当前值为 `2026-11-03.2`。发布影响分析或反馈的改动时要更新，用实际合并日期加序号。
 - `public/server-client.js`：本地和 Codespaces 模式下读取服务器返回结果（支持 NDJSON 进度消息，旧的纯 JSON 也兼容）。
 - `public/demo.js`：内置例句和它的分析结果（含 `modifies` 和 `clauses`）。例句的 `who keep going every day` 是 5 词短从句，保持单片段，只显示清单不画条带。
 - `lib/analysis.mjs`、`lib/deepseek.mjs`：只是转发 `public/` 里的共用模块。
 - `lib/access.mjs`：本地和 Codespaces 的访问来源校验（只允许 127.0.0.1 和本 Codespace 的域名）。
 - `server.mjs`：本地和 Codespaces 用的 HTTP 服务，只监听 127.0.0.1。新增的 `public/` 文件要加进它的资源白名单，也要加进 `scripts/browser-pages-check.cjs` 的白名单。
-- `tests/`：node --test 单元测试，共 93 项（任务 B PR 1 新增 14 项：clauses 归一化/容错、提示词关键句、反馈从句清单与 HTML 安全；PR 2 新增 7 项：长从句拆分与 core/detail 提示词关键句、从句 `predicateOf` 边界、内置例句 clauses）。
+- `tests/`：node --test 单元测试，共 100 项（任务 B PR 1 新增 14 项：clauses 归一化/容错、提示词关键句、反馈从句清单与 HTML 安全；PR 2 新增 7 项：长从句拆分与 core/detail 提示词关键句、从句 `predicateOf` 边界、内置例句 clauses）。
 - `tests/fixtures/clauses.mjs`：从句渲染夹具（条件、宾语、两层/三层嵌套、同终点、相邻范围，以及只用于验证同一片段内部换行的长状语），句子为虚构改写，供浏览器检查模拟响应使用。
 - `scripts/browser-check.cjs`：Playwright 排版与交互检查（99 项，含 PR 2 的从句清单、跨行条带位置、嵌套轨道、单片段短从句、单片段内部换行、清理、窄屏和大字检查）；`scripts/browser-pages-check.cjs`：模拟 Pages 静态网页的检查（11 项）；`scripts/browser-feedback-check.cjs`：反馈流程检查（154 项断言，PR #28 起包含长链接两步流程和 380/390px 排版检查，任务 B PR 1 新增从句清单的 XSS/字段白名单断言，会生成截图到 `artifacts/feedback/`）。都用模拟响应，不调用真实 DeepSeek，也不提交真实 Issue。
 - `.gitignore`：`artifacts/` 已加入（PR #28），测试生成的截图不提交。
@@ -81,6 +81,7 @@
 
 ## 格式修正一次（PR #15）
 - 只有模型返回内容的 JSON 语法错误，或核心字段没通过校验时，才自动把错误原因发回给模型，让它修正一次。
+- 拼接与原文校验的报错附带第一处不一致位置，供修正请求使用；短上下文用 JSON 引号显示空格和标点，拼接报错还给相邻片段下标。上下文按转义后的长度缩短，完整 reason 不超过 280 字符，不在界面或反馈正文中展示。
 - 修正结果同样走完整校验；第二次还不行就报错。
 - 网络错误、HTTP 错误、超时、用户取消、响应超长或被截断，都**不**自动重试。
 - 两次请求共用同一个截止时间和取消信号；用户清空或重新输入会取消。
