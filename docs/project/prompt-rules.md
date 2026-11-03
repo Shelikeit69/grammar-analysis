@@ -1,6 +1,6 @@
 # 提示词规则
 
-最后更新：2026-11-02（PR #34 已合并；主句长宾语从句 core 主干例外已复测；新增时态 + 语态组合及并列被动分词规则；Issue #19 已验收关闭）
+最后更新：2026-11-02（PR #37 已合并并复测；仅将 level 规则合为有判断顺序的一节，真实效果待试点验收）
 
 提示词原文在 `public/deepseek.js` 的 `SYSTEM` 常量里，是英文。下面是中文摘要，方便讨论；要改的时候以原文为准。
 
@@ -68,9 +68,19 @@
 - 6 个及以下英文单词、且没有嵌套从句的短从句可以保留一个整框。例：`who lives next door to me`（6 词）可整框；`who lives next door to my parents`（7 词）必须拆。
 - 仅包含介词短语不是强制拆分条件，也不逐词拆框。
 - 词数沿用现有英文词数口径，缩写和连字符按现有规则计数；客户端不猜测语法、不强行切分 segments，判断只在模型输出层。
-- 主句主干和并列主句用 `level: "core"`；从句内部拆出的片段通常用 `level: "detail"`，宾语从句主干例外见下。默认视图只显示 core，详细视图显示全部。
-- 仅主句的长宾语从句拆开时，其自身主语中心词、谓语或系动词、宾语或表语保留 core；引导词、修饰语及嵌套从句均为 detail。定语从句、状语从句拆开后仍全部 detail，宾语从句内嵌的定语或状语从句也不例外。6 词以内、无嵌套且保持整框的宾语从句仍是 object/core。拆开的从句内部不输出 predicateOf，即使宾语从句谓语为 core；主句分离谓语和 predicateOf 校验不变。
-- 只有直接充当主句谓语宾语的宾语从句才保留自身 core 主干；被定语从句、状语从句或另一个从句包住的宾语从句不适用。反例 `She thanked the nurse who said that the results were good.` 中 the results、were、good 全部 detail，默认只显示 She thanked the nurse。
+
+## level 判断顺序（结构化试点）
+1. 先识别每个从句及其包含关系，再定 level；不因看到宾语从句就直接套 core 例外。
+2. 主句主干（主语中心词、谓语或系动词、宾语、表语、补语）为 core；并列主句保留 core 主干，修饰语为 detail。
+3. 默认：任何从句内部的所有片段都是 detail，包括主语和谓语。
+4. 唯一长从句例外：长宾语从句的支配动词必须就是主句谓语。拆开后仅其自身主语中心词、谓语或系动词、宾语或表语为 core；引导词、修饰语、内嵌的任何从句仍是 detail。
+5. 应用例外前必须问「哪个谓语带这个宾语从句？」。若该谓语本身在定语从句、状语从句或其他从句里，例外不适用，整个宾语从句均为 detail。
+6. 主句的短宾语从句（6 词以内、无嵌套）保留一个整框时仍是 object/core。
+- 原有正例保留：`I know that she was working when you called.` 中 that 为 other/detail，she、was working 为 core，when you called 为 detail；默认为 I know … she was working。
+- 原有反例保留：`She thanked the nurse who said that the results were good.` 中支配宾语从句的是定语从句里的 said，the results、were、good 均为 detail；默认只显示 She thanked the nurse。不新增例句。
+- SYSTEM 将这一节放在长从句切分规则之后：先明确是否拆开，再按从句归属定 level。其他位置只留必要引用。默认视图只显示 core，详细视图显示全部；仍由模型给 level，客户端不推导或改写。
+
+## 长从句的范围、时态与 predicateOf（保持原意）
 - 长从句拆开后，`clauses` 范围仍要覆盖它的全部片段；嵌套时内外层范围都要给出。示例：`The book that the teacher who lives next door recommended is useful.` 的外层 `that the teacher who lives next door recommended` 和内层 `who lives next door` 都要进 clauses。
 - 时态依据：多个时态仍按「主句优先，再按从句原文顺序，相同组合只写一次」；`tenseReason` 必须引用你依据过的每个从句的关键谓语（例如 rains、lives），即使该从句的时态组合已被去重。
 - `predicateOf` 边界（第一版不变）：只用于主句里被宾语隔开的短语动词（如 `give it up` 的 up），两端必须 predicate/core，目标不能再带 predicateOf，两端 lemma 相同；拆开的从句内部片段**不输出** predicateOf，包括按宾语从句例外保留为 core 的谓语。主句分离谓语的原有行为保留。

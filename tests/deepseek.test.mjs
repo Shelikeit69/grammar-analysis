@@ -359,9 +359,9 @@ test('system prompt splits long or nested clauses and keeps short ones whole', (
 
 test('system prompt uses core for the main clause and detail for split clause internals', () => {
   for (const phrase of [
-    'The main clause backbone uses level core; spans created by splitting a long clause open use level detail except for the main-clause object-clause backbone',
-    'Except for the main-clause object-clause backbone described below, every span created by splitting a long clause is level detail, including its internal subject and predicate',
-    'the main clause backbone stays level core, and coordinated main clauses keep their core spans',
+    'The main-clause backbone (subject head, predicate or linking verb, object, predicative, complement) is level core',
+    'Default: every span inside any subordinate clause is level detail, including its subject and predicate.',
+    'coordinated main clauses keep their core spans',
     'When a long clause is split open, its clause text still covers all of its split spans',
     'The clause who keep going every day has 5 words and no nested clause, so it MAY stay one span',
   ]) assert.ok(SYSTEM.includes(phrase), phrase);
@@ -415,9 +415,9 @@ test('clauses survive the provider path; invalid ranges are dropped without a re
   }
 });
 
-test("system prompt preserves the main-clause object-clause backbone", () => {
-  assert.ok(SYSTEM.includes("Exception for object clauses: when a long object clause of the main clause is split open, the object clause's own backbone (its subject head, its predicate or linking verb, and its own object or predicative) keeps level core so the default view still shows the whole main-clause backbone; everything else inside it, including the introducing word, modifiers and nested clauses, stays level detail."));
-  for (const phrase of ["Example: in \"I know that she was working when you called.\", that is other/detail, she is subject/core, was working is predicate/core (lemma work), and when you called is an adverbial clause span with level detail; clauses are [{\"type\":\"object\",\"text\":\"that she was working when you called\"},{\"type\":\"adverbial\",\"subtype\":\"time\",\"text\":\"when you called\"}].","This exception applies only to object clauses of the main clause","remain entirely level detail","remains object/core"]) assert.ok(SYSTEM.includes(phrase), phrase);
+test("system prompt preserves the direct main-clause object exception", () => {
+  assert.ok(SYSTEM.includes("One exception: when a long object clause whose governing verb is the main-clause predicate itself is split open, its own subject head, predicate or linking verb, and its own object or predicative are level core."));
+  for (const phrase of ["Example: in \"I know that she was working when you called.\", that is other/detail, she is subject/core, was working is predicate/core (lemma work), and when you called is an adverbial clause span with level detail; clauses are [{\"type\":\"object\",\"text\":\"that she was working when you called\"},{\"type\":\"adverbial\",\"subtype\":\"time\",\"text\":\"when you called\"}].","Before applying the exception, ask which predicate takes this object clause.","the whole object clause is level detail","kept as one span stays object/core"]) assert.ok(SYSTEM.includes(phrase), phrase);
 });
 
 test('system prompt distinguishes tense and voice combinations with predicate evidence', () => {
@@ -454,8 +454,8 @@ test('clause anchors copy original text and restrict core to direct main-clause 
     '[{"type":"relative","text":"that the teacher who lives next door recommended"},{"type":"relative","text":"who lives next door"}]',
     '[{"type":"object","text":"that she was working when you called"},{"type":"adverbial","subtype":"time","text":"when you called"}]',
     'She thanked the nurse who said that the results were good.',
-    'The object-clause exception applies only when that clause directly serves as the object of the main-clause predicate.',
-    'An object clause enclosed by any relative clause, adverbial clause or another subordinate clause does not qualify.',
+    'One exception: when a long object clause whose governing verb is the main-clause predicate itself is split open, its own subject head, predicate or linking verb, and its own object or predicative are level core.',
+    'If that predicate is itself inside a relative, adverbial or other subordinate clause, the exception does not apply and the whole object clause is level detail.',
     'the results, were and good are all level detail',
   ]) assert.ok(SYSTEM.includes(phrase), phrase);
   assert.ok(!SYSTEM.slice(SYSTEM.indexOf('clauses is OPTIONAL:')).includes('index AFTER the last segment'));
@@ -473,4 +473,43 @@ test('long text anchors survive the provider path while bad siblings never cause
   });
   assert.equal(calls,1);
   assert.deepEqual(out.sentences[0].clauses,expected.sentences[0].clauses);
+});
+
+
+test('the ordered level section preserves every decision and the existing examples', () => {
+  const start=SYSTEM.indexOf('Level rule (apply in this order):');
+  const end=SYSTEM.indexOf('End of level rule.',start);
+  assert.ok(start >= 0 && end > start);
+  const section=SYSTEM.slice(start,end);
+  const decisions=[
+    '1. Decide level only after identifying every clause and which clause contains it.',
+    '2. The main-clause backbone (subject head, predicate or linking verb, object, predicative, complement) is level core; coordinated main clauses keep their core spans.',
+    '3. Default: every span inside any subordinate clause is level detail, including its subject and predicate.',
+    "4. One exception: when a long object clause whose governing verb is the main-clause predicate itself is split open, its own subject head, predicate or linking verb, and its own object or predicative are level core.",
+    'Its introducing word, modifiers and any clause nested inside it stay level detail.',
+    '5. Before applying the exception, ask which predicate takes this object clause.',
+    'If that predicate is itself inside a relative, adverbial or other subordinate clause, the exception does not apply and the whole object clause is level detail.',
+    '6. A short object clause of the main clause (6 words or fewer, no nested clause) kept as one span stays object/core.',
+    "Example: in \"I know that she was working when you called.\", that is other/detail, she is subject/core, was working is predicate/core (lemma work), and when you called is an adverbial clause span with level detail; clauses are [{\"type\":\"object\",\"text\":\"that she was working when you called\"},{\"type\":\"adverbial\",\"subtype\":\"time\",\"text\":\"when you called\"}].",
+    "Counterexample: in \"She thanked the nurse who said that the results were good.\", that the results were good is the object clause inside the relative clause who said that the results were good, not an object clause of the main clause; the results, were and good are all level detail, and the default view shows only She thanked the nurse.",
+  ];
+  let previous=-1;
+  for (const phrase of decisions) {
+    const index=section.indexOf(phrase);
+    assert.ok(index > previous, phrase);
+    previous=index;
+  }
+  assert.ok(SYSTEM.includes('Do NOT output predicateOf for a predicate inside a clause that the long-clause rule split open, even when its predicate is core under the object-clause exception'));
+});
+
+test('SYSTEM has one level section and no superseded scattered exception wording', () => {
+  assert.equal(SYSTEM.split('Level rule (apply in this order):').length-1,1);
+  for (const old of [
+    'Exception for object clauses:',
+    'except for the main-clause object-clause backbone (see the long-clause rule)',
+    'Except for the main-clause object-clause backbone described below',
+    'The object-clause exception applies only when',
+    'This exception applies only to object clauses of the main clause;',
+    'A short object clause with 6 or fewer English words and no nested clause that stays as ONE span remains object/core.',
+  ]) assert.ok(!SYSTEM.includes(old), old);
 });
