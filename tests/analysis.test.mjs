@@ -320,3 +320,60 @@ test('fictional long sentence resolves three text anchors over more than 30 segm
   assert.deepEqual(validateAnalysis(data,sentence.text).sentences[0].clauses,normalized.sentences[0].clauses);
   assert.deepEqual(sentence.segments.filter(p=>p.level==='core').map(p=>p.text),['Our town','has','a new library']);
 });
+
+// "The book on the table is mine." -> 0 The, 1 ' ', 2 book, 3 ' ', 4 on the table, 5 ' ', 6 is, 7 ' ', 8 mine, 9 '.'
+const formText = 'The book on the table is mine.';
+const formResult = (overrides = {}) => {
+  const seg = (text, role, translation, lemma = '', level = 'core') => ({ text, role, translation, lemma, detail: '', level });
+  const gap = () => seg(' ', 'other', '', '', 'detail');
+  const segments = [
+    seg('The', 'attribute', '那本', '', 'detail'), gap(),
+    seg('book', 'subject', '书'), gap(),
+    seg('on the table', 'attribute', '桌上的', '', 'detail'), gap(),
+    seg('is', 'linking', '是', 'be'), gap(),
+    seg('mine', 'predicative', '我的'),
+    seg('.', 'other', '', '', 'detail'),
+  ];
+  for (const [index, fields] of Object.entries(overrides)) Object.assign(segments[index], fields);
+  return {
+    sentences: [{ text: formText, translation: '桌上那本书是我的。', note: '', segments }],
+    translation: '桌上那本书是我的。',
+  };
+};
+const formsOf = data => data.sentences[0].segments.map(segment => segment.form);
+
+test('a valid form is kept for attribute and adverbial roles', () => {
+  for (const value of ['prep', 'to-inf', 'ing', 'ed', 'clause']) {
+    const out = validateAnalysis(formResult({ 2: { form: value, role: 'attribute', modifies: 1 } }), formText);
+    assert.equal(out.sentences[0].segments[2].form, value, value);
+  }
+  const out = validateAnalysis(formResult({ 2: { form: 'prep', role: 'adverbial' } }), formText);
+  assert.equal(out.sentences[0].segments[2].form, 'prep');
+});
+
+test('an invalid form is dropped on its own and the result stays valid', () => {
+  for (const value of ['noun', 'adj', '', 'PREP', 42, null, true, [], {}]) {
+    const data = formResult({ 2: { form: value, modifies: 1 } });
+    const out = validateAnalysis(data, formText);
+    assert.equal('form' in out.sentences[0].segments[2], false, String(value));
+    assert.equal(out.sentences[0].segments.map(s => s.text).join(''), formText);
+  }
+});
+
+test('form on a role that cannot have form (subject, object) is dropped', () => {
+  const out = validateAnalysis(formResult({ 1: { form: 'prep' }, 8: { form: 'ing' } }), formText);
+  assert.equal('form' in out.sentences[0].segments[1], false);
+  assert.equal('form' in out.sentences[0].segments[8], false);
+});
+
+test('a bad form does not affect modifies or clauses', () => {
+  const data = formResult({ 2: { form: 'invalid' }, 4: { form: 'prep', modifies: 2 } });
+  const out = validateAnalysis(data, formText);
+  assert.equal(out.sentences[0].segments[4].modifies, 2);
+  assert.equal('form' in out.sentences[0].segments[2], false);
+});
+
+test('legacy results without form still validate and carry no form key', () => {
+  const out = validateAnalysis(formResult({ 2: { modifies: 1 } }), formText);
+  assert.ok(out.sentences[0].segments.every(segment => !('form' in segment)));
+});

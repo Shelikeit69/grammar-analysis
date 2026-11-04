@@ -1,6 +1,6 @@
 const ISSUE_URL = 'https://github.com/Shelikeit69/grammar-analysis/issues/new';
 const sentenceFields = ['text', 'translation', 'tense', 'tenseReason', 'note'];
-const segmentFields = ['text', 'role', 'level', 'translation', 'lemma', 'detail'];
+const segmentFields = ['text', 'role', 'level', 'translation', 'lemma', 'detail', 'form'];
 function strings(source, fields) {
   return Object.fromEntries(fields.filter(key => typeof source?.[key] === 'string').map(key => [key, source[key]]));
 }
@@ -22,16 +22,23 @@ export function serializeSentence(sentence) {
 }
 export const FEEDBACK_TYPES = ['成分标错了', '中文意思不对', '时态不对', '显示或排版有问题', '其他'];
 const roles = {subject:'主语', predicate:'谓语', linking:'系动词', object:'宾语', predicative:'表语', complement:'补语', adverbial:'状语', attribute:'定语', other:'其他'};
+const formNames = {prep:'介词短语','to-inf':'不定式',ing:'现在分词',ed:'过去分词',clause:'从句'};
 const clauseNames = {relative:'定语从句', object:'宾语从句', adverbial:'状语从句'};
 const subtypeNames = {time:'时间', condition:'条件', reason:'原因', concession:'让步', purpose:'目的', result:'结果', comparison:'比较', manner:'方式'};
 function readableAnalysis(sentence) {
   const safe = serializeSentence(sentence);
   const lines = [['translation', '翻译'], ['tense', '时态'], ['tenseReason', '依据']]
     .filter(([key]) => safe[key]).map(([key, label]) => `${label}：${safe[key]}`);
-  const parts = safe.segments.filter(part => !(part.role === 'other' && !/[\p{L}\p{N}]/u.test(part.text || ''))).map(part => {
+  const parts = safe.segments.map((part, index) => ({part, index})).filter(({part}) => !(part.role === 'other' && !/[\p{L}\p{N}]/u.test(part.text || ''))).map(({part, index}) => {
     const head = safe.segments[part.predicateOf];
     const target = safe.segments[part.modifies];
     let role = Number.isInteger(part.predicateOf) && head ? `谓语组成部分（与 ${head.text}）` : roles[part.role] || '其他';
+    if (formNames[part.form] && (part.role === 'attribute' || part.role === 'adverbial')) {
+      role += ` · ${formNames[part.form]}`;
+      if (part.role === 'attribute' && Number.isInteger(part.modifies) && part.modifies < index) {
+        role += '（后置）';
+      }
+    }
     if (Number.isInteger(part.modifies) && target) role += `（修饰 ${target.text}）`;
     const meaning = [part.lemma, part.translation].filter(Boolean).join('－');
     return '- ' + [part.text, role, meaning, part.detail].filter(Boolean).join('｜');

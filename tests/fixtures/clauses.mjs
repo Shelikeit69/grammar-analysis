@@ -201,3 +201,22 @@ export function withTextAnchors(result) {
   }
   return data;
 }
+
+// Fixture with form field on attribute/adverbial segments to test label display.
+// "A plan to finish the work surprised everyone."
+// 0 A, 1 ' ', 2 plan, 3 ' ', 4 to finish the work, 5 ' ', 6 surprised, 7 ' ', 8 everyone, 9 .
+export function withForm() {
+  const segments = [
+    {...span('A', 'attribute', '一个', '', 'detail', 2), form: 'prep'},
+    gap(),
+    span('plan', 'subject', '计划'),
+    gap(),
+    {...span('to finish the work', 'attribute', '完成工作的', '', 'detail', 2), form: 'to-inf'},
+    gap(),
+    span('surprised', 'predicate', '使惊讶', 'surprise'),
+    gap(),
+    span('everyone', 'object', '每个人'),
+    span('.', 'other', '', '', 'detail'),
+  ];
+  return analysis(segments, [], '一个完成工作的计划让所有人惊讶。');
+}

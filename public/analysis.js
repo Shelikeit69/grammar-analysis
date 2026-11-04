@@ -72,6 +72,9 @@ const adverbialSubtypes = new Set([
 // its core analysis without any clause ranges.
 const MAX_CLAUSE_CANDIDATES = 200;
 
+// Valid structural forms for attribute and adverbial segments.
+const formValues = new Set(['prep', 'to-inf', 'ing', 'ed', 'clause']);
+
 // `clauses` is optional. Invalid entries only drop themselves, never the
 // sentence: core coverage and field checks above stay strict.
 function normalizeClauses(value, segments) {
@@ -228,6 +231,16 @@ export function validateAnalysis(data, input) {
         target !== index && segments[target].role !== 'other'
       ) {
         segments[index].modifies = target;
+      }
+      // `form` is an optional structural type label for attribute/adverbial
+      // segments (e.g. prepositional phrase, infinitive, participle). Invalid
+      // values are dropped on their own, same as modifies.
+      const form = raw.form;
+      if (
+        (segments[index].role === 'attribute' || segments[index].role === 'adverbial') &&
+        typeof form === 'string' && formValues.has(form)
+      ) {
+        segments[index].form = form;
       }
     });
     const clauses = normalizeClauses(sentence.clauses, segments);
