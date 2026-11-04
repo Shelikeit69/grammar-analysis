@@ -301,3 +301,20 @@
 ## 2026-11-03：temperature 实验自动检查（TOOL_VERSION 2026-11-03.3）
 - npm test：100 项通过，0 失败；npm run test:browser（无头 Edge）：99 项排版与交互、11 项静态 Pages、154 项反馈断言通过。分别从 main 与分支导出 SYSTEM 字符串到本地 artifacts/main-system.txt、artifacts/branch-system.txt，按 UTF-8 字节逐字比较，完全一致（各 18232 字节）。提供方文件相对 main 只新增指定注释和 temperature: 0 一项请求参数；修正请求复用相同参数，其他请求参数和流程未改。
 - 真实验收待负责人完成，见 PR 描述「需要我手动验证」。
+
+
+## 2026-11-04：PR-B1 复测（负责人，DeepSeek deepseek-flash，TOOL_VERSION 2026-11-03.3，temperature 0）
+
+- #27 原句（含原文拼写 argured、sub human）3 次 + 改正拼写后 3 次：6/6 拆开 who 从句，6/6 有 clauses 且为 3 条（定语 → 宾语 → 定语），详细视图三层条带正常；时态和 were born not made 并列被动谓语正确。
+- 带错字的 3 次中，argured 的原形写成 argure（应为 argue）。
+- 之前 2026-11-02.3 报告的「没有括号 / 没有清单」，可能有一部分是在默认视图下看的，也可能是 #38、#40 之后输出变稳定，两种原因分不开。
+
+
+## 2026-11-04：form 上线实测（负责人，DeepSeek deepseek-flash，TOOL_VERSION 2026-11-04.1，详细视图，每句 1 次）
+
+- The book on the table is mine. → on the table：定语 · 介词短语（后置）正确
+- She has a plan to finish the work. → to finish the work：定语 · 不定式（后置）正确
+- The girl sitting next to me is my sister. → sitting next to me：定语 · 现在分词（后置）正确
+- The letters written by him were lost. → written by him：定语 · 过去分词（后置）正确；另 were lost 被分析为系动词 + 表语、一般过去时主动语态，被动语态解读更常见，记为观察，未改动
+- #27 原句 → to a primitive sub human state：定语 · 介词短语，无（后置）；点击说明无「修饰：」，本次结果没有合法 modifies，按设计不显示前置/后置
+- 每句只测 1 次，不代表稳定。
