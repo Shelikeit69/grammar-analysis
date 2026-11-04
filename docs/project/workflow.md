@@ -4,10 +4,10 @@
 
 ## 分工
 - **项目负责人（Shelikeit69）**：决定做什么、合并 PR、在网页上做真实验收。
-- **编码工具**（Codex、Trae、Claude Code 等）：建分支、改代码、开 PR。不合并。
+- **编码工具**（Codex、Trae、Claude Code、Qoder 等）：建分支、改代码、开 PR。不合并。
 - **验收方**：看 PR 的改动、跑测试、全文扫旧说法。**验收方不能是这次写代码的那个工具或会话**，否则等于自己检查自己。小改动至少要有 CI `test` 绿勾加负责人上线实测；大改动（如任务 B）再找一个没参与编码的工具看一遍 PR。
 
-所有编码工具共用仓库根目录的 `AGENTS.md`；Trae 另有 `.trae/rules/project_rules.md` 指向它，Claude Code 另读 `CLAUDE.md`。
+所有编码工具共用仓库根目录的 `AGENTS.md`；Trae 另有 `.trae/rules/project_rules.md` 指向它，Claude Code 另读 `CLAUDE.md`，Qoder 会自动读取根目录 `AGENTS.md`。
 
 ## 一次改动的标准流程
 1. 讨论清楚：要改什么、为什么改、怎么算改好了。
