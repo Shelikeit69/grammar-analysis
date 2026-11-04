@@ -48,6 +48,13 @@
 - 示例用的是内置例句：Tired → 2（learners），who keep going every day → 2（learners），of English grammar → 8（the beauty），in the end → 6（will see）。
 - 2026-10-19 用 deepseek-flash 实测 5 条（样例 01、03、04、06、07），模型都输出了这个字段，指向都合理。样本少，不代表每次都稳定输出、每次都对。
 
+## 结构类型 form（#31）
+- 可选字段，只给 attribute 和 adverbial 填，值为 `"prep"`（介词短语）、`"to-inf"`（to 不定式）、`"ing"`（现在分词）、`"ed"`（过去分词）、`"clause"`（作为一个整框的短从句）。
+- 单个形容词、副词、名词修饰语不填；拿不准就不填。
+- 不合规时只丢掉 form 这一个字段，不抛 AnalysisValidationError，不触发付费修正。
+- 界面显示：标签改为「定语 · 介词短语：…」格式。仅当 role 为 attribute、modifies 合法、且 modifies < 当前片段下标时，在类型后加「（后置）」；状语不加前置/后置。没有 form 时标签和以前完全一样。
+- 「后置」由代码根据 modifies 判断，不让模型输出。原因：modifies 下标在长句里经常错一位，但前置/后置只需比较两个下标大小，即使 modifies 指错对象，（后置）标记也只在 attribute 角色上出现，风险可控。
+
 ## 时态规则（PR #6、#10、#11）
 - `tense` 写主句的时态和语态，格式是「一般/进行/完成/完成进行 + 现在/过去/将来/过去将来 + 时 · 主动语态或被动语态」。
 - 判断时看整个谓语，不能只看一个词：`can shop for` 是一般现在时。

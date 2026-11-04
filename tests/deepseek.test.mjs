@@ -539,3 +539,14 @@ test('one repair receives the missing-space location and succeeds on corrected c
   assert.ok(message.includes('must concatenate exactly to sentence text'));
   assert.deepEqual(out,correct);
 });
+
+test('SYSTEM documents optional form field with all five values and attribute/adverbial restriction', () => {
+  assert.ok(SYSTEM.includes('form is OPTIONAL'));
+  assert.ok(SYSTEM.includes('"form":"optional string"'));
+  for (const value of ['prep', 'to-inf', 'ing', 'ed', 'clause']) {
+    assert.ok(SYSTEM.includes(`"${value}"`), `missing form value: ${value}`);
+  }
+  assert.ok(SYSTEM.includes('attribute and adverbial'));
+  assert.ok(SYSTEM.includes('Do not fill form for single-word adjectives, adverbs or nouns used as modifiers'));
+  assert.ok(SYSTEM.includes('If you are unsure of the form, omit it entirely; never guess'));
+});

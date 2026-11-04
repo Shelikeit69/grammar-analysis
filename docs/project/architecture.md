@@ -20,7 +20,7 @@
 - `public/deepseek.js`：Node 和浏览器共用的 DeepSeek 客户端，系统提示词常量 `SYSTEM` 和「格式修正一次」的逻辑都在这里。
 - `public/analysis.js`：`validateInput`、`validateAnalysis`、`AnalysisValidationError`，Node 和浏览器共用。
 - `public/feedback.js`：`FEEDBACK_TYPES`（5 个问题类型）、反馈标题和易读正文生成（只放白名单字段）、GitHub Issue 预填链接（上限 6000 字符；超过时只带真实标题和粘贴说明，正文由用户粘贴）（PR #21、#25、#28）。
-- `public/version.js`：`TOOL_VERSION`，写进反馈正文。当前值为 `2026-11-03.3`。发布影响分析或反馈的改动时要更新，用实际合并日期加序号。
+- `public/version.js`：`TOOL_VERSION`，写进反馈正文。当前值为 `2026-11-04.1`。发布影响分析或反馈的改动时要更新，用实际合并日期加序号。
 - `public/server-client.js`：本地和 Codespaces 模式下读取服务器返回结果（支持 NDJSON 进度消息，旧的纯 JSON 也兼容）。
 - `public/demo.js`：内置例句和它的分析结果（含 `modifies` 和 `clauses`）。例句的 `who keep going every day` 是 5 词短从句，保持单片段，只显示清单不画条带。
 - `lib/analysis.mjs`、`lib/deepseek.mjs`：只是转发 `public/` 里的共用模块。
@@ -50,7 +50,7 @@
     "segments": [
       {"text": "原文片段", "role": "subject|predicate|linking|object|predicative|complement|adverbial|attribute|other",
        "translation": "中文", "lemma": "原形", "detail": "说明", "level": "core|detail",
-       "modifies": 2, "predicateOf": 2}
+       "modifies": 2, "predicateOf": 2, "form": "prep|to-inf|ing|ed|clause"}
     ],
     "clauses": [
       {"type": "relative|object|adverbial", "subtype": "可选，仅 adverbial", "text": "从句原文"}
@@ -61,6 +61,7 @@
 ```
 - `modifies`（可选）：这个片段修饰的是同一句 `segments` 里第几个片段，从 0 开始数，空格和标点也要算。只对 attribute、adverbial、complement 有效。
 - `predicateOf`（可选，PR #20）：被宾语隔开的短语动词小品词（如 `give it up` 的 up）指向前面的主谓语片段下标。规则见 [prompt-rules.md](prompt-rules.md)。
+- `form`（可选，#31）：结构类型标签，只给 attribute 和 adverbial 填。取值 `"prep"`（介词短语）、`"to-inf"`（不定式）、`"ing"`（现在分词）、`"ed"`（过去分词）、`"clause"`（作为一个整框的短从句）。单个形容词、副词、名词修饰语不填；拿不准就不填。界面显示为「定语 · 介词短语」格式；仅 attribute 且 modifies 合法且 modifies < 当前片段下标时追加「（后置）」，状语不加。
 - `clauses`：上面的 JSON 是模型输入格式，模型用 `{type,subtype?,text}` 照抄从句原文，不再数下标。normalizeClauses 在片段边界上唯一精确匹配后生成内部 `{start,end,type,subtype?}`；app.js、反馈、demo 和归一化夹具仍用内部范围。type 支持 relative、object、adverbial；subtype 仅给 adverbial，不确定就省略。范围从引导词到最后一词，不记录主句范围。
 - 只有直接充当主句谓语宾语的宾语从句才保留自身 core 主干；被定语从句、状语从句或另一个从句包住的宾语从句不适用。反例 `She thanked the nurse who said that the results were good.` 中 the results、were、good 全部 detail，默认只显示 She thanked the nurse。
 - `level`：主句主干和并列主句用 `core`；为解释长从句内部结构而拆出的主语、谓语等通常用 `detail`。仅主句的长宾语从句拆开时，其自身主语中心词、谓语或系动词、宾语或表语保留 core；引导词、修饰语及嵌套从句均为 detail。定语从句、状语从句拆开后仍全部 detail，宾语从句内嵌的定语或状语从句也不例外。6 词以内、无嵌套且保持整框的宾语从句仍是 object/core。拆开的从句内部不输出 predicateOf，即使宾语从句谓语为 core；主句分离谓语和 predicateOf 校验不变。默认视图只显示 `core`，详细视图显示全部。长从句（超过 6 个英文单词或内部含嵌套从句）按 SYSTEM 要求拆开，短从句可保留整框；客户端不猜测语法、不强行切分 segments。
@@ -75,6 +76,7 @@
 - `tense`、`tenseReason`：不是字符串或超长就当成空。
 - `modifies`：必须是整数、在范围内、不指向自己、不指向 other、而且只放在修饰类角色上；否则丢掉。
 - `predicateOf`：两端都是 predicate/core、只能向前指、目标不能再带 predicateOf、两端 lemma 相同、中间有实质成分；否则丢掉。
+- `form`：必须是字符串且在 `prep`/`to-inf`/`ing`/`ed`/`clause` 枚举内，而且片段角色必须是 attribute 或 adverbial；否则丢掉。不抛 AnalysisValidationError，不触发付费修正。
 - `clauses`：不是数组或候选超过 200 项时整句忽略；非对象项、非法 type、非字符串/空白/纯标点 text、text 长于句子、无精确匹配、多处片段边界匹配或仅有 start/end 时丢弃该项。text 首尾空白先去掉，再匹配；匹配后收掉首尾不含字母数字的片段。只拷贝内部 start/end/type 与有效 adverbial subtype。合法项仍按 start 升序、同起点 end 降序排序，同范围去重；部分交叉两项都丢、最多三层、非法项不影响独立合法项。任何错误都不抛 AnalysisValidationError、不触发付费修正。
 
 校验**不能**保证语法判断是对的。

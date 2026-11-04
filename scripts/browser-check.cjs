@@ -540,6 +540,33 @@ async function main() {
       await checkClauseFixture(name, fixture, depths);
     }
 
+    // Form fixture: labels show structural type and post-position marker.
+    const formFixture = clauseFixtures.withForm();
+    await showClauseFixture(formFixture, true);
+    const allLabels = await page.locator('.annotated .label').allTextContents();
+    // 'In the morning' is adverbial/prep; adverbial never gets （后置）
+    assert.ok(allLabels.some(text => text.includes('状语 · 介词短语') && !text.includes('（后置）')), 'adverbial with form has no 后置');
+    checks++;
+    // 'to finish the work' is attribute/to-inf modifying 'plan' at index 5; it is at index 7, so 5 < 7 → （后置）
+    assert.ok(allLabels.some(text => text.includes('定语 · 不定式（后置）')), 'post-positioned attribute has form with 后置');
+    checks++;
+    // Click 'to finish the work' and check phrase-detail shows form type
+    const formPhraseButton = text => page.locator('.annotated .english', { hasText: new RegExp(`^${text}$`) });
+    await formPhraseButton('to finish the work').click();
+    assert.ok((await page.locator('.phrase-detail').innerText()).includes('定语 · 不定式（后置）'), 'phrase-detail shows form type on click');
+    checks++;
+    // Old fixtures without form stay unchanged.
+    await showClauseFixture(clauseFixtures.conditional(), true);
+    const oldLabels = await page.locator('.annotated .label').allTextContents();
+    assert.ok(oldLabels.every(text => !text.includes('· ')), 'old fixture labels have no form separator');
+    checks++;
+    // Form without modifies: attribute + form but no modifies → no （后置）
+    const noModifiesFixture = clauseFixtures.withFormNoModifies();
+    await showClauseFixture(noModifiesFixture, true);
+    const noModifiesLabels = await page.locator('.annotated .label').allTextContents();
+    assert.ok(noModifiesLabels.some(text => text.includes('定语 · 介词短语') && !text.includes('（后置）')), 'attribute with form but no modifies has no 后置');
+    checks++;
+
     // Width, phone and large-text changes re-measure the same ranges.
     const nested = clauseFixtures.nestedRelative();
     await showClauseFixture(nested, true);

@@ -201,3 +201,44 @@ export function withTextAnchors(result) {
   }
   return data;
 }
+
+// Fixture with form field on attribute/adverbial segments to test label display.
+// "In the morning, a plan to finish the work surprised everyone."
+// 0 In the morning, 1 ,, 2 ' ', 3 a, 4 ' ', 5 plan, 6 ' ', 7 to finish the work, 8 ' ', 9 surprised, 10 ' ', 11 everyone, 12 .
+export function withForm() {
+  const segments = [
+    {...span('In the morning', 'adverbial', '在早上', '', 'detail', 9), form: 'prep'},
+    span(',', 'other', '', '', 'detail'),
+    gap(),
+    span('a', 'attribute', '一个', '', 'detail'),
+    gap(),
+    span('plan', 'subject', '计划'),
+    gap(),
+    {...span('to finish the work', 'attribute', '完成工作的', '', 'detail', 5), form: 'to-inf'},
+    gap(),
+    span('surprised', 'predicate', '使惊讶', 'surprise'),
+    gap(),
+    span('everyone', 'object', '每个人'),
+    span('.', 'other', '', '', 'detail'),
+  ];
+  return analysis(segments, [], '在早上，一个完成工作的计划让所有人惊讶。');
+}
+
+// Fixture with attribute + form but NO modifies, to test that no （后置） marker appears.
+// "The book on the shelf is mine."
+// 0 The, 1 ' ', 2 book, 3 ' ', 4 on the shelf, 5 ' ', 6 is, 7 ' ', 8 mine, 9 .
+export function withFormNoModifies() {
+  const segments = [
+    span('The', 'attribute', '那本', '', 'detail'),
+    gap(),
+    span('book', 'subject', '书'),
+    gap(),
+    {...span('on the shelf', 'attribute', '架子上的', '', 'detail'), form: 'prep'},
+    gap(),
+    span('is', 'linking', '是', 'be'),
+    gap(),
+    span('mine', 'predicative', '我的'),
+    span('.', 'other', '', '', 'detail'),
+  ];
+  return analysis(segments, [], '架子上的那本书是我的。');
+}
