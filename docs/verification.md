@@ -318,3 +318,13 @@
 - The letters written by him were lost. → written by him：定语 · 过去分词（后置）正确；另 were lost 被分析为系动词 + 表语、一般过去时主动语态，被动语态解读更常见，记为观察，未改动
 - #27 原句 → to a primitive sub human state：定语 · 介词短语，无（后置）；点击说明无「修饰：」，本次结果没有合法 modifies，按设计不显示前置/后置
 - 每句只测 1 次，不代表稳定。
+
+
+## 2026-11-05：PR-B2 复测（负责人，DeepSeek deepseek-flash，TOOL_VERSION 2026-11-05.1，temperature 0，详细视图）
+
+- #27 原句 2 次：均为 3 个从句（定语 → 宾语 → 定语），三层条带正常；时态三组合正确。2 次 to a primitive sub human state 均显示「定语 · 介词短语（后置）」；argured 的原形仍写成 argure。
+- She thanked the nurse who said that the results were good. 2 次：均为 2 个从句（定语套宾语），条带正常，时态只列一般过去时 · 主动语态。
+- I know that she was working when you called. 2 次：均为 2 个从句（宾语套时间状语），when you called 为单片段短从句，只列清单不画线，符合设计。
+- The cat sat on the mat. 2 次：无条带、无清单；其中 1 次查看原始返回，clauses 为 []，位于 segments 之后；modifies 指向 cat、sat 正确。
+- 8 次均未注意到格式修正提示。
+- 样本小，每句 2 次，不代表稳定。
