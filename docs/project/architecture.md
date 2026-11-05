@@ -1,6 +1,6 @@
 # 技术架构
 
-最后更新：2026-11-05（PR-B2：clauses 写进 JSON 骨架，校验和渲染不变）
+最后更新：2026-11-05（#32 内联纠错：同一分析按钮自动显示 corrections）
 
 ## 三种运行方式（共用同一套页面 public/）
 | 方式 | 密钥在哪里 | 页面怎么判断 |
@@ -15,20 +15,20 @@
 
 ## 文件结构
 - `public/index.html`：页面，含反馈对话框 `#feedback-dialog`。meta CSP 只允许连接本站和 `https://api.deepseek.com`，资源用相对路径（适配 `/grammar-analysis/` 子路径）。
-- `public/app.js`：界面逻辑（渲染批注、修饰高亮、分离谓语标签和说明、详细视图的从句清单与跨行范围条带、模式判断、密钥面板、三步引导、大字开关、错误提示、格式修正提示、反馈表单）。
-- `public/styles.css`：样式。标签和英文放在同一格，高度为 0 向外溢出；只有带标签的片段才通过 `--label-space` 留出空间。详细视图的从句条带在英文下方按行绘制，深度 1/2/3 各占一条轨道，行内有底标签时额外留出 58px。大字模式用 `html.large-text` 加 CSS zoom 1.25（只放大 masthead、main、footer，不影响反馈弹窗），条带坐标按 zoom 换算回本地 CSS 像素。反馈按钮用 `.report-button`；反馈弹窗底部操作区固定（`.feedback-footer`），主按钮在 `.feedback-steps` 里（PR #28）。
+- `public/app.js`：界面逻辑（渲染批注、修饰高亮、分离谓语标签和说明、详细视图的从句清单与跨行范围条带、纠错的波浪线与「纠错：」行、模式判断、密钥面板、三步引导、大字开关、错误提示、格式修正提示、反馈表单）。粘贴只填输入框，不再定时自动分析。
+- `public/styles.css`：样式。标签和英文放在同一格，高度为 0 向外溢出；只有带标签的片段才通过 `--label-space` 留出空间。详细视图的从句条带在英文下方按行绘制，深度 1/2/3 各占一条轨道，行内有底标签时额外留出 58px。纠错用红色波浪下划线；整句效果里原文删除线、改法蓝色加粗并带下划线，不只靠颜色区分。大字模式用 `html.large-text` 加 CSS zoom 1.25（只放大 masthead、main、footer，不影响反馈弹窗），条带坐标按 zoom 换算回本地 CSS 像素。反馈按钮用 `.report-button`；反馈弹窗底部操作区固定（`.feedback-footer`），主按钮在 `.feedback-steps` 里（PR #28）。
 - `public/deepseek.js`：Node 和浏览器共用的 DeepSeek 客户端，系统提示词常量 `SYSTEM` 和「格式修正一次」的逻辑都在这里。
-- `public/analysis.js`：`validateInput`、`validateAnalysis`、`AnalysisValidationError`，Node 和浏览器共用。
+- `public/analysis.js`：`validateInput`、`validateAnalysis`、`AnalysisValidationError`、`normalizeCorrections`（把模型给的纠错原文锚点唯一匹配成内部字符范围），Node 和浏览器共用。
 - `public/feedback.js`：`FEEDBACK_TYPES`（5 个问题类型）、反馈标题和易读正文生成（只放白名单字段）、GitHub Issue 预填链接（上限 6000 字符；超过时只带真实标题和粘贴说明，正文由用户粘贴）（PR #21、#25、#28）。
-- `public/version.js`：`TOOL_VERSION`，写进反馈正文。当前值为 `2026-11-05.1`。发布影响分析或反馈的改动时要更新，用实际合并日期加序号。
+- `public/version.js`：`TOOL_VERSION`，写进反馈正文。当前值为 `2026-11-05.2`。发布影响分析或反馈的改动时要更新，用实际合并日期加序号。
 - `public/server-client.js`：本地和 Codespaces 模式下读取服务器返回结果（支持 NDJSON 进度消息，旧的纯 JSON 也兼容）。
 - `public/demo.js`：内置例句和它的分析结果（含 `modifies` 和 `clauses`）。例句的 `who keep going every day` 是 5 词短从句，保持单片段，只显示清单不画条带。
 - `lib/analysis.mjs`、`lib/deepseek.mjs`：只是转发 `public/` 里的共用模块。
 - `lib/access.mjs`：本地和 Codespaces 的访问来源校验（只允许 127.0.0.1 和本 Codespace 的域名）。
 - `server.mjs`：本地和 Codespaces 用的 HTTP 服务，只监听 127.0.0.1。新增的 `public/` 文件要加进它的资源白名单，也要加进 `scripts/browser-pages-check.cjs` 的白名单。
-- `tests/`：node --test 单元测试，共 103 项（任务 B PR 1 新增 14 项：clauses 归一化/容错、提示词关键句、反馈从句清单与 HTML 安全；PR 2 新增 7 项：长从句拆分与 core/detail 提示词关键句、从句 `predicateOf` 边界、内置例句 clauses；PR-B2 新增 3 项：clauses 在 JSON 模板中位于 segments 之后、空数组规则、缺字段和空数组均不触发付费修正）。
+- `tests/`：node --test 单元测试，共 125 项（任务 B PR 1 新增 14 项：clauses 归一化/容错、提示词关键句、反馈从句清单与 HTML 安全；PR 2 新增 7 项：长从句拆分与 core/detail 提示词关键句、从句 `predicateOf` 边界、内置例句 clauses；PR-B2 新增 3 项：clauses 在 JSON 模板中位于 segments 之后、空数组规则、缺字段和空数组均不触发付费修正；#32 新增 11 项：corrections 唯一匹配/排序、逐项丢弃/50 项上限/重叠与相邻、缺字段与空数组、核心校验不放宽、模板顺序与提示词关键句、提供方路径不触发付费修正、反馈纠错与 HTML 安全）。
 - `tests/fixtures/clauses.mjs`：从句渲染夹具（条件、宾语、两层/三层嵌套、同终点、相邻范围，以及只用于验证同一片段内部换行的长状语），句子为虚构改写，供浏览器检查模拟响应使用。
-- `scripts/browser-check.cjs`：Playwright 排版与交互检查（99 项，含 PR 2 的从句清单、跨行条带位置、嵌套轨道、单片段短从句、单片段内部换行、清理、窄屏和大字检查）；`scripts/browser-pages-check.cjs`：模拟 Pages 静态网页的检查（11 项）；`scripts/browser-feedback-check.cjs`：反馈流程检查（154 项断言，PR #28 起包含长链接两步流程和 380/390px 排版检查，任务 B PR 1 新增从句清单的 XSS/字段白名单断言，会生成截图到 `artifacts/feedback/`）。都用模拟响应，不调用真实 DeepSeek，也不提交真实 Issue。
+- `scripts/browser-check.cjs`：Playwright 排版与交互检查（112 项，含 PR 2 的从句清单、跨行条带位置、嵌套轨道、单片段短从句、单片段内部换行、清理、窄屏和大字检查；#32 新增 4 项：纠错的波浪线位置与纠错行、标点和普通文字上的纠错、无 corrections 句子、清空/换句/视图/大字/390px 残留与溢出；粘贴改为不自动请求、点按钮才请求）；`scripts/browser-pages-check.cjs`：模拟 Pages 静态网页的检查（11 项）；`scripts/browser-feedback-check.cjs`：反馈流程检查（154 项断言，PR #28 起包含长链接两步流程和 380/390px 排版检查，任务 B PR 1 新增从句清单的 XSS/字段白名单断言，会生成截图到 `artifacts/feedback/`）。都用模拟响应，不调用真实 DeepSeek，也不提交真实 Issue。
 - `.gitignore`：`artifacts/` 已加入（PR #28），测试生成的截图不提交。
 - `.github/ISSUE_TEMPLATE/analysis-error.md`：「分析问题反馈」Issue 模板，标题和网页生成的正文一致：问题类型 / 具体说明 / 用户认为正确的 / 原句 / AI 分析结果 / 调用模型 / 工具版本。
 - `.github/workflows/ci.yml`：每次 push 和 PR 都跑 `npm test`，再装 Playwright 跑 `npm run test:browser`。任务名叫 `test`（分支保护依赖这个名字，别改）。
@@ -54,6 +54,9 @@
     ],
     "clauses": [
       {"type": "relative|object|adverbial", "subtype": "可选，仅 adverbial", "text": "从句原文"}
+    ],
+    "corrections": [
+      {"text": "原文错误片段", "fix": "改正后的片段", "reason": "中文原因"}
     ]
   }],
   "translation": "整段翻译"
@@ -63,6 +66,7 @@
 - `predicateOf`（可选，PR #20）：被宾语隔开的短语动词小品词（如 `give it up` 的 up）指向前面的主谓语片段下标。规则见 [prompt-rules.md](prompt-rules.md)。
 - `form`（可选，#31）：结构类型标签，只给 attribute 和 adverbial 填。取值 `"prep"`（介词短语）、`"to-inf"`（不定式）、`"ing"`（现在分词）、`"ed"`（过去分词）、`"clause"`（作为一个整框的短从句）。单个形容词、副词、名词修饰语不填；拿不准就不填。界面显示为「定语 · 介词短语」格式；仅 attribute 且 modifies 合法且 modifies < 当前片段下标时追加「（后置）」，状语不加。
 - `clauses`：上面的 JSON 是模型输入格式，模型每句必填，用 `{type,subtype?,text}` 照抄从句原文，不再数下标。没有定语从句、宾语从句或状语从句时输出空数组 []。normalizeClauses 在片段边界上唯一精确匹配后生成内部 `{start,end,type,subtype?}`；app.js、反馈、demo 和归一化夹具仍用内部范围。type 支持 relative、object、adverbial；subtype 仅给 adverbial，不确定就省略。范围从引导词到最后一词，不记录主句范围。
+- `corrections`（#32）：上面的 JSON 是模型输入格式，模型每句必填。只纠正语法、拼写、标点和明显搭配错误，不改用法和风格、不润色、不换说法、不改语序或原意。text 必须从句子里逐字照抄、是连续片段、在句中只出现一次（重复出现时要带相邻词）；fix 是完整改法且不能与 text 相同；reason 用一句中文说明。没有错误时输出空数组 []。normalizeCorrections 在 sentence.text 中唯一精确匹配后生成内部 `{start,end,text,fix,reason}`；app.js 用内部范围画波浪线，反馈只取 text/fix/reason。有错的句子 segments 仍逐字覆盖原文，语法分析按原文进行。
 - 只有直接充当主句谓语宾语的宾语从句才保留自身 core 主干；被定语从句、状语从句或另一个从句包住的宾语从句不适用。反例 `She thanked the nurse who said that the results were good.` 中 the results、were、good 全部 detail，默认只显示 She thanked the nurse。
 - `level`：主句主干和并列主句用 `core`；为解释长从句内部结构而拆出的主语、谓语等通常用 `detail`。仅主句的长宾语从句拆开时，其自身主语中心词、谓语或系动词、宾语或表语保留 core；引导词、修饰语及嵌套从句均为 detail。定语从句、状语从句拆开后仍全部 detail，宾语从句内嵌的定语或状语从句也不例外。6 词以内、无嵌套且保持整框的宾语从句仍是 object/core。拆开的从句内部不输出 predicateOf，即使宾语从句谓语为 core；主句分离谓语和 predicateOf 校验不变。默认视图只显示 `core`，详细视图显示全部。长从句（超过 6 个英文单词或内部含嵌套从句）按 SYSTEM 要求拆开，短从句可保留整框；客户端不猜测语法、不强行切分 segments。
 
@@ -78,6 +82,7 @@
 - `predicateOf`：两端都是 predicate/core、只能向前指、目标不能再带 predicateOf、两端 lemma 相同、中间有实质成分；否则丢掉。
 - `form`：必须是字符串且在 `prep`/`to-inf`/`ing`/`ed`/`clause` 枚举内，而且片段角色必须是 attribute 或 adverbial；否则丢掉。不抛 AnalysisValidationError，不触发付费修正。
 - `clauses`：不是数组或候选超过 200 项时整句忽略；非对象项、非法 type、非字符串/空白/纯标点 text、text 长于句子、无精确匹配、多处片段边界匹配或仅有 start/end 时丢弃该项。text 首尾空白先去掉，再匹配；匹配后收掉首尾不含字母数字的片段。只拷贝内部 start/end/type 与有效 adverbial subtype。合法项仍按 start 升序、同起点 end 降序排序，同范围去重；部分交叉两项都丢、最多三层、非法项不影响独立合法项。任何错误都不抛 AnalysisValidationError、不触发付费修正。
+- `corrections`：不是数组或候选超过 50 项时整句忽略；非对象项、text/fix/reason 不是字符串、text 去首尾空白后为空或只含空白、text 在 sentence.text 中没有精确匹配或出现不止一次、fix 与 text 相同、reason 为空或超过 300 字时丢弃该项。两项范围重叠时两项都丢，相邻但不重叠的两项保留。合法项按 start 升序保存为内部 `{start,end,text,fix,reason}`；没有合法项时不输出 corrections 字段。任何错误都不抛 AnalysisValidationError、不触发付费修正；原有核心校验和付费修正流程不变。
 
 校验**不能**保证语法判断是对的。
 
@@ -95,7 +100,7 @@
 - 底部固定：公开提示、「我知道内容会公开」、一行操作说明、左边「取消」、右边深绿实心主按钮（至少 44px、16px 加粗）。按钮禁用时旁边写明原因（PR #28）。
 - 提交按钮要同时满足：勾了公开确认，且选了至少一个类型或写了说明。改动内容后要重新勾选。
 - 标题自动生成：「分析问题：<原句前 40 字>…」，失败时为「请求失败：…」。
-- 正文是易读 Markdown，不再是 JSON：问题类型 / 具体说明 / 用户认为正确的 / 原句 / AI 分析结果（翻译、时态、依据、每个成分一行「原文｜角色｜原形－释义｜说明」、整句说明、有合法 `clauses` 时追加「从句：」清单）/ 调用模型 / 工具版本。跳过空格和标点片段；`predicateOf` 写成「谓语组成部分（与 …）」，`modifies` 写成「（修饰 …）」。从句清单只写类型（定语/宾语/状语从句，状语可带时间、条件等小类）和按 `segments` 范围拼出的原文，不写模型可能重复生成的从句文本、id、depth 等未知字段；没有合法 clauses 时正文与旧版一致。
+- 正文是易读 Markdown，不再是 JSON：问题类型 / 具体说明 / 用户认为正确的 / 原句 / AI 分析结果（翻译、时态、依据、每个成分一行「原文｜角色｜原形－释义｜说明」、整句说明、有合法 `clauses` 时追加「从句：」清单、有合法 `corrections` 时追加「纠错：」逐条「原文 → 改成：原因」）/ 调用模型 / 工具版本。跳过空格和标点片段；`predicateOf` 写成「谓语组成部分（与 …）」，`modifies` 写成「（修饰 …）」。从句清单只写类型（定语/宾语/状语从句，状语可带时间、条件等小类）和按 `segments` 范围拼出的原文，不写模型可能重复生成的从句文本、id、depth 等未知字段；没有合法 clauses 时正文与旧版一致。
 - 不带密钥、设置、请求头、浏览器存储、服务商原始错误。草稿只在内存里，关闭、清空、新请求、看例句都会清掉。
 - 短链接模式（预填链接不超过 6000 字符，内置例句约 5200）：一个主按钮「去 GitHub 提交 →」，标题和正文都预填。
 - 长链接模式（超过 6000 字符，PR #28）：链接带真实标题，正文只放粘贴说明（Ctrl+V / Cmd+V、手机长按粘贴，再点 Create）；底部两步「① 复制反馈内容」「② 打开 GitHub 粘贴 →」，复制成功或失败后才能点第 2 步；复制失败时展开预览并全选正文。改任何字段会重置复制状态和公开确认。剪贴板可能保留内容，有提醒。
@@ -109,9 +114,16 @@
 - 范围跨两个及以上含字母或数字的片段时，在英文下方画细线，编号与清单一致；只有一个这样的片段时只列清单，写明「单片段短从句，不画范围线」。
 - 跨行范围按实际文字矩形分行绘制，每行一条线；同一从句每行的编号相同，不在每行重复清单。深度 1/2/3 分别使用不同轨道（间隔 13px），行内有底标签时先留出 58px，避免与成分标签重叠。
 - 条带层 `aria-hidden`、`pointer-events: none`、无 tabindex，不进入 Tab 顺序，也不拦截成分框点击；完整信息由清单的可访问文本提供。
-- 布局刷新：`ResizeObserver` 观察句子列表，监听窗口 resize、字体加载完成、大字切换；先取消上一帧和定时器再重排。重新分析、换例句或清空时移除旧 `.clause-layer` 和 `.clause-panel`，避免残留。
+- 布局刷新：`ResizeObserver` 观察句子列表，监听窗口 resize、字体加载完成、大字切换；先取消上一帧和定时器再重排。重新分析、换例句或清空时移除旧 `.clause-layer`、`.clause-panel` 和 `.correction-panel`，并把 `.correction-mark` 还原成普通文字，避免残留。
 - 大字模式的 CSS zoom 会放大测量结果，绘制前按 `实际宽度 / 本地宽度` 换算回本地 CSS 像素。
 - 已知边界：SYSTEM 要求拆开的从句内部不输出 `predicateOf`，包括保留为 core 的宾语从句谓语；`predicateOf` 校验仍要求两端 predicate/core，只服务主句里被宾语隔开的短语动词。这条边界由 `tests/predicate.test.mjs` 覆盖。
+
+## 内联纠错渲染（#32）
+- 只在有合法 `corrections` 的句子上渲染，默认视图和详细视图都显示；没有 corrections 的句子 DOM 与旧版完全一致。
+- 句子行按 `start/end` 把片段文字切成正常/错误两段，错误段加 `.correction-mark`（红色波浪下划线）。范围跨多个片段、落在彩色框内或框外的标点、that、默认视图隐藏的修饰语上都按字符位置切分，框的大小、位置和点击行为不变。
+- 句子行下方、从句清单之前加 `.correction-panel`：第一行「纠错：」显示整句改后效果（原文错误段红色删除线，紧跟蓝色 fix），下面逐条列出「原文 → 改成：原因」。删除线与蓝色加粗/下划线同时使用，不只靠颜色区分。
+- 换句、重新分析、切换视图重新渲染；清空和输入变化时移除旧 `.correction-panel` 并把 `.correction-mark` 还原成普通文字；390px 窄屏用 `overflow-wrap:anywhere` 不横向溢出。
+- 已知限制：纠错由 AI 给出，可能漏判，也可能把正确写法改错；本地校验只检查原文锚点、范围和字段格式，不判断语法对错。
 
 ## 数据结构的限制
 - 片段仍是平铺的，不能嵌套。从句关系由句级 `clauses` 范围加上详细视图的条带和清单表达；默认视图只保留主句主干（`core`）。

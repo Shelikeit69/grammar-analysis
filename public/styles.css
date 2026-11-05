@@ -606,6 +606,55 @@ button {
   font-size:10px;
   color:var(--muted)
 }
+.correction-panel {
+  margin:0 23px 18px;
+  font-size:12px;
+  line-height:1.8;
+  overflow-wrap:anywhere
+}
+.correction-summary {
+  margin:0
+}
+.correction-label {
+  font-weight:600;
+  color:var(--predicate);
+  margin-right:2px
+}
+.correction-effect {
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:15px;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere
+}
+.correction-original {
+  color:var(--predicate);
+  text-decoration:line-through;
+  text-decoration-thickness:1.5px
+}
+.correction-fix {
+  color:var(--subject);
+  font-weight:600;
+  text-decoration:underline;
+  text-decoration-thickness:1.5px;
+  text-underline-offset:2px
+}
+.correction-list {
+  list-style:none;
+  margin:8px 0 0;
+  padding:0;
+  display:grid;
+  gap:5px
+}
+.correction-item {
+  overflow-wrap:anywhere
+}
+.correction-mark {
+  text-decoration-line:underline;
+  text-decoration-style:wavy;
+  text-decoration-color:var(--predicate);
+  text-decoration-thickness:1.5px;
+  text-underline-offset:3px
+}
 .paragraph {
   font-size:13px;
   background:#eeefe8;
@@ -727,7 +776,7 @@ textarea {
 .translation-text {
   font-size:13px
 }
-.structure-note,.phrase-detail,.clause-panel,.clause-hint {
+.structure-note,.phrase-detail,.clause-panel,.clause-hint,.correction-panel {
   margin-left:16px;
   margin-right:16px
 }
