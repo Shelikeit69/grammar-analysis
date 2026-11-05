@@ -226,6 +226,14 @@
   依据：verification.md 2026-11-04 PR-B1 复测，#27 原句 6/6 拆开 who 从句、6/6 有 clauses 且为 3 条（定语 → 宾语 → 定语），三层条带正常；对照 2026-11-03.2（未设 temperature）同一原句 1 次整段不拆、2 次完整拆开，clauses 累计漏输出 1/8。
   局限：样本小；6 次为带错字原句 3 次 + 改正拼写后 3 次，temperature 0 下同一输入趋向固定输出，只能说明更稳定，不能说明判对的句子更多；若最可能的输出本身错，会稳定地错。出现新的稳定错误时重新评估。
 
+## 2026-11-05（PR-B2 clauses 写进 JSON 骨架）
+
+- **clauses 放在 JSON 模板的 sentence 对象里，位于 segments 之后（sentence 对象最后一项）；没有从句时输出空数组 []。**
+  原因：之前 clauses 只在后面的长段文字里说明，模板里没有。真实复测中 clauses 偶尔整段没输出，无法区分「AI 漏写」和「这句没有从句」。把 clauses 写进模板、改为每句必填（没有就输出 []），可以让两种情况分开：空数组表示确实无从句，缺字段表示 AI 漏写。
+  做法：SYSTEM 开头的 JSON 模板里，每个 sentence 对象加 "clauses":[...]，放在 "segments":[...] 之后。"Every field is required ... except ... the optional array clauses described below" 里把 clauses 从例外中去掉。"clauses is OPTIONAL" 改为 "clauses is REQUIRED"。"Omit clauses entirely when the sentence has none" 改为 "When the sentence has no relative, object or adverbial clause, output an empty array []"。完整示例 "You should give it up." 追加 "clauses":[]。
+  不改：validateAnalysis 和 normalizeClauses 一行不改。缺少 clauses、clauses 为 []、clauses 非法时，仍然只是不显示从句，不抛 AnalysisValidationError，不触发付费修正。不把 clauses 移到 segments 之前，不改其他字段顺序。不改 SYSTEM 中与 clauses 无关的任何规则。不改 app.js、analysis.js、请求参数。
+  版本为 2026-11-05.1。
+
 ## 讨论过但暂不做
 - 内置示例库加每日限额（由我出钱调用）：太复杂，暂不做。
 - 第二期上传用户数据：涉及未成年人数据和隐私合规。倾向于把难点数据只存在用户自己的浏览器里。

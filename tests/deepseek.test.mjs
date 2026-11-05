@@ -326,14 +326,14 @@ test('modifies survives the provider path, and an invalid one is dropped without
   }
 });
 
-test('system prompt documents optional clause ranges with text anchors, types and tolerance', () => {
+test('system prompt documents required clause ranges with text anchors, types and tolerance', () => {
   for (const phrase of [
-    'clauses is OPTIONAL',
+    'clauses is REQUIRED',
     'Do not output start/end indexes for clauses',
     'Use only relative (定语从句), object (宾语从句) and adverbial (状语从句)',
     'Do not output id, depth, numbering or parent references',
     'Nesting is allowed up to three levels',
-    'Omit clauses entirely when the sentence has none',
+    'output an empty array []',
   ]) assert.ok(SYSTEM.includes(phrase), phrase);
 });
 
@@ -451,7 +451,7 @@ test('system prompt keeps coordinated passive participles together without swall
 
 test('clause anchors copy original text and restrict core to direct main-clause objects', () => {
   for (const phrase of [
-    'clauses is OPTIONAL: a per-sentence array of exact original-text anchors',
+    'clauses is REQUIRED: a per-sentence array of exact original-text anchors',
     '{"type":"relative|object|adverbial","subtype":"optional string","text":"exact original clause text"}',
     'Copy text character for character from the sentence',
     '[{"type":"relative","text":"who keep going every day"}]',
@@ -462,7 +462,7 @@ test('clause anchors copy original text and restrict core to direct main-clause 
     'If that predicate is itself inside a relative, adverbial or other subordinate clause, the exception does not apply and the whole object clause is level detail.',
     'the results, were and good are all level detail',
   ]) assert.ok(SYSTEM.includes(phrase), phrase);
-  assert.ok(!SYSTEM.slice(SYSTEM.indexOf('clauses is OPTIONAL:')).includes('index AFTER the last segment'));
+  assert.ok(!SYSTEM.slice(SYSTEM.indexOf('clauses is REQUIRED:')).includes('index AFTER the last segment'));
 });
 
 
@@ -550,3 +550,41 @@ test('SYSTEM documents optional form field with all five values and attribute/ad
   assert.ok(SYSTEM.includes('Do not fill form for single-word adjectives, adverbs or nouns used as modifiers'));
   assert.ok(SYSTEM.includes('If you are unsure of the form, omit it entirely; never guess'));
 });
+
+test('SYSTEM JSON template has clauses after segments', () => {
+  // The template must include clauses in the sentence object, positioned after segments.
+  const templateMatch = SYSTEM.match(/"segments":\[[^\]]*\],"clauses":\[/);
+  assert.ok(templateMatch, 'clauses must appear after segments in the JSON template');
+  // The template must show the clause object structure.
+  assert.ok(SYSTEM.includes('"clauses":[{"type":"relative|object|adverbial","subtype":"optional string","text":"exact original clause text"}]'));
+});
+
+test('SYSTEM requires empty array when no clauses', () => {
+  assert.ok(SYSTEM.includes('When the sentence has no relative, object or adverbial clause, output an empty array []'));
+  // Old wording must not appear.
+  assert.ok(!SYSTEM.includes('Omit clauses entirely when the sentence has none'));
+  assert.ok(!SYSTEM.includes('clauses is OPTIONAL'));
+});
+
+test('empty clauses array and missing clauses both pass without paid repair', async () => {
+  const text = 'The cat sat on the mat.';
+  const seg = (t, role, translation, lemma = '', level = 'core') => ({ text: t, role, translation, lemma, detail: '', level });
+  const gap = seg(' ', 'other', '', '', 'detail');
+  const segments = [seg('The', 'attribute', '这', '', 'detail'), gap, seg('cat', 'subject', '猫'), gap,
+    seg('sat', 'predicate', '坐', 'sit'), gap, seg('on the mat', 'adverbial', '在垫子上', '', 'detail'), seg('.', 'other', '', '', 'detail')];
+  // Case 1: model returns clauses: [] (no clauses in sentence).
+  const withEmpty = { sentences: [{ text, translation: '猫坐在垫子上。', note: '', clauses: [], segments }], translation: '猫坐在垫子上。' };
+  // Case 2: model omits clauses entirely.
+  const withoutClauses = { sentences: [{ text, translation: '猫坐在垫子上。', note: '', segments }], translation: '猫坐在垫子上。' };
+  for (const data of [withEmpty, withoutClauses]) {
+    let calls = 0;
+    const result = await analyzeWithDeepSeek(text, {
+      apiKey: 'test', onRepair: () => assert.fail('missing or empty clauses must not trigger paid repair'),
+      fetchImpl: async () => { calls++; return contentResponse(JSON.stringify(data)); },
+    });
+    assert.equal(calls, 1);
+    // normalizeClauses returns null for empty/missing, so result has no clauses field.
+    assert.equal(result.sentences[0].clauses, undefined);
+  }
+});
+
