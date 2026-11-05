@@ -39,7 +39,7 @@ PR-A（#38，level 规则结构化试点）已合并并通过真实试点及格�
 已完成：
 - **#31：定语/状语结构类型标签（form）。** 已合并（PR #43，TOOL_VERSION 2026-11-04.1）。4 条虚构句各测 1 次，form 类型和（后置）标记均正确；#27 原句 1 次无合法 modifies 时不显示前置/后置，符合设计。每句只测 1 次，不代表稳定。长句里（后置）依赖 modifies 下标，归入「modifies 改用原文锚点」一并讨论。
 - **PR-B1：请求加 temperature 0（实验值），SYSTEM 不改。** 已合并（PR #40，TOOL_VERSION 2026-11-03.3）。#27 原句 6/6 拆开 who 从句、6/6 有 clauses 且三层条带正常；暂定保留，见 decisions 2026-11-04。
-- **PR-B2：clauses 写进 JSON 骨架。** PR #45 已开，待合并后真实复测（`feat/clauses-in-skeleton`，TOOL_VERSION 2026-11-05.1）。SYSTEM 模板里每个 sentence 对象加 "clauses":[...] 放在 "segments":[...] 之后；没有从句时输出空数组 []；"clauses is OPTIONAL" 改为 "clauses is REQUIRED"。校验不变。
+- **PR-B2：clauses 写进 JSON 骨架。** PR #45 已合并，真实复测通过（`feat/clauses-in-skeleton`，TOOL_VERSION 2026-11-05.1）。SYSTEM 模板里每个 sentence 对象加 "clauses":[...] 放在 "segments":[...] 之后；没有从句时输出空数组 []；"clauses is OPTIONAL" 改为 "clauses is REQUIRED"。校验不变。8 次复测均未触发格式修正，clauses 为 [] 时正确位于 segments 之后，无从句短句正确不显示条带和清单。
 
 新发现的问题（2026-11-03，负责人真实复测）：
 - 长句格式偶发失败：漏空格或多逗号；付费修正可能原样返回，最终仍失败。更具体的诊断不等于模型一定能改对。

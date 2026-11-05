@@ -52,14 +52,14 @@
 - **PR #40（temperature 0）已合并**：请求加 temperature 0 实验值，SYSTEM 不改。#27 原句 6/6 拆开 who 从句、6/6 有 clauses 且为 3 条，三层条带正常，暂定保留，见 decisions 2026-11-04。
 - **PR #42（Fixes #41，从句数量提示）已合并**：默认视图显示从句数量提示，引导勾选详细视图。
 - **PR #43（form 字段，#31）已合并**：attribute 和 adverbial 片段可带可选 form 字段，标签显示「定语 · 介词短语（后置）」等格式。4 条虚构句各 1 次均正确，每句只测 1 次不代表稳定。
-- **PR-B2（clauses 写进 JSON 骨架）PR #45 已开**：SYSTEM 模板里每个 sentence 对象加 "clauses":[...] 放在 "segments":[...] 之后；没有从句时输出空数组 []；"clauses is OPTIONAL" 改为 "clauses is REQUIRED"。校验不变，待合并后真实复测。
+- **PR-B2（clauses 写进 JSON 骨架）PR #45 已合并，真实复测通过**：SYSTEM 模板里每个 sentence 对象加 "clauses":[...] 放在 "segments":[...] 之后；没有从句时输出空数组 []；"clauses is OPTIONAL" 改为 "clauses is REQUIRED"。校验不变。8 次复测均未触发格式修正，clauses 为 [] 时正确位于 segments 之后，无从句短句正确不显示条带和清单。
 - 已知问题：
   - 电脑上展开「查看会发送的完整内容」后，弹窗顶部的标题和原句会被滚出视线（不急）。
   - Issue #27：2026-11-03 负责人复测 6/6 拆分、范围、时态正确后关闭；原诉求「介词短语作后置定语」由 #31（PR #43）部分实现，长句里（后置）依赖 modifies 下标，归入 modifies 原文锚点讨论。样本小，再失败时重新打开。
 - main 分支开了保护规则 protect-main：禁止删除、禁止强制推送、必须走 PR、必须通过 `test`。审批人数为 0，Repository admin 可以绕过。
 - 已在 r/languagelearning 当月的「Share Your Resources」置顶帖里发了评论，按版规只发这一次。
 - 闭环情况：从需求、上线到自测迭代已经闭环；第一条外部反馈 #27 已收到，PR 2 已实现拆分规则和条带，上线复测通过后才算完成「外部反馈 → 修复 → 再上线」这一环。
-- 下一步：PR-B2（PR #45）待合并，合并后真实复测；之后讨论 modifies 改用原文锚点，见 [docs/roadmap.md](../roadmap.md) 与 [decisions.md](decisions.md) 2026-11-05。
+- 下一步：讨论 modifies 改用原文锚点，见 [docs/roadmap.md](../roadmap.md) 与 [decisions.md](decisions.md)。
 
 ## 分期计划
 - 第一期：核心功能 + 长难句。长难句的可视化按「任务 A（修饰高亮）→ 实测 → 任务 B（从句括号条带）」推进，详见[`docs/roadmap.md`](../roadmap.md)。一键反馈已提前到 B 之前上线。
