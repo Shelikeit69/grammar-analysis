@@ -33,14 +33,13 @@ PR-A（#38，level 规则结构化试点）已合并并通过真实试点及格�
 修正诊断定位（#39）已合并（TOOL_VERSION 2026-11-03.2）：拼接与原文校验失败时，付费修正会收到第一处差异位置和附近原文。合并后用 deepseek-flash 测 #27 原句 3 次，格式均一次通过，修正未触发，真实效果尚未验证，见 verification.md。
 
 待办（按顺序）：
-1. **PR-B2：clauses 写进 JSON 骨架并先输出。** 已完成（`feat/clauses-in-skeleton`，TOOL_VERSION 2026-11-05.1）。SYSTEM 模板里每个 sentence 对象加 "clauses":[...] 放在 "segments":[...] 之后；"clauses is OPTIONAL" 改为 "clauses is REQUIRED"；"Omit clauses entirely" 改为 "output an empty array []"。校验不变：缺 clauses、clauses 为 []、clauses 非法时仍只丢字段，不抛 AnalysisValidationError，不触发付费修正。待真实复测验收。
-2. **讨论 modifies 改用原文锚点**。长句中的下标经常错一位，需另立决定后才实现；当前格式与校验保持不变。#31 的（后置）依赖 modifies 下标，归入本题一并讨论。
-3. **PR-C：其余规则逐节结构化**。PR-A 已通过，后续按同样方法逐节推进，穿插在上述工作之后；不把多个规则重写塞进诊断定位改动。
+1. **讨论 modifies 改用原文锚点**。长句中的下标经常错一位，需另立决定后才实现；当前格式与校验保持不变。#31 的（后置）依赖 modifies 下标，归入本题一并讨论。
+2. **PR-C：其余规则逐节结构化**。PR-A 已通过，后续按同样方法逐节推进，穿插在上述工作之后；不把多个规则重写塞进诊断定位改动。
 
 已完成：
 - **#31：定语/状语结构类型标签（form）。** 已合并（PR #43，TOOL_VERSION 2026-11-04.1）。4 条虚构句各测 1 次，form 类型和（后置）标记均正确；#27 原句 1 次无合法 modifies 时不显示前置/后置，符合设计。每句只测 1 次，不代表稳定。长句里（后置）依赖 modifies 下标，归入「modifies 改用原文锚点」一并讨论。
 - **PR-B1：请求加 temperature 0（实验值），SYSTEM 不改。** 已合并（PR #40，TOOL_VERSION 2026-11-03.3）。#27 原句 6/6 拆开 who 从句、6/6 有 clauses 且三层条带正常；暂定保留，见 decisions 2026-11-04。
-- **PR-B2：clauses 写进 JSON 骨架。** 已实现（`feat/clauses-in-skeleton`，TOOL_VERSION 2026-11-05.1）。SYSTEM 模板里每个 sentence 对象加 "clauses":[...] 放在 "segments":[...] 之后；没有从句时输出空数组 []；"clauses is OPTIONAL" 改为 "clauses is REQUIRED"。校验不变，待真实复测验收。
+- **PR-B2：clauses 写进 JSON 骨架。** PR #45 已开，待合并后真实复测（`feat/clauses-in-skeleton`，TOOL_VERSION 2026-11-05.1）。SYSTEM 模板里每个 sentence 对象加 "clauses":[...] 放在 "segments":[...] 之后；没有从句时输出空数组 []；"clauses is OPTIONAL" 改为 "clauses is REQUIRED"。校验不变。
 
 新发现的问题（2026-11-03，负责人真实复测）：
 - 长句格式偶发失败：漏空格或多逗号；付费修正可能原样返回，最终仍失败。更具体的诊断不等于模型一定能改对。

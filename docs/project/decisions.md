@@ -233,6 +233,7 @@
   做法：SYSTEM 开头的 JSON 模板里，每个 sentence 对象加 "clauses":[...]，放在 "segments":[...] 之后。"Every field is required ... except ... the optional array clauses described below" 里把 clauses 从例外中去掉。"clauses is OPTIONAL" 改为 "clauses is REQUIRED"。"Omit clauses entirely when the sentence has none" 改为 "When the sentence has no relative, object or adverbial clause, output an empty array []"。完整示例 "You should give it up." 追加 "clauses":[]。
   不改：validateAnalysis 和 normalizeClauses 一行不改。缺少 clauses、clauses 为 []、clauses 非法时，仍然只是不显示从句，不抛 AnalysisValidationError，不触发付费修正。不把 clauses 移到 segments 之前，不改其他字段顺序。不改 SYSTEM 中与 clauses 无关的任何规则。不改 app.js、analysis.js、请求参数。
   版本为 2026-11-05.1。
+  这条修改 2026-11-03「clauses 写进 JSON 骨架并先输出」的决定：只写进骨架，不先输出。原因：temperature 0 之后 #27 原句 6/6 都有 clauses，「先输出」要解决的问题证据不足；而先写从句锚点、后拆 segments，可能导致锚点起止落在片段中间而被丢弃，从句反而变少。若复测仍经常缺 clauses 字段，再单独试先输出。旧条目保留不改。
 
 ## 讨论过但暂不做
 - 内置示例库加每日限额（由我出钱调用）：太复杂，暂不做。
