@@ -1,6 +1,6 @@
 # 提示词规则
 
-最后更新：2026-11-02（PR #37 已合并并复测；仅将 level 规则合为有判断顺序的一节，真实效果待试点验收）
+最后更新：2026-11-05（PR-B2：clauses 写进 JSON 骨架，没有从句时输出空数组 []）
 
 提示词原文在 `public/deepseek.js` 的 `SYSTEM` 常量里，是英文。下面是中文摘要，方便讨论；要改的时候以原文为准。
 
@@ -63,7 +63,7 @@
 - 从句或并列分句的「时态 + 语态」组合和主句不同时，在 `tense` 里用「；」分别列出：**主句优先，然后按从句在原文中的顺序**；相同的时态和语态组合只写一次。这是给模型的输出要求，不在本地靠字符串重排猜测主句。即使从句在原文里排在前面也一样，例如 `If it rains, we will stay at home.` 写成「一般将来时 · 主动语态；一般现在时 · 主动语态」。`tenseReason` 要能区分主句和从句的依据；仅从句的时态和语态都与已列组合相同时才不重复列出。同一时态但语态不同必须分别列出；tenseReason 必须为每个列出的组合引用对应谓语。虚构句中的 has、argued / were common、were needed / could be funded 分别对应「一般现在时 · 主动语态；一般过去时 · 主动语态；一般过去时 · 被动语态」。
 
 ## 从句原文锚点 clauses
-- 模型输出可选数组：`{"type":"relative|object|adverbial","subtype":"可选","text":"从句原文"}`，不输出 start/end。text 从引导词到最后一个词逐字照抄，不含从句外空格标点；嵌套时内外层都给。
+- 每句必填：`{"type":"relative|object|adverbial","subtype":"可选","text":"从句原文"}`，不输出 start/end。text 从引导词到最后一个词逐字照抄，不含从句外空格标点；嵌套时内外层都给。没有定语从句、宾语从句或状语从句时输出空数组 []。
 - text 去掉首尾空白后，必须在 segments 的片段边界上有且只有一处完整精确匹配。无匹配、多处匹配、起止位于片段中间、缺少 text、text 超过句子长度或无字母数字时丢弃该项；只有 start/end 的旧格式也丢弃。匹配后收掉范围首尾纯空白、标点片段。
 - 内部仍归一化为 `{start,end,type,subtype?}` 供渲染、反馈、demo 和测试夹具使用；未知字段不传入内部。type 只支持 relative、object、adverbial；subtype 仅给 adverbial，可选 time、condition、reason、concession、purpose、result、comparison、manner，不确定就省略。
 - 同范围去重，按 start 升序、同起点 end 降序排列；部分交叉两项都丢，最多三层，超过 200 个候选忽略整句 clauses。错误不抛 AnalysisValidationError、不触发付费修正。
