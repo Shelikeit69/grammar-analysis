@@ -16,12 +16,12 @@
     <ol id="steps" class="steps" aria-label="开始前的三步" hidden>
       <li id="step-get" class="step"><span class="step-mark" aria-hidden="true">1</span><span class="step-text"><strong>拿到 DeepSeek 密钥</strong><a href="https://github.com/Shelikeit69/grammar-analysis#1-拿到-deepseek-密钥" target="_blank" rel="noopener noreferrer">不知道怎么拿？看步骤</a></span></li>
       <li id="step-save" class="step"><span class="step-mark" aria-hidden="true">2</span><span class="step-text"><strong>填写并保存密钥</strong><button id="step-open-key" class="step-link" type="button">打开密钥设置</button></span></li>
-      <li id="step-paste" class="step"><span class="step-mark" aria-hidden="true">3</span><span class="step-text"><strong>粘贴一句英文</strong><span class="step-hint">粘贴后自动分析</span></span></li>
+      <li id="step-paste" class="step"><span class="step-mark" aria-hidden="true">3</span><span class="step-text"><strong>粘贴一句英文</strong><span class="step-hint">粘贴后点「分析句子」</span></span></li>
     </ol>
     <section class="input-panel" aria-labelledby="input-label">
       <div class="input-heading"><label id="input-label" for="english-input">你的英文</label><span id="word-count">0 / 300 词</span></div>
       <textarea id="english-input" rows="3" spellcheck="false" maxlength="6000" placeholder="在这里粘贴英文句子或一小段文字…" aria-describedby="input-hint"></textarea>
-      <div class="input-footer"><span id="input-hint">粘贴后自动分析 · 最多 300 词</span><div class="actions"><button id="clear-button" class="quiet" type="button">清空</button><button id="analyze-button" class="primary" type="button">分析句子 <span aria-hidden="true">↗</span></button></div></div>
+      <div class="input-footer"><span id="input-hint">粘贴后点「分析句子」· 最多 300 词</span><div class="actions"><button id="clear-button" class="quiet" type="button">清空</button><button id="analyze-button" class="primary" type="button">分析句子 <span aria-hidden="true">↗</span></button></div></div>
     </section>
     <div class="utility-row"><button id="example-button" class="text-button" type="button">试试一个例句 <span aria-hidden="true">→</span></button><span id="connection-status">正在检查分析服务…</span></div>
     <p class="reading-hint">格式不合规时会自动修正一次，可能多产生一次 DeepSeek 调用费用。</p>
