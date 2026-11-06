@@ -18,10 +18,6 @@ export function serializeSentence(sentence) {
     return item;
   });
   if (clauses.length) result.clauses = clauses;
-  // Only the three public correction fields; positions stay internal.
-  const corrections = (Array.isArray(sentence?.corrections) ? sentence.corrections : [])
-    .map(correction => strings(correction, ['text', 'fix', 'reason']));
-  if (corrections.length) result.corrections = corrections;
   return result;
 }
 export const FEEDBACK_TYPES = ['成分标错了', '中文意思不对', '时态不对', '显示或排版有问题', '其他'];
@@ -56,12 +52,6 @@ function readableAnalysis(sentence) {
         ? `${subtypeNames[clause.subtype]}状语从句` : clauseNames[clause.type] || '从句';
       const clauseText = safe.segments.slice(clause.start, clause.end).map(part => part.text).join('');
       lines.push(`- ${name}：${clauseText}`);
-    }
-  }
-  if (safe.corrections?.length) {
-    lines.push('纠错：');
-    for (const correction of safe.corrections) {
-      lines.push(`- ${correction.text} → ${correction.fix}：${correction.reason}`);
     }
   }
   if (safe.note) lines.push(`说明：${safe.note}`);
