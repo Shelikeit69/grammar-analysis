@@ -328,3 +328,9 @@
 - The cat sat on the mat. 2 次：无条带、无清单；其中 1 次查看原始返回，clauses 为 []，位于 segments 之后；modifies 指向 cat、sat 正确。
 - 8 次均未注意到格式修正提示。
 - 样本小，每句 2 次，不代表稳定。
+
+## 2026-11-06：PR #47 内联纠错复测（负责人，DeepSeek deepseek-flash，TOOL_VERSION 2026-11-05.2，temperature 0）
+
+- The contents of the box is very unique, so please handles them with care. 2 次：均找出 is → are、handles → handle，very unique 未改，无误改漏改，无格式修正，约 3 秒。但锚点过宽（标成 contents of the box is、please handles），纠错行中删除部分与改后文字之间没有空格，框之间的空格也画了波浪线。
+- Issue #27 原句 2 次：纠错正确（argured → argued、sub human → subhuman，锚点只含错词）。但长定语从句 who argured ... sub human state 整段成一个片段，clauses 只剩 1 条，3 层从句消失，（后置）消失。同一句 2026-11-05 PR-B2 复测为 2/2 三个从句。
+- 结论：#47 使 #27 原句的长从句拆分退步，整体撤回，见 decisions.md 2026-11-06。

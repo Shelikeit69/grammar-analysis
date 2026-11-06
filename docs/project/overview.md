@@ -1,6 +1,6 @@
 # 项目概况
 
-最后更新：2026-11-05（PR #45 已合并并复测；modifies 原文锚点暂缓，下一步 #32 作文批改）
+最后更新：2026-11-06（PR #47 内联纠错已撤回，见 decisions 2026-11-06；下一步 #32 作文批改）
 
 ## 一句话
 贴一句英文，网页会像老师在课本上批注一样，用不同颜色框出主语、谓语、宾语等成分，旁边写上中文意思和词的原形，标出时态和判断依据，最后给出整句翻译。
@@ -59,7 +59,7 @@
 - main 分支开了保护规则 protect-main：禁止删除、禁止强制推送、必须走 PR、必须通过 `test`。审批人数为 0，Repository admin 可以绕过。
 - 已在 r/languagelearning 当月的「Share Your Resources」置顶帖里发了评论，按版规只发这一次。
 - 闭环情况：从需求、上线到自测迭代已经闭环；第一条外部反馈 #27 已收到，PR 2 已实现拆分规则和条带，上线复测通过后才算完成「外部反馈 → 修复 → 再上线」这一环。
-- 下一步：#32 作文批改，先讨论方案再拆 PR；modifies 原文锚点和 PR-C 暂缓，见 [docs/roadmap.md](../roadmap.md) 与 [decisions.md](decisions.md) 2026-11-05。
+- 下一步：#32 作文批改，先讨论方案再拆 PR（PR #47 已撤回，见 [decisions.md](decisions.md) 2026-11-06）；modifies 原文锚点和 PR-C 暂缓，见 [docs/roadmap.md](../roadmap.md) 与 [decisions.md](decisions.md) 2026-11-05。
 
 ## 分期计划
 - 第一期：核心功能 + 长难句。长难句的可视化按「任务 A（修饰高亮）→ 实测 → 任务 B（从句括号条带）」推进，详见[`docs/roadmap.md`](../roadmap.md)。一键反馈已提前到 B 之前上线。
