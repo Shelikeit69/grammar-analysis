@@ -262,7 +262,6 @@ test('all malformed optional metadata types avoid paid repair and unknown metada
     data.sentences[0].tense = invalid;
     data.sentences[0].tenseReason = invalid;
     data.sentences[0].clauses = { invalid: true };
-    data.sentences[0].corrections = invalid;
     data.sentences[0].segments[0].modifies = 999;
     let calls = 0;
     const out = await analyzeWithDeepSeek('Go.', {
@@ -273,7 +272,6 @@ test('all malformed optional metadata types avoid paid repair and unknown metada
     assert.equal(out.sentences[0].tense, '');
     assert.equal(out.sentences[0].tenseReason, '');
     assert.equal(out.sentences[0].clauses, undefined);
-    assert.equal(out.sentences[0].corrections, undefined);
     assert.equal(out.sentences[0].segments[0].modifies, undefined);
   }
 });
@@ -566,52 +564,6 @@ test('SYSTEM requires empty array when no clauses', () => {
   // Old wording must not appear.
   assert.ok(!SYSTEM.includes('Omit clauses entirely when the sentence has none'));
   assert.ok(!SYSTEM.includes('clauses is OPTIONAL'));
-});
-
-test('SYSTEM JSON template has corrections after clauses', () => {
-  const templateMatch = SYSTEM.match(/"clauses":\[[^\]]*\],"corrections":\[/);
-  assert.ok(templateMatch, 'corrections must appear after clauses in the JSON template');
-  assert.ok(SYSTEM.includes('"corrections":[{"text":"exact original fragment","fix":"corrected fragment","reason":"Chinese reason"}]'));
-});
-
-test('SYSTEM states correction scope, unique anchors and verbatim segments', () => {
-  for (const phrase of [
-    'corrections is REQUIRED',
-    'Only correct grammar, spelling, punctuation and obvious collocation errors',
-    'Do not change usage habits or style',
-    'very unique stays unchanged',
-    'occurs exactly once',
-    'When the sentence has no grammar, spelling or punctuation error, output an empty array []',
-    'segments still cover the original text character for character, including the incorrect parts',
-    'analyze the original sentence, not the corrected one',
-  ]) assert.ok(SYSTEM.includes(phrase), phrase);
-});
-
-test('valid corrections survive the provider path and invalid ones never trigger repair', async () => {
-  const text = 'Big dogs bark.';
-  const seg = (t, role, translation, lemma = '', level = 'core') => ({ text: t, role, translation, lemma, detail: '', level });
-  const gap = seg(' ', 'other', '', '', 'detail');
-  const segments = [seg('Big', 'attribute', '大的', '', 'detail'), gap, seg('dogs', 'subject', '狗'), gap,
-    seg('bark', 'predicate', '叫', 'bark'), seg('.', 'other', '', '', 'detail')];
-  const make = corrections => ({
-    sentences: [{ text, translation: '大狗叫。', note: '', corrections, segments }],
-    translation: '大狗叫。',
-  });
-  const cases = [
-    [[{ text: 'dogs', fix: 'dog', reason: '主谓一致' }],
-      [{ start: 4, end: 8, text: 'dogs', fix: 'dog', reason: '主谓一致' }]],
-    [[{ text: 'dogs', fix: 'dogs', reason: '主谓一致' }], undefined],
-    ['not-an-array', undefined],
-  ];
-  for (const [corrections, expected] of cases) {
-    let calls = 0;
-    const out = await analyzeWithDeepSeek(text, {
-      apiKey: 'test', onRepair: () => assert.fail('corrections must not trigger a paid repair'),
-      fetchImpl: async () => { calls++; return contentResponse(JSON.stringify(make(corrections))); },
-    });
-    assert.equal(calls, 1);
-    assert.deepEqual(out.sentences[0].corrections, expected, JSON.stringify(corrections));
-  }
 });
 
 test('empty clauses array and missing clauses both pass without paid repair', async () => {

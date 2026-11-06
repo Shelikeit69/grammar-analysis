@@ -156,55 +156,6 @@ function normalizeClauses(value, segments) {
   return result.length ? result : null;
 }
 
-// Correction hints are optional like clauses: anything invalid is dropped on
-// its own and never rejects the sentence or triggers a paid format repair.
-// A list longer than 50 is treated as untrusted and ignored for the sentence
-// (50 items keep the pairwise overlap check bounded at 1,225 comparisons).
-const MAX_CORRECTION_CANDIDATES = 50;
-const MAX_CORRECTION_REASON = 300;
-
-function normalizeCorrections(value, sentenceText) {
-  if (!Array.isArray(value) || value.length > MAX_CORRECTION_CANDIDATES) return null;
-  const candidates = [];
-  for (const raw of value) {
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue;
-    if (typeof raw.text !== 'string' || typeof raw.fix !== 'string' || typeof raw.reason !== 'string') continue;
-    const text = raw.text.trim();
-    if (!text || !/[\p{L}\p{N}\p{P}]/u.test(text) || text.length > sentenceText.length) continue;
-    if (raw.fix === text) continue;
-    const reason = raw.reason.trim();
-    if (!reason || reason.length > MAX_CORRECTION_REASON) continue;
-    // The anchor must occur exactly once in the sentence. Count overlapping
-    // occurrences too, so repeated fragments are always rejected.
-    let start = -1;
-    let matches = 0;
-    for (let at = sentenceText.indexOf(text); at !== -1; at = sentenceText.indexOf(text, at + 1)) {
-      if (matches === 0) start = at;
-      matches++;
-      if (matches > 1) break;
-    }
-    if (matches !== 1) continue;
-    candidates.push({start, end: start + text.length, text, fix: raw.fix, reason});
-  }
-  if (!candidates.length) return null;
-  candidates.sort((a, b) => a.start - b.start || a.end - b.end);
-  // Overlapping ranges are ambiguous, so every range in a crossing pair is
-  // dropped; adjacent ranges (end === next start) both stay.
-  const overlapping = new Set();
-  for (let i = 0; i < candidates.length; i++) {
-    for (let j = i + 1; j < candidates.length; j++) {
-      const a = candidates[i];
-      const b = candidates[j];
-      if (a.start < b.end && b.start < a.end) {
-        overlapping.add(i);
-        overlapping.add(j);
-      }
-    }
-  }
-  const kept = candidates.filter((_, index) => !overlapping.has(index));
-  return kept.length ? kept : null;
-}
-
 export function validateAnalysis(data, input) {
   if (!data || !Array.isArray(data.sentences) || !data.sentences.length || data.sentences.length > 300) {
     throw new AnalysisValidationError('sentences must be an array containing 1 to 300 sentences.');
@@ -293,7 +244,6 @@ export function validateAnalysis(data, input) {
       }
     });
     const clauses = normalizeClauses(sentence.clauses, segments);
-    const corrections = normalizeCorrections(sentence.corrections, text);
     return {
       text,
       translation: string(sentence.translation, 12000, `${field}.translation`, true),
@@ -305,7 +255,6 @@ export function validateAnalysis(data, input) {
       // Only present when at least one valid range survives, so old results and
       // all-invalid clauses produce exactly the previous output shape.
       ...(clauses ? { clauses } : {}),
-      ...(corrections ? { corrections } : {}),
     };
   });
   if (input.slice(offset).trim()) {
