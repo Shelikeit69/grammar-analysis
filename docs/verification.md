@@ -369,3 +369,11 @@ main 同一输入只有 1/3 拆开，#47 为 3/3。main 本身不稳定，这组
 - She thanked the nurse who said that the results were good. 未误触发重做，约 3 秒。
 - 观察：重做后的说明里偶尔出现「按长从句规则拆开」这类内部规则说法，次数少，暂不处理。
 - 样本小，不代表稳定。
+
+## 2026-11-07：PR #51 纠错重新上线实测（负责人，DeepSeek deepseek-flash，TOOL_VERSION 2026-11-07.2，temperature 0，详细视图）
+
+- Issue #27 原句 2 次：均拆出 3 个从句（定语 → 宾语 → 定语），三层条带正常，均显示（后置）。纠错均为 argured → argued、sub human → subhuman，锚点只含错词。纠错行删除部分与改后文字之间有空格，sub 与 human 之间的空格没有波浪线。均未触发重做，各约 10 秒。其中 1 次把同位语 a 19th-century Italian medic 框成定语，说明文字写的是同位语。
+- The contents of the box is very unique, so please handles them with care. 2 次：均只标 is → are、handles → handle，very unique 未改，纠错行有空格，空格上没有波浪线，约 5 秒。
+- She thanked the nurse who said that the results were good. 1 次：无纠错行，未触发重做，2 个从句（定语套宾语），约 3 秒。
+- 观察：说明里出现「按默认规则全部为 detail」，与 2026-11-07 PR #50 实测记录的「按长从句规则拆开」同类，属于内部规则术语漏进用户可见文字。两次，次数少，暂不处理。
+- 结论：重新上线的及格线全部通过（#27 原句 2/2 三个从句）。样本小，不代表稳定。
