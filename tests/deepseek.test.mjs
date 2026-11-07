@@ -636,3 +636,7 @@ test('empty clauses array and missing clauses both pass without paid repair', as
   }
 });
 
+
+test('corrections require the smallest error fragment', () => {
+  assert.ok(SYSTEM.includes('Correction text must be the smallest fragment containing the error'));
+});

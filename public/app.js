@@ -354,7 +354,9 @@ function correctionParts(text, offset, corrections) {
   let cursor = 0;
   hits.forEach(hit => {
     if (hit.start > cursor) parts.push({text: text.slice(cursor, hit.start), marked: false});
-    parts.push({text: text.slice(hit.start, hit.end), marked: true});
+    text.slice(hit.start, hit.end).split(/(\s+)/).forEach(part => {
+      parts.push({text: part, marked: /\S/.test(part)});
+    });
     cursor = Math.max(cursor, hit.end);
   });
   if (cursor < text.length) parts.push({text: text.slice(cursor), marked: false});
@@ -369,6 +371,7 @@ function correctionPanel(sentence, corrections) {
   corrections.forEach(correction => {
     if (correction.start > cursor) effect.append(sentence.text.slice(cursor, correction.start));
     effect.append(element('span', 'correction-original', sentence.text.slice(correction.start, correction.end)));
+    effect.append(document.createTextNode(' '));
     effect.append(element('span', 'correction-fix', correction.fix));
     cursor = correction.end;
   });

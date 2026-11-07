@@ -255,6 +255,10 @@ async function main() {
           plain: node.closest('.phrase')?.classList.contains('plain'),
         };
       }));
+      assert.ok(marks.every(mark => /\S/.test(mark.text)), 'whitespace has no correction mark');
+      assert.ok(await page.evaluate(() => [...document.querySelectorAll('.correction-effect .correction-original')]
+        .every(node => node.nextSibling?.nodeType === Node.TEXT_NODE && node.nextSibling.textContent === ' ')),
+        'summary uses a plain space between original and fix');
       assert.deepEqual(marks.map(mark => mark.text), expected.texts, 'wavy positions');
       for (const mark of marks) {
         assert.ok(mark.width > 0, `${mark.text} has width`);
@@ -295,6 +299,13 @@ async function main() {
     await showCorrectionFixture(plainFixture, false);
     await checkCorrections(plainExpected);
     checks++;
+    const crossing = structuredClone(correctionFixture);
+    crossing.sentences[0].corrections = [{start:isStart, end:handlesStart + 7,
+      text:correctionText.slice(isStart, handlesStart + 7), fix:'are ready', reason:'跨片段测试'}];
+    await showCorrectionFixture(crossing, true);
+    assert.equal(await page.locator('.correction-mark').evaluateAll(nodes =>
+      nodes.some(node => !node.textContent.trim())), false, 'cross-segment whitespace remains unmarked');
+
     // A sentence without corrections keeps the exact previous DOM.
     await showCorrectionFixture(demoAnalysis, true);
     assert.equal(await page.locator('.correction-summary').count(), 0, 'no correction line');

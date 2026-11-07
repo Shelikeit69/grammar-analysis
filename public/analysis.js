@@ -188,7 +188,7 @@ function normalizeCorrections(value, sentenceText) {
   for (const raw of value) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue;
     if (typeof raw.text !== 'string' || typeof raw.fix !== 'string' || typeof raw.reason !== 'string') continue;
-    const text = raw.text.trim();
+    let text = raw.text.trim();
     if (!text || !/[\p{L}\p{N}\p{P}]/u.test(text) || text.length > sentenceText.length) continue;
     if (raw.fix === text) continue;
     const reason = raw.reason.trim();
@@ -203,7 +203,22 @@ function normalizeCorrections(value, sentenceText) {
       if (matches > 1) break;
     }
     if (matches !== 1) continue;
-    candidates.push({start, end: start + text.length, text, fix: raw.fix, reason});
+    let fix = raw.fix;
+    // Resolve the unique anchor first, then retain its position while trimming.
+    let prefix = text.match(/^\S+ +/);
+    while (prefix && fix.startsWith(prefix[0]) && /\S/.test(fix.slice(prefix[0].length))) {
+      start += prefix[0].length;
+      text = text.slice(prefix[0].length);
+      fix = fix.slice(prefix[0].length);
+      prefix = text.match(/^\S+ +/);
+    }
+    let suffix = text.match(/ +\S+$/);
+    while (suffix && fix.endsWith(suffix[0]) && /\S/.test(fix.slice(0, -suffix[0].length))) {
+      text = text.slice(0, -suffix[0].length);
+      fix = fix.slice(0, -suffix[0].length);
+      suffix = text.match(/ +\S+$/);
+    }
+    candidates.push({start, end: start + text.length, text, fix, reason});
   }
   if (!candidates.length) return null;
   candidates.sort((a, b) => a.start - b.start || a.end - b.end);

@@ -464,3 +464,19 @@ test('malformed corrections do not bypass the original core checks', () => {
   data.sentences[0].segments[0].role = 'unknown';
   assert.throws(() => validateAnalysis(data, modifierText), AnalysisValidationError);
 });
+
+test('correction narrowing retains resolved positions and nonempty insertion anchors', () => {
+  for (const [sentence, text, fix, narrowed, replacement] of [
+    ['The contents of the box is ready.', 'contents of the box is', 'contents of the box are', 'is', 'are'],
+    ['We ask: please handles it.', 'please handles', 'please handle', 'handles', 'handle'],
+    ['He is student.', 'is student', 'is a student', 'student', 'a student'],
+    ['She is ready; the contents of the box is here.', 'contents of the box is', 'contents of the box are', 'is', 'are'],
+  ]) {
+    const data = {translation:'测试', sentences:[{text:sentence, translation:'测试', note:'',
+      segments:[{text:sentence, role:'other', level:'detail', translation:'', detail:'', lemma:''}],
+      corrections:[{text, fix, reason:'测试'}]}]};
+    const [actual] = validateAnalysis(data, sentence).sentences[0].corrections;
+    const start = sentence.indexOf(text) + text.indexOf(narrowed);
+    assert.deepEqual(actual, {start, end:start+narrowed.length, text:narrowed, fix:replacement, reason:'测试'});
+  }
+});
