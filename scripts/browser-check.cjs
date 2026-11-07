@@ -520,10 +520,9 @@ async function main() {
             translationTop: translationBox.top,
           };
         });
-        if (positionCheck) {
-          assert.ok(positionCheck.hintTop > positionCheck.englishBottom, `${name} hint below last english`);
-          assert.ok(positionCheck.hintTop < positionCheck.translationTop, `${name} hint above translation`);
-        }
+        assert.ok(positionCheck, 'missing clause hint position');
+        assert.ok(positionCheck.hintTop > positionCheck.englishBottom, `${name} hint below last english`);
+        assert.ok(positionCheck.hintTop < positionCheck.translationTop, `${name} hint above translation`);
       }
       assert.equal(await page.locator('.annotated').count(), core.length, `${name} core spans`);
       assert.deepEqual(await page.locator('.role-subject.annotated .english').allTextContents(),
@@ -546,7 +545,6 @@ async function main() {
     const allLabels = await page.locator('.annotated .label').allTextContents();
     // 'In the morning' is adverbial/prep; adverbial never gets （后置）
     assert.ok(allLabels.some(text => text.includes('状语 · 介词短语') && !text.includes('（后置）')), 'adverbial with form has no 后置');
-    checks++;
     // 'to finish the work' is attribute/to-inf modifying 'plan' at index 5; it is at index 7, so 5 < 7 → （后置）
     assert.ok(allLabels.some(text => text.includes('定语 · 不定式（后置）')), 'post-positioned attribute has form with 后置');
     checks++;

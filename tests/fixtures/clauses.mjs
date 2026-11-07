@@ -242,3 +242,13 @@ export function withFormNoModifies() {
   ];
   return analysis(segments, [], '架子上的那本书是我的。');
 }
+
+export function unsplitLongClause() {
+  const fixture = longTextAnchors();
+  const sentence = fixture.sentences[0];
+  const {start, end} = sentence.clauses[0];
+  const text = sentence.segments.slice(start, end).map(s => s.text).join('');
+  sentence.segments.splice(start, end - start, span(text, 'attribute', '测试', '', 'detail'));
+  sentence.clauses = [{type: 'relative', text}];
+  return fixture;
+}

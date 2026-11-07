@@ -334,3 +334,31 @@
 - The contents of the box is very unique, so please handles them with care. 2 次：均找出 is → are、handles → handle，very unique 未改，无误改漏改，无格式修正，约 3 秒。但锚点过宽（标成 contents of the box is、please handles），纠错行中删除部分与改后文字之间没有空格，框之间的空格也画了波浪线。
 - Issue #27 原句 2 次：纠错正确（argured → argued、sub human → subhuman，锚点只含错词）。但长定语从句 who argured ... sub human state 整段成一个片段，clauses 只剩 1 条，3 层从句消失，（后置）消失。同一句 2026-11-05 PR-B2 复测为 2/2 三个从句。
 - 结论：#47 使 #27 原句的长从句拆分退步，整体撤回，见 decisions.md 2026-11-06。
+
+## 2026-11-07：长从句拆分对照
+
+[PR #49 原始评论](https://github.com/Shelikeit69/grammar-analysis/pull/49#issuecomment-6702720653)
+
+```text
+A1 | 4.62s | finish=stop | tokens=4342/948 | json=ok | valid=ok | clauses=1 | 整块未拆=是 | corrections=无
+B1 | 7.08s | finish=stop | tokens=4612/1659 | json=ok | valid=ok | clauses=3 | 整块未拆=否 | corrections=1
+C1 | 5.61s | finish=stop | tokens=4425/1054 | json=ok | valid=ok | clauses=1 | 整块未拆=是 | corrections=2
+D1 | 6.66s | finish=stop | tokens=4611/1540 | json=ok | valid=ok | clauses=3 | 整块未拆=否 | corrections=1
+A2 | 4.54s | finish=stop | tokens=4342/948 | json=ok | valid=ok | clauses=1 | 整块未拆=是 | corrections=无
+B2 | 6.79s | finish=stop | tokens=4612/1659 | json=ok | valid=ok | clauses=3 | 整块未拆=否 | corrections=1
+C2 | 5.1s | finish=stop | tokens=4425/1043 | json=ok | valid=ok | clauses=1 | 整块未拆=是 | corrections=1
+D2 | 6.98s | finish=stop | tokens=4611/1653 | json=ok | valid=ok | clauses=3 | 整块未拆=否 | corrections=1
+A3 | 6.71s | finish=stop | tokens=4342/1567 | json=ok | valid=ok | clauses=3 | 整块未拆=否 | corrections=无
+B3 | 7.01s | finish=stop | tokens=4612/1659 | json=ok | valid=ok | clauses=3 | 整块未拆=否 | corrections=1
+C3 | 7.01s | finish=stop | tokens=4425/1659 | json=ok | valid=ok | clauses=3 | 整块未拆=否 | corrections=2
+D3 | 6.59s | finish=stop | tokens=4611/1560 | json=ok | valid=ok | clauses=3 | 整块未拆=否 | corrections=1
+
+===== 汇总 =====
+组 | clauses 条数（3 次） | 整块未拆次数 | 校验通过次数 | 平均耗时(s)
+A（main SYSTEM） | 1, 1, 3 | 2 | 3/3 | 5.29
+B（PR #47 SYSTEM） | 3, 3, 3 | 0 | 3/3 | 6.96
+C（PR #47 SYSTEM + 一句话纠错规则） | 1, 1, 3 | 2 | 3/3 | 5.91
+D（PR #47 SYSTEM + 改正拼写） | 3, 3, 3 | 0 | 3/3 | 6.74
+```
+
+main 同一输入只有 1/3 拆开，#47 为 3/3。main 本身不稳定，这组结果纠正了把退步归因于 #47 的判断。每组仅三次，无法估算整体准确率。
