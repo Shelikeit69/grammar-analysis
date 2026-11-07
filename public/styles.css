@@ -5,11 +5,12 @@
   --line:#dfE3d9;
   --green:#365c45;
   --subject:#316ba0;
-  --predicate:#b54b48;
+  --predicate:#ad5600;
+  --error:#981b38;
   --object:#397c59;
   --adverbial:#7753a0;
-  --attribute:#797468;
-  --complement:#a66b24;
+  --attribute:#706b60;
+  --complement:#006b73;
   font-family:"Segoe UI","Microsoft YaHei",sans-serif;
   color:var(--ink);
   background:var(--paper);
@@ -410,7 +411,7 @@ button {
 }
 .phrase.role-predicate,.phrase.role-linking {
   --role:var(--predicate);
-  --tint:#fcefee
+  --tint:#fff0de
 }
 .phrase.role-object,.phrase.role-predicative {
   --role:var(--object);
@@ -422,7 +423,7 @@ button {
 }
 .phrase.role-complement {
   --role:var(--complement);
-  --tint:#faf2e6
+  --tint:#e7f4f3
 }
 .english {
   grid-row:1;
@@ -617,7 +618,7 @@ button {
 }
 .correction-label {
   font-weight:600;
-  color:var(--predicate);
+  color:var(--error);
   margin-right:2px
 }
 .correction-effect {
@@ -627,7 +628,7 @@ button {
   overflow-wrap:anywhere
 }
 .correction-original {
-  color:var(--predicate);
+  color:var(--error);
   text-decoration:line-through;
   text-decoration-thickness:1.5px
 }
@@ -651,7 +652,7 @@ button {
 .correction-mark {
   text-decoration-line:underline;
   text-decoration-style:wavy;
-  text-decoration-color:var(--predicate);
+  text-decoration-color:var(--error);
   text-decoration-thickness:1.5px;
   text-underline-offset:3px
 }
@@ -977,8 +978,8 @@ html.large-text .masthead,html.large-text main,html.large-text footer {
 #feedback-types label { display: inline-block; position: relative; margin: 4px 2px; cursor: pointer; }
 #feedback-types input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 #feedback-types span { display: inline-block; border: 1px solid #999; border-radius: 999px; padding: 6px 10px; }
-#feedback-types input:checked + span { background: var(--predicate); color: #fff; border-color: var(--predicate); }
-#feedback-types input:focus-visible + span { outline: 2px solid var(--predicate); outline-offset: 3px; }
+#feedback-types input:checked + span { background: var(--error); color: #fff; border-color: var(--error); }
+#feedback-types input:focus-visible + span { outline: 2px solid var(--error); outline-offset: 3px; }
 #feedback-details { margin-top: 16px; }
 .feedback-footer { position: sticky; bottom: 0; flex-shrink: 0; background: #fff; border-top: 1px solid #ddd; padding: 12px 20px; font-size: 13px; }
 .feedback-footer p { margin: 6px 0; }
@@ -995,15 +996,48 @@ html.large-text .masthead,html.large-text main,html.large-text footer {
   font:inherit;
   font-size:14px;
   font-weight:700;
-  color:var(--predicate);
+  color:var(--error);
   background:#fff;
-  border:1.5px solid var(--predicate);
+  border:1.5px solid var(--error);
   border-radius:999px;
   padding:6px 14px;
   cursor:pointer
 }
 .report-button:hover,.report-button:focus-visible {
-  background:var(--predicate);
+  background:var(--error);
   color:#fff
 }
 .report-sentence { margin: 0 23px 20px; }
+
+/* Distinct identifiers for corrections and clauses. */
+.correction-letter {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:16px;
+  height:16px;
+  border-radius:50%;
+  background:var(--error);
+  color:#fff;
+  font:700 10px/1 "Segoe UI",sans-serif;
+  vertical-align:super;
+  margin-left:2px;
+  text-decoration:none
+}
+.correction-letter::after { content:attr(data-letter) }
+.correction-item > .correction-letter { margin:0 5px 0 0; vertical-align:baseline }
+.clause-number,.clause-mark {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:12px;
+  height:12px;
+  border:1px solid #737373;
+  border-radius:1px;
+  color:#555;
+  background:var(--paper);
+  font-size:10px;
+  line-height:1
+}
+
+.legend-error { color:var(--error) }

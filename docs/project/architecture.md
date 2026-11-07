@@ -20,7 +20,7 @@
 - `public/deepseek.js`：Node 和浏览器共用的 DeepSeek 客户端，系统提示词常量 `SYSTEM` 和「格式或长从句重做一次」的逻辑都在这里。
 - `public/analysis.js`：`validateInput`、`validateAnalysis`、`AnalysisValidationError`，Node 和浏览器共用。
 - `public/feedback.js`：`FEEDBACK_TYPES`（5 个问题类型）、反馈标题和易读正文生成（只放白名单字段）、GitHub Issue 预填链接（上限 6000 字符；超过时只带真实标题和粘贴说明，正文由用户粘贴）（PR #21、#25、#28）。
-- `public/version.js`：`TOOL_VERSION`，写进反馈正文。当前值为 `2026-11-07.2`。发布影响分析或反馈的改动时要更新，用实际合并日期加序号。
+- `public/version.js`：`TOOL_VERSION`，写进反馈正文。当前值为 `2026-11-07.3`。发布影响分析或反馈的改动时要更新，用实际合并日期加序号。
 - `public/server-client.js`：本地和 Codespaces 模式下读取服务器返回结果（支持 NDJSON 进度消息，旧的纯 JSON 也兼容）。
 - `public/demo.js`：内置例句和它的分析结果（含 `modifies` 和 `clauses`）。例句的 `who keep going every day` 是 5 词短从句，保持单片段，只显示清单不画条带。
 - `lib/analysis.mjs`、`lib/deepseek.mjs`：只是转发 `public/` 里的共用模块。
@@ -120,7 +120,7 @@
 - `clauses` 不记录主句范围；第一版只有定、宾、状三种从句，最多三层。中文小类只用于状语从句。
 - `modifies` 只能指向一个片段。「状语修饰整个从句」这类关系，目前只能指向谓语。
 - 目标片段如果在当前视图里是隐藏的细节，只显示「修饰：…」文字，没有高亮。
-- 分离谓语的两个红框不联动高亮，也没有连线。点击时下方说明只用主谓语框的 detail；主谓语框没有 detail 时才用小品词框的（PR #26）。
+- 分离谓语的两个橙框不联动高亮，也没有连线。点击时下方说明只用主谓语框的 detail；主谓语框没有 detail 时才用小品词框的（PR #26）。
 
 ## 密钥与隐私
 - 网页版的密钥默认只存在内存里，关掉页面就没了；勾选「记住」后才存进 localStorage（键名 `grammar-analysis.deepseek`），可以一键清除。
@@ -134,3 +134,7 @@
 ## 内联纠错重新上线（2026-11-07）
 
 corrections 为可选元数据，非法项单独丢弃，不拒绝整句或触发付费修正。唯一匹配原始锚点后，去掉 text/fix 两端相同整词并同步更新位置，两边至少留一词。纠错行用普通文本空格分隔删除和替换文字；波浪线仅覆盖非空白文本。长从句重做后的结果同样归一化 corrections，每次分析最多两次调用。
+
+## C4 第一步（2026-11-07）
+
+谓语、系动词为橙色，补语为青色，错误及问题反馈为独立红色。标签按角色定位，subject/predicate/linking/object/predicative 在上方，attribute/adverbial/complement 在下方。句中错误范围末端和纠错列表用同序红圆字母，标记 aria-hidden，按钮可访问名称保留原文。字母由 data-letter 的生成内容显示，不进入英文原文文本。条带和清单编号为灰色方框，轨道位置沿用现有算法。

@@ -38,6 +38,7 @@ function teardownClauseLayout() {
   // Clear leaves the old cards in place until the next render; drop their
   // overlays and lists so no stale clause markup survives a clear or rerender.
   document.querySelectorAll('.clause-layer, .clause-panel, .correction-panel').forEach(node => node.remove());
+  document.querySelectorAll('.correction-letter').forEach(node => node.remove());
   document.querySelectorAll('.correction-mark').forEach(node => node.replaceWith(node.textContent));
 }
 function runClauseLayout() {
@@ -362,6 +363,15 @@ function correctionParts(text, offset, corrections) {
   if (cursor < text.length) parts.push({text: text.slice(cursor), marked: false});
   return parts.filter(part => part.text);
 }
+function correctionLetter(index) {
+  // Bijective alphabetic numbering also covers the maximum 50 corrections.
+  const letter = index < 26 ? String.fromCharCode(97 + index) :
+    'a' + String.fromCharCode(97 + index - 26);
+  const marker = element('span', 'correction-letter');
+  marker.dataset.letter = letter;
+  marker.setAttribute('aria-hidden', 'true');
+  return marker;
+}
 function correctionPanel(sentence, corrections) {
   const panel = element('section', 'correction-panel');
   const summary = element('p', 'correction-summary');
@@ -379,9 +389,10 @@ function correctionPanel(sentence, corrections) {
   summary.append(effect);
   panel.append(summary);
   const list = element('ul', 'correction-list');
-  corrections.forEach(correction => {
+  corrections.forEach((correction, index) => {
     const item = element('li', 'correction-item');
     item.append(
+      correctionLetter(index),
       element('span', 'correction-original', correction.text),
       document.createTextNode(' → '),
       element('span', 'correction-fix', correction.fix),
@@ -453,15 +464,19 @@ function render() {
     const englishNodes = [];
     const corrections = sentenceCorrections(sentence);
     let segmentOffset = 0;
-    let annotatedIndex = 0;
     sentence.segments.forEach((segment, segmentIndex) => {
       const visible = segment.role !== 'other' && (detailed || segment.level === 'core');
       const phrase = element('span', `phrase role-${segment.role} ${visible ? 'annotated' : 'plain'}${/^\s+$/u.test(segment.text) ? ' whitespace' : ''}`);
       const english = element(visible ? 'button' : 'span', 'english');
       const correctionSlices = corrections.length ? correctionParts(segment.text, segmentOffset, corrections) : null;
       if (correctionSlices) {
+        let partEnd = segmentOffset;
         correctionSlices.forEach(part => {
           english.append(part.marked ? element('span', 'correction-mark', part.text) : part.text);
+          partEnd += part.text.length;
+          corrections.forEach((correction, index) => {
+            if (correction.end === partEnd) english.append(correctionLetter(index));
+          });
         });
       } else {
         english.textContent = segment.text;
@@ -490,7 +505,7 @@ function render() {
           labelText = `${roleLabel}：${meaning}`;
         }
         english.setAttribute('aria-label', `${segment.text}，${labelText}，查看说明`);
-        const placement = segment.role === 'predicative' || (segment.role !== 'linking' && annotatedIndex % 2 === 1) ? 'bottom' : 'top';
+        const placement = ['attribute', 'adverbial', 'complement'].includes(segment.role) ? 'bottom' : 'top';
         const annotation = element('span', `annotation ${placement}`);
         annotation.setAttribute('aria-hidden', 'true');
         const label = element('span', 'label', labelText);
@@ -527,7 +542,6 @@ function render() {
             targetButton.setAttribute('aria-describedby', detail.id);
           }
         });
-        annotatedIndex += 1;
       }
       // english goes first so the grid baseline follows the text, not the label above it.
       phrase.append(english);
