@@ -170,3 +170,29 @@ test('serializeSentence includes form when present', () => {
  const noForm = serializeSentence({text:'Go.',segments:[{text:'Go',role:'predicate'}]});
  assert.equal(noForm.segments[0].form, undefined);
 });
+
+test('corrections appear in the report and only public fields are serialized', () => {
+ const text='The contents of the box is very unique, so please handles them with care.';
+ const sentence={text,segments:[{text,role:'other'}],corrections:[
+  {start:text.indexOf('is'),end:text.indexOf('is')+2,text:'is',fix:'are',reason:'主语是复数，系动词用 are。',apiKey:'secret'},
+  {start:text.indexOf('handles'),end:text.indexOf('handles')+7,text:'handles',fix:'handle',reason:'祈使句用动词原形。',headers:'secret'},
+ ]};
+ const body=createFeedback({sentence,version:'v'}).body;
+ assert.match(body,/纠错：\n- is → are：主语是复数，系动词用 are。\n- handles → handle：祈使句用动词原形。/);
+ assert.ok(!body.includes('secret'));
+ assert.deepEqual(serializeSentence(sentence).corrections,[
+  {text:'is',fix:'are',reason:'主语是复数，系动词用 are。'},
+  {text:'handles',fix:'handle',reason:'祈使句用动词原形。'},
+ ]);
+ const plain=createFeedback({sentence:{...sentence,corrections:undefined},version:'v'}).body;
+ assert.ok(!plain.includes('纠错：'));
+});
+
+test('correction text and reason stay literal when they contain markup', () => {
+ const sentence={text:'<tag>',segments:[{text:'<tag>',role:'other'}],corrections:[
+  {start:0,end:5,text:'<tag>',fix:'<fixed>',reason:'<script>alert(1)</script>'},
+ ]};
+ const body=createFeedback({sentence,version:'v'}).body;
+ assert.match(body,/- <tag> → <fixed>：<script>alert\(1\)<\/script>/);
+ assert.ok(!body.includes('&lt;'));
+});

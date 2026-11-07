@@ -132,6 +132,11 @@ async function main() {
       input.dispatchEvent(new Event('paste'));
       input.dispatchEvent(new Event('input'));
     }, `${demoText} ${demoText}`);
+    // Pasting only fills the box: no timer, no request until the button is clicked.
+    await page.waitForTimeout(700);
+    assert.equal(routeCalls, 0);
+    assert.equal(await page.locator('#results').isVisible(), false);
+    await page.locator('#analyze-button').click();
     await page.waitForFunction(() => document.querySelectorAll('.sentence-card').length === 2);
     assert.equal(routeCalls, 1);
     assert.equal(await page.locator('#paragraph-translation').isVisible(), true);
@@ -154,6 +159,171 @@ async function main() {
     release();
     await finished;
     assert.equal(await page.locator('#results').isVisible(), false);
+    checks++;
+    await page.unroute('**/api/analyze');
+
+    // Inline corrections render from normalized model output. These fixtures
+    // prove display and cleanup, not live model accuracy.
+    const correctionText = 'The contents of the box is very unique, so please handles them with care.';
+    const correctionSeg = (text, role, translation = '', lemma = '', level = 'core') => ({ text, role, translation, lemma, detail: '测试', level });
+    const correctionGap = () => correctionSeg(' ', 'other', '', '', 'detail');
+    const isStart = correctionText.indexOf('is');
+    const handlesStart = correctionText.indexOf('handles');
+    const correctionFixture = {
+      sentences: [{
+        text: correctionText, translation: '盒子里的东西非常独特，请小心拿放。', note: '纠错测试',
+        segments: [
+          correctionSeg('The contents', 'subject', '内容'),
+          correctionGap(),
+          correctionSeg('of the box', 'attribute', '盒子里的', '', 'detail'),
+          correctionGap(),
+          correctionSeg('is', 'linking', '是', 'be'),
+          correctionGap(),
+          correctionSeg('very unique', 'predicative', '非常独特'),
+          correctionSeg(', so ', 'other', '', '', 'detail'),
+          correctionSeg('please', 'adverbial', '请', '', 'detail'),
+          correctionGap(),
+          correctionSeg('handles', 'predicate', '拿放', 'handle'),
+          correctionGap(),
+          correctionSeg('them', 'object', '它们'),
+          correctionGap(),
+          correctionSeg('with care', 'adverbial', '小心地', '', 'detail'),
+          correctionSeg('.', 'other', '', '', 'detail'),
+        ],
+        corrections: [
+          { start: isStart, end: isStart + 2, text: 'is', fix: 'are', reason: '主语 The contents 是复数，系动词应用 are。' },
+          { start: handlesStart, end: handlesStart + 7, text: 'handles', fix: 'handle', reason: '祈使句 please 后要用动词原形 handle。' },
+        ],
+      }],
+      translation: '盒子里的东西非常独特，请小心拿放。',
+    };
+    const plainText = 'The cat sat on the mat, so it was happy.';
+    const plainFixture = {
+      sentences: [{
+        text: plainText, translation: '猫坐在垫子上，所以它很开心。', note: '标点与普通文字测试',
+        segments: [
+          correctionSeg('The', 'attribute', '这', '', 'detail'),
+          correctionGap(),
+          correctionSeg('cat', 'subject', '猫'),
+          correctionGap(),
+          correctionSeg('sat', 'predicate', '坐', 'sit'),
+          correctionGap(),
+          correctionSeg('on the mat', 'adverbial', '在垫子上', '', 'detail'),
+          correctionSeg(', so ', 'other', '', '', 'detail'),
+          correctionSeg('it', 'subject', '它'),
+          correctionGap(),
+          correctionSeg('was', 'linking', '是', 'be'),
+          correctionGap(),
+          correctionSeg('happy', 'predicative', '开心'),
+          correctionSeg('.', 'other', '', '', 'detail'),
+        ],
+        corrections: [
+          { start: plainText.indexOf('so'), end: plainText.indexOf('so') + 2, text: 'so', fix: 'and', reason: '测试普通文字' },
+          { start: plainText.length - 1, end: plainText.length, text: '.', fix: '?', reason: '测试标点' },
+        ],
+      }],
+      translation: '猫坐在垫子上，所以它很开心。',
+    };
+    const mainExpected = {
+      texts: ['is', 'handles'], fixes: ['are', 'handle'],
+      items: ['is → are：主语 The contents 是复数，系动词应用 are。', 'handles → handle：祈使句 please 后要用动词原形 handle。'],
+    };
+    const plainExpected = {
+      texts: ['so', '.'], fixes: ['and', '?'], plain: [true, true],
+      items: ['so → and：测试普通文字', '. → ?：测试标点'],
+    };
+    async function showCorrectionFixture(fixture, detailed) {
+      await page.unroute('**/api/analyze');
+      await page.route('**/api/analyze', route => route.fulfill({ json: fixture }));
+      await page.locator('#detail-toggle').setChecked(detailed);
+      await page.locator('#english-input').fill(fixture.sentences[0].text);
+      await page.locator('#analyze-button').click();
+      await page.waitForFunction(text => !document.querySelector('#results').hidden &&
+        [...document.querySelectorAll('.english')].map(node => node.textContent).join('') === text, fixture.sentences[0].text);
+      await page.waitForTimeout(140);
+    }
+    async function checkCorrections(expected) {
+      const marks = await page.evaluate(() => [...document.querySelectorAll('.correction-mark')].map(node => {
+        const rect = node.getBoundingClientRect();
+        const box = node.closest('.english').getBoundingClientRect();
+        const style = getComputedStyle(node);
+        return {
+          text: node.textContent, width: rect.width,
+          inside: rect.left >= box.left - 1 && rect.right <= box.right + 1 &&
+            rect.top >= box.top - 1 && rect.bottom <= box.bottom + 1,
+          line: style.textDecorationLine, decoration: style.textDecorationStyle,
+          plain: node.closest('.phrase')?.classList.contains('plain'),
+        };
+      }));
+      assert.deepEqual(marks.map(mark => mark.text), expected.texts, 'wavy positions');
+      for (const mark of marks) {
+        assert.ok(mark.width > 0, `${mark.text} has width`);
+        assert.equal(mark.inside, true, `${mark.text} stays inside its phrase`);
+        assert.ok(mark.line.includes('underline'), `${mark.text} underline`);
+        assert.equal(mark.decoration, 'wavy', `${mark.text} wavy`);
+      }
+      if (expected.plain) assert.deepEqual(marks.map(mark => mark.plain), expected.plain, 'plain text marks');
+      assert.equal(await page.locator('.correction-summary').count(), 1);
+      assert.match(await page.locator('.correction-summary').innerText(), /^纠错：/);
+      const style = await page.evaluate(() => ({
+        original: [...document.querySelectorAll('.correction-effect .correction-original')].map(node => ({
+          text: node.textContent, line: getComputedStyle(node).textDecorationLine,
+        })),
+        fix: [...document.querySelectorAll('.correction-effect .correction-fix')].map(node => ({
+          text: node.textContent, weight: getComputedStyle(node).fontWeight, line: getComputedStyle(node).textDecorationLine,
+        })),
+      }));
+      assert.deepEqual(style.original.map(item => item.text), expected.texts, 'summary originals');
+      assert.ok(style.original.every(item => item.line.includes('line-through')), 'summary originals are struck through');
+      assert.deepEqual(style.fix.map(item => item.text), expected.fixes, 'summary fixes');
+      assert.ok(style.fix.every(item => Number(item.weight) >= 600 && item.line.includes('underline')), 'fixes are bold and underlined');
+      assert.deepEqual(await page.locator('.correction-item').allTextContents(), expected.items, 'correction list');
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'no horizontal overflow');
+    }
+
+    await page.setViewportSize({ width: 1280, height: 1000 });
+    await showCorrectionFixture(correctionFixture, true);
+    await checkCorrections(mainExpected);
+    await page.locator('#detail-toggle').uncheck();
+    await page.waitForTimeout(180);
+    await checkCorrections(mainExpected);
+    await page.locator('#detail-toggle').check();
+    await page.waitForTimeout(180);
+    checks++;
+    // A correction on a comma-adjacent plain word and on the final punctuation
+    // must still draw at the right character positions.
+    await showCorrectionFixture(plainFixture, false);
+    await checkCorrections(plainExpected);
+    checks++;
+    // A sentence without corrections keeps the exact previous DOM.
+    await showCorrectionFixture(demoAnalysis, true);
+    assert.equal(await page.locator('.correction-summary').count(), 0, 'no correction line');
+    assert.equal(await page.locator('.correction-mark').count(), 0, 'no wavy marks');
+    checks++;
+    // View, large-text, phone width, re-analyze and clear leave no residue.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await showCorrectionFixture(correctionFixture, true);
+    await checkCorrections(mainExpected);
+    await page.locator('#text-size').click();
+    await page.waitForTimeout(220);
+    await checkCorrections(mainExpected);
+    await page.locator('#detail-toggle').uncheck();
+    await page.waitForTimeout(160);
+    await checkCorrections(mainExpected);
+    await page.locator('#detail-toggle').check();
+    await page.waitForTimeout(160);
+    await page.locator('#clear-button').click();
+    assert.equal(await page.locator('#results').isVisible(), false);
+    assert.equal(await page.locator('.correction-summary').count(), 0, 'clear drops correction line');
+    assert.equal(await page.locator('.correction-mark').count(), 0, 'clear drops wavy marks');
+    await showCorrectionFixture(correctionFixture, true);
+    await checkCorrections(mainExpected);
+    await showCorrectionFixture(demoAnalysis, true);
+    assert.equal(await page.locator('.correction-summary').count(), 0, 'sentence switch drops correction line');
+    assert.equal(await page.locator('.correction-mark').count(), 0, 'sentence switch drops wavy marks');
+    await page.locator('#text-size').click();
+    await page.waitForTimeout(220);
+    await page.setViewportSize({ width: 390, height: 844 });
     checks++;
     await page.unroute('**/api/analyze');
 
