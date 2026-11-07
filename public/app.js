@@ -523,8 +523,8 @@ async function analyze() {
   analyzeButton.textContent = '正在分析…';
   $('results').hidden = true;
   setStatus('正在梳理语法结构与中文释义…');
-  const onRepair = () => {
-    if (requestGeneration === generation) setStatus('正在修正格式，再试一次（会额外调用一次 DeepSeek）。');
+  const onRepair = ({kind}) => {
+    if (requestGeneration === generation) setStatus(kind === 'unsplit' ? '长从句没拆开，正在重新分析一次，会多一次 DeepSeek 调用…' : '正在修正格式，再试一次（会额外调用一次 DeepSeek）。');
   };
   try {
     let result;

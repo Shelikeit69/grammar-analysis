@@ -77,6 +77,26 @@ async function main() {
     checks++;
     await page.unroute(provider);
 
+    const {unsplitLongClause} = await import('../tests/fixtures/clauses.mjs');
+    const unsplit = unsplitLongClause();
+    assert.ok((await page.locator('.reading-hint').allTextContents()).some(text =>
+      text.includes('格式不合规或长从句没拆开时会自动重做一次')));
+    calls = 0;
+    secondStarted = new Promise(resolve => { entered = resolve; });
+    await page.route(provider, async route => {
+      if (++calls === 2) await new Promise(resolve => { release = resolve; entered(); });
+      await route.fulfill({json: envelope(unsplit)});
+    });
+    await page.locator('#english-input').fill(unsplit.sentences[0].text);
+    await page.locator('#analyze-button').click();
+    await secondStarted;
+    assert.equal(await page.locator('#status').innerText(), '长从句没拆开，正在重新分析一次，会多一次 DeepSeek 调用…');
+    release();
+    await page.waitForFunction(() => document.querySelector('#status').textContent.startsWith('已分析'));
+    assert.equal(calls, 2);
+    checks++;
+    await page.unroute(provider);
+    await page.locator('#english-input').fill(demoText);
     calls = 0;
     await page.route(provider, route => {calls++; return route.fulfill({json:envelope('{}')});});
     await page.locator('#analyze-button').click();

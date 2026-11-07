@@ -19,7 +19,7 @@ export async function readAnalysisResponse(response, {onRepair, signal} = {}) {
     const event = JSON.parse(line);
     if (event.type === 'progress' && event.stage === 'repairing' && !repaired) {
       repaired = true;
-      onRepair?.();
+      onRepair?.({kind: event.kind === 'unsplit' ? 'unsplit' : 'format'});
     } else if (event.type === 'result' && event.data) {
       result = event.data;
       terminal = true;

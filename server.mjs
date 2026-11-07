@@ -97,7 +97,7 @@ export function createApp({
           try {
             const result = await analyze(text, {
               apiKey, model, fetchImpl, timeoutMs, signal: controller.signal,
-              onRepair: streaming ? () => event({type:'progress', stage:'repairing'}) : undefined,
+              onRepair: streaming ? ({kind}) => event({type:'progress', stage:'repairing', kind}) : undefined,
             });
             if (streaming) { event({type:'result', data:result}); res.end(); }
             else send(200, result);

@@ -38,10 +38,29 @@ function mismatchReason(original, actual, requirement, segments) {
   return reason;
 }
 
+function englishWordCount(text) {
+  return (text.match(/[A-Za-z]+(?:['’-][A-Za-z]+)*/g) || []).length;
+}
+
+export function findUnsplitClauses({sentences}) {
+  const violations = [];
+  sentences.forEach(({segments, clauses}, index) => {
+    // normalizeClauses trimmed non-alphanumeric spans from both ends.
+    const anchored = new Set((clauses || []).filter(c => c.end === c.start + 1).map(c => c.start));
+    segments.forEach((segment, i) => {
+      const clauseForm = segment.form === 'clause' && ['attribute', 'adverbial'].includes(segment.role);
+      if (!anchored.has(i) && !clauseForm) return;
+      const wordCount = englishWordCount(segment.text);
+      if (wordCount > 6) violations.push({sentence: index + 1, text: segment.text, wordCount});
+    });
+  });
+  return violations;
+}
+
 export function validateInput(text) {
   if (
     typeof text !== 'string' || !text.trim() || text.length > 6000 ||
-    (text.match(/[A-Za-z]+(?:['’-][A-Za-z]+)*/g) || []).length > 300
+    englishWordCount(text) > 300
   ) {
     throw new Error('请输入不超过 300 个英文单词、6000 个字符的文本。');
   }

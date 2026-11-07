@@ -1,6 +1,6 @@
 // Shared DeepSeek client: used by the Node server (lib/deepseek.mjs) and by the
 // browser on GitHub Pages, where each user supplies their own API key.
-import { AnalysisValidationError, validateAnalysis } from './analysis.js';
+import { AnalysisValidationError, findUnsplitClauses, validateAnalysis } from './analysis.js';
 
 export const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
 export const DEFAULT_MODEL = 'deepseek-flash';
@@ -64,7 +64,7 @@ export async function analyzeWithDeepSeek(text, {
   const requestSignal = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
   const messages = [{ role: 'system', content: SYSTEM }, { role: 'user', content: text }];
 
-  for (let attempt = 0; attempt < 2; attempt++) {
+  async function request() {
     requestSignal.throwIfAborted();
     const response = await fetchImpl(DEEPSEEK_URL, {
       method: 'POST',
@@ -93,31 +93,50 @@ export async function analyzeWithDeepSeek(text, {
     if (choice?.finish_reason !== 'stop' || typeof choice.message?.content !== 'string' || !choice.message.content.trim()) {
       throw new ProviderError('Incomplete response');
     }
-    const content = choice.message.content;
-    let repairError;
+    return choice.message.content;
+  }
+
+  function parse(content) {
     let data;
     try {
       data = JSON.parse(content);
-    } catch (error) {
-      if (!(error instanceof SyntaxError)) throw error;
-      repairError = new AnalysisValidationError('Model content must be a single valid JSON object without markdown or extra text.');
+    } catch {
+      throw new AnalysisValidationError('Model content must be a single valid JSON object without markdown or extra text.');
     }
-    if (!repairError) {
-      try {
-        return validateAnalysis(data, text);
-      } catch (error) {
-        if (!(error instanceof AnalysisValidationError)) throw error;
-        repairError = error;
-      }
-    }
-    requestSignal.throwIfAborted();
-    if (attempt === 1) throw repairError;
-
-    messages.push(
-      { role: 'assistant', content },
-      { role: 'user', content: `Correct the previous analysis. Validation problem: ${repairError.reason} Return the complete corrected JSON analysis for the original user input above. Preserve every original character and satisfy the original schema. This is the only repair attempt.` },
-    );
-    onRepair?.({ reason: repairError.reason });
-    requestSignal.throwIfAborted();
+    return validateAnalysis(data, text);
   }
+
+  const content = await request();
+  let first;
+  let repair;
+  let prompt;
+  try {
+    first = parse(content);
+  } catch (error) {
+    if (!(error instanceof AnalysisValidationError)) throw error;
+    repair = {kind: 'format', reason: error.reason};
+    prompt = `Correct the previous analysis. Validation problem: ${error.reason} Return the complete corrected JSON analysis for the original user input above. Preserve every original character and satisfy the original schema. This is the only repair attempt.`;
+  }
+  if (first) {
+    const violations = findUnsplitClauses(first);
+    if (!violations.length) return first;
+    repair = {kind: 'unsplit', reason: '长从句没拆开'};
+    prompt = 'Apply the long-clause rule to these clauses (sentence, exact text, word count): ' +
+      JSON.stringify(violations) + '. Split their internal constituents and provide clauses text anchors for every nested clause. Return the complete JSON, leaving other content unchanged and preserving every original character.';
+  }
+  messages.push({role: 'assistant', content}, {role: 'user', content: prompt});
+  onRepair?.(repair);
+  let result;
+  let adopted = true;
+  try {
+    result = parse(await request());
+  } catch (error) {
+    signal?.throwIfAborted();
+    if (!first) throw error;
+    result = first;
+    adopted = false;
+  }
+  signal?.throwIfAborted();
+  Object.defineProperty(result, 'repair', {value: {kind: repair.kind, adopted}});
+  return result;
 }
