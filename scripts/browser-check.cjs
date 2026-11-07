@@ -21,6 +21,12 @@ async function main() {
 
     async function checkLayout() {
       assert.equal(await page.locator('#results').isVisible(), true);
+      assert.ok(await page.locator('.annotated').evaluateAll(nodes => nodes.every(node => {
+        const bottom = ['attribute','adverbial','complement'].some(role => node.classList.contains('role-' + role));
+        const label = node.querySelector('.label').getBoundingClientRect();
+        const english = node.querySelector('.english').getBoundingClientRect();
+        return bottom ? label.top >= english.bottom : label.bottom <= english.top;
+      })), 'role determines label position, including subordinate constituents');
       const outcome = await page.evaluate(() => {
         const rects = [...document.querySelectorAll('.annotated')].map(node => ({
           box: node.querySelector('.english').getBoundingClientRect(),
@@ -44,6 +50,15 @@ async function main() {
       checks++;
     }
 
+    assert.ok(await page.evaluate(() => {
+      const style = getComputedStyle(document.documentElement);
+      const luminance = hex => hex.trim().slice(1).match(/../g).map(x => parseInt(x,16)/255)
+        .map(x => x <= .04045 ? x/12.92 : ((x+.055)/1.055)**2.4)
+        .reduce((sum,x,i) => sum+x*[.2126,.7152,.0722][i],0);
+      const paper = luminance(style.getPropertyValue('--paper'));
+      return ['subject','predicate','object','adverbial','attribute','complement','error'].every(name =>
+        (paper+.05)/(luminance(style.getPropertyValue('--'+name))+.05) >= 4.5);
+    }), 'small role labels have 4.5:1 contrast on paper');
     await checkLayout();
     assert.equal(await page.locator('.tense-name').first().innerText(), `时态：${demoAnalysis.sentences[0].tense}`);
     assert.equal(await page.locator('.tense-reason').first().innerText(), '判断依据：' + demoAnalysis.sentences[0].tenseReason);
@@ -260,6 +275,23 @@ async function main() {
         .every(node => node.nextSibling?.nodeType === Node.TEXT_NODE && node.nextSibling.textContent === ' ')),
         'summary uses a plain space between original and fix');
       assert.deepEqual(marks.map(mark => mark.text), expected.texts, 'wavy positions');
+      const letters = await page.locator('.annotation-line .correction-letter').evaluateAll(nodes => nodes.map(node => node.dataset.letter));
+      assert.deepEqual(letters, await page.locator('.correction-item .correction-letter').evaluateAll(nodes => nodes.map(node => node.dataset.letter)));
+      assert.equal(letters.length, expected.items.length);
+      assert.deepEqual(letters, expected.items.map((_, i) => String.fromCharCode(97 + i)));
+      assert.ok(await page.locator('.correction-letter').evaluateAll(nodes => nodes.every(node => node.getAttribute('aria-hidden') === 'true')));
+      assert.ok(await page.locator('.correction-mark').evaluateAll(nodes => nodes.every(node => {
+        const root = getComputedStyle(document.documentElement);
+        const probe = document.createElement('span');
+        document.body.append(probe);
+        probe.style.color = root.getPropertyValue('--error');
+        const error = getComputedStyle(probe).color;
+        probe.style.color = root.getPropertyValue('--predicate');
+        const predicate = getComputedStyle(probe).color;
+        probe.remove();
+        return getComputedStyle(node).textDecorationColor === error && error !== predicate;
+      })), 'wavy correction uses error color');
+      await checkLayout();
       for (const mark of marks) {
         assert.ok(mark.width > 0, `${mark.text} has width`);
         assert.equal(mark.inside, true, `${mark.text} stays inside its phrase`);
@@ -619,6 +651,10 @@ async function main() {
       assert.deepEqual(geometry.panel.map(item => [item.number, item.type, item.text]),
         expected.map(item => [item.number, item.type, item.text]), `${name} panel`);
       assert.equal(geometry.panelTitle, '从句清单');
+      assert.ok(await page.locator('.clause-number,.clause-mark').evaluateAll(nodes => nodes.every(node => {
+        const style = getComputedStyle(node);
+        return parseFloat(style.borderTopWidth) > 0 && style.borderTopStyle === 'solid' && parseFloat(style.borderRadius) <= 1 && style.color === 'rgb(85, 85, 85)';
+      })), 'clause numbers use square gray borders');
       assert.equal(geometry.overflow, false, `${name} overflow`);
       assert.equal(geometry.layerHidden, true, `${name} layer hidden`);
       assert.equal(geometry.pointerNone, true, `${name} pointer-events`);
