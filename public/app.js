@@ -20,7 +20,6 @@ let feedbackSnapshot = null;
 let feedbackCopied = false;
 let controller = null;
 let generation = 0;
-let pasteTimer;
 let composing = false;
 // Clause brackets are re-measured after fonts, zoom and width changes. Every
 // rerender replaces the cards, so these handles must be cleared first.
@@ -38,7 +37,8 @@ function teardownClauseLayout() {
   clauseLayouts = [];
   // Clear leaves the old cards in place until the next render; drop their
   // overlays and lists so no stale clause markup survives a clear or rerender.
-  document.querySelectorAll('.clause-layer, .clause-panel').forEach(node => node.remove());
+  document.querySelectorAll('.clause-layer, .clause-panel, .correction-panel').forEach(node => node.remove());
+  document.querySelectorAll('.correction-mark').forEach(node => node.replaceWith(node.textContent));
 }
 function runClauseLayout() {
   clauseLayouts.forEach(layout => { try { layout(); } catch { /* ignore one card */ } });
@@ -327,6 +327,71 @@ function clausePanel(sentence, clauses) {
   panel.append(list);
   return panel;
 }
+function sentenceCorrections(sentence) {
+  if (!Array.isArray(sentence.corrections)) return [];
+  const text = typeof sentence.text === 'string' ? sentence.text : '';
+  return sentence.corrections.filter(correction =>
+    correction &&
+    Number.isInteger(correction.start) && Number.isInteger(correction.end) &&
+    correction.start >= 0 && correction.end <= text.length && correction.start < correction.end &&
+    typeof correction.text === 'string' && typeof correction.fix === 'string' &&
+    typeof correction.reason === 'string');
+}
+// Split one segment into normal and marked pieces by absolute character offsets,
+// so a wavy underline follows the original text even across segment boundaries.
+function correctionParts(text, offset, corrections) {
+  const end = offset + text.length;
+  const hits = corrections
+    .filter(correction => correction.start < end && correction.end > offset)
+    .map(correction => ({
+      start: Math.max(correction.start - offset, 0),
+      end: Math.min(correction.end - offset, text.length),
+    }))
+    .filter(hit => hit.start < hit.end)
+    .sort((a, b) => a.start - b.start);
+  if (!hits.length) return null;
+  const parts = [];
+  let cursor = 0;
+  hits.forEach(hit => {
+    if (hit.start > cursor) parts.push({text: text.slice(cursor, hit.start), marked: false});
+    text.slice(hit.start, hit.end).split(/(\s+)/).forEach(part => {
+      parts.push({text: part, marked: /\S/.test(part)});
+    });
+    cursor = Math.max(cursor, hit.end);
+  });
+  if (cursor < text.length) parts.push({text: text.slice(cursor), marked: false});
+  return parts.filter(part => part.text);
+}
+function correctionPanel(sentence, corrections) {
+  const panel = element('section', 'correction-panel');
+  const summary = element('p', 'correction-summary');
+  summary.append(element('span', 'correction-label', '纠错：'));
+  const effect = element('span', 'correction-effect');
+  let cursor = 0;
+  corrections.forEach(correction => {
+    if (correction.start > cursor) effect.append(sentence.text.slice(cursor, correction.start));
+    effect.append(element('span', 'correction-original', sentence.text.slice(correction.start, correction.end)));
+    effect.append(document.createTextNode(' '));
+    effect.append(element('span', 'correction-fix', correction.fix));
+    cursor = correction.end;
+  });
+  if (cursor < sentence.text.length) effect.append(sentence.text.slice(cursor));
+  summary.append(effect);
+  panel.append(summary);
+  const list = element('ul', 'correction-list');
+  corrections.forEach(correction => {
+    const item = element('li', 'correction-item');
+    item.append(
+      element('span', 'correction-original', correction.text),
+      document.createTextNode(' → '),
+      element('span', 'correction-fix', correction.fix),
+      document.createTextNode(`：${correction.reason}`),
+    );
+    list.append(item);
+  });
+  panel.append(list);
+  return panel;
+}
 
 function element(tag, className, text) {
   const node = document.createElement(tag);
@@ -342,7 +407,6 @@ function cancelPending() {
   closeFeedback();
   failureSnapshot = null;
   $('report-failure').hidden = true;
-  clearTimeout(pasteTimer);
   generation += 1;
   controller?.abort();
   controller = null;
@@ -387,11 +451,22 @@ function render() {
     // Visible (clickable) phrase buttons by segment index, so a click can find its `modifies` target.
     const buttons = new Map();
     const englishNodes = [];
+    const corrections = sentenceCorrections(sentence);
+    let segmentOffset = 0;
     let annotatedIndex = 0;
     sentence.segments.forEach((segment, segmentIndex) => {
       const visible = segment.role !== 'other' && (detailed || segment.level === 'core');
       const phrase = element('span', `phrase role-${segment.role} ${visible ? 'annotated' : 'plain'}${/^\s+$/u.test(segment.text) ? ' whitespace' : ''}`);
-      const english = element(visible ? 'button' : 'span', 'english', segment.text);
+      const english = element(visible ? 'button' : 'span', 'english');
+      const correctionSlices = corrections.length ? correctionParts(segment.text, segmentOffset, corrections) : null;
+      if (correctionSlices) {
+        correctionSlices.forEach(part => {
+          english.append(part.marked ? element('span', 'correction-mark', part.text) : part.text);
+        });
+      } else {
+        english.textContent = segment.text;
+      }
+      segmentOffset += segment.text.length;
       let annotationNode = null;
       if (visible) {
         english.type = 'button';
@@ -461,13 +536,14 @@ function render() {
       englishNodes.push(english);
     });
     const clauses = detailed ? sentenceClauses(sentence) : [];
+    card.append(line);
+    if (corrections.length) card.append(correctionPanel(sentence, corrections));
     if (clauses.length) {
       line.classList.add('clause-brackets');
-      card.append(line, clausePanel(sentence, clauses), detail);
+      card.append(clausePanel(sentence, clauses));
       clauseLayouts.push(() => drawClauseLayer(line, sentence, englishNodes, clauses));
-    } else {
-      card.append(line, detail);
     }
+    card.append(detail);
     const clauseHintCount = sentenceClauses(sentence).length;
     if (!detailed && clauseHintCount > 0) {
       card.append(element('p', 'clause-hint', `这句有 ${clauseHintCount} 个从句，勾选右上角「显示详细结构」查看从句范围和清单。`));
@@ -671,7 +747,6 @@ $('feedback-open').addEventListener('click', () => {
 input.addEventListener('input', invalidate);
 input.addEventListener('compositionstart', () => {composing = true;});
 input.addEventListener('compositionend', () => {composing = false;});
-input.addEventListener('paste', () => {setTimeout(() => {clearTimeout(pasteTimer); pasteTimer = setTimeout(analyze, 650);}, 0);});
 input.addEventListener('keydown', (event) => {if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {event.preventDefault(); analyze();}});
 analyzeButton.addEventListener('click', analyze);
 $('example-button').addEventListener('click', showExample);

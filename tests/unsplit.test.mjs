@@ -84,3 +84,13 @@ test('caller cancellation overrides fallback, deadline returns first', async () 
     }
   }
 });
+
+test('unsplit repair preserves normalized corrections', async () => {
+  const corrected = structuredClone(split);
+  corrected.sentences[0].corrections = [{text:'claimed', fix:'claims', reason:'测试'}];
+  let calls = 0;
+  const out = await analyzeWithDeepSeek(text, {apiKey:'test',
+    fetchImpl: async () => respond(++calls === 1 ? first : corrected)});
+  assert.equal(calls, 2);
+  assert.equal(out.sentences[0].corrections[0].fix, 'claims');
+});
