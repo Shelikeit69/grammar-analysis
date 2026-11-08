@@ -377,3 +377,10 @@ main 同一输入只有 1/3 拆开，#47 为 3/3。main 本身不稳定，这组
 - She thanked the nurse who said that the results were good. 1 次：无纠错行，未触发重做，2 个从句（定语套宾语），约 3 秒。
 - 观察：说明里出现「按默认规则全部为 detail」，与 2026-11-07 PR #50 实测记录的「按长从句规则拆开」同类，属于内部规则术语漏进用户可见文字。两次，次数少，暂不处理。
 - 结论：重新上线的及格线全部通过（#27 原句 2/2 三个从句）。样本小，不代表稳定。
+
+## 2026-11-07：PR #53 UI 改版第 ① 步实测（负责人，DeepSeek deepseek-flash，TOOL_VERSION 2026-11-07.3）
+
+- The contents of the box is very unique, so please handles them with care.（默认视图）：is、handles 为橙框，波浪线旁分别为 a、b，纠错列表也为 a、b，一一对应。
+- 内置例句（详细视图）：主语、谓语、宾语标签在上方，定语、状语标签在下方；will see 为橙框；从句清单编号为方框 1。第一行与第二行之间留白较大，留到第 ③ 步收紧。
+- Issue #27 原句（详细视图）：谓语、系动词为橙框；argured 旁有 a；从句条带起点和清单编号为方框 1、2、3；标签按成分上下放置。
+- 同一次 #27 原句结果中，模型漏了 sub human → subhuman，并把 were born not made 拆成 were born / not / made。属模型单次输出差异，与本 PR 无关，暂不处理，再出现时记录。

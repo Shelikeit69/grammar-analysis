@@ -1,3 +1,4 @@
+import {clauseDisplayMode} from './analysis.js';
 import {createFeedback, issueLink} from './feedback.js';
 import {TOOL_VERSION} from './version.js';
 import {demoText, demoAnalysis} from './demo.js';
@@ -38,6 +39,9 @@ function teardownClauseLayout() {
   // Clear leaves the old cards in place until the next render; drop their
   // overlays and lists so no stale clause markup survives a clear or rerender.
   document.querySelectorAll('.clause-layer, .clause-panel, .correction-panel').forEach(node => node.remove());
+  document.querySelectorAll('.clause-box').forEach(box =>
+    box.replaceWith(...box.querySelector(':scope > .clause-box-body').childNodes));
+  document.querySelectorAll('.clause-box-mode').forEach(line => line.classList.remove('clause-box-mode'));
   document.querySelectorAll('.correction-letter').forEach(node => node.remove());
   document.querySelectorAll('.correction-mark').forEach(node => node.replaceWith(node.textContent));
 }
@@ -311,6 +315,30 @@ function drawClauseLayer(line, sentence, nodes, clauses) {
   });
   if (layer.childElementCount) line.append(layer);
 }
+function wrapClauseBoxes(line, sentence, clauses) {
+  const phrases = [...line.children];
+  const boxes = clauses.map((clause, index) => ({...clause, index}))
+    .filter(clause => clauseHasTwoContentSpans(sentence, clause))
+    .sort((a, b) => a.start - b.start || b.end - a.end);
+  const stack = [{end: sentence.segments.length, body: line}];
+  phrases.forEach((phrase, index) => {
+    boxes.filter(clause => clause.start === index).forEach(clause => {
+      const box = element('span', 'clause-box depth-' + clauseDepth(clauses, clause));
+      box.dataset.clause = String(clause.index + 1);
+      const head = element('span', 'clause-box-head');
+      head.setAttribute('aria-hidden', 'true');
+      head.append(element('span', 'clause-number', String(clause.index + 1)),
+        document.createTextNode(' ' + clauseName(clause)));
+      const body = element('span', 'clause-box-body');
+      box.append(head, body);
+      stack.at(-1).body.append(box);
+      stack.push({end: clause.end, body});
+    });
+    stack.at(-1).body.append(phrase);
+    while (stack.length > 1 && stack.at(-1).end === index + 1) stack.pop();
+  });
+  line.classList.add('clause-box-mode');
+}
 function clausePanel(sentence, clauses) {
   const panel = element('section', 'clause-panel');
   panel.append(element('h3', 'clause-panel-title', '从句清单'));
@@ -553,9 +581,13 @@ function render() {
     card.append(line);
     if (corrections.length) card.append(correctionPanel(sentence, corrections));
     if (clauses.length) {
-      line.classList.add('clause-brackets');
+      const mode = clauseDisplayMode(sentence, clauses);
+      if (mode === 'boxes') wrapClauseBoxes(line, sentence, clauses);
       card.append(clausePanel(sentence, clauses));
-      clauseLayouts.push(() => drawClauseLayer(line, sentence, englishNodes, clauses));
+      if (mode === 'tracks') {
+        line.classList.add('clause-brackets');
+        clauseLayouts.push(() => drawClauseLayer(line, sentence, englishNodes, clauses));
+      }
     }
     card.append(detail);
     const clauseHintCount = sentenceClauses(sentence).length;

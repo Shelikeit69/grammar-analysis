@@ -3,6 +3,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const assert = require('node:assert/strict');
 
 async function main() {
+  const {clauseDisplayMode} = await import('../public/analysis.js');
   const { createServer } = await import('../server.mjs');
   const { demoAnalysis, demoText } = await import('../public/demo.js');
   const server = createServer({ apiKey: '' });
@@ -647,6 +648,25 @@ async function main() {
         text: clauseText(sentence)(clause),
         spans: sentence.segments.slice(clause.start, clause.end).filter(part => /[\p{L}\p{N}]/u.test(part.text)).length,
       }));
+      const mode = clauseDisplayMode(sentence);
+      if (mode === 'boxes') {
+        const drawable = expected.filter(clause => clause.spans >= 2);
+        assert.equal(await page.locator('.clause-track,.clause-layer').count(), 0, name + ' no tracks');
+        assert.deepEqual(await page.locator('.clause-box-head .clause-number').allTextContents(), drawable.map(c => c.number));
+        assert.deepEqual(await page.locator('.clause-item .clause-text').allTextContents(), expected.map(c => c.text));
+        const valid = await page.locator('.clause-box').evaluateAll(boxes => boxes.every(box => {
+          const b = box.getBoundingClientRect();
+          const within = rect => rect.left >= b.left - 1 && rect.right <= b.right + 1 &&
+            rect.top >= b.top - 1 && rect.bottom <= b.bottom + 1;
+          return [...box.querySelectorAll('.clause-box,.english,.label')].every(node =>
+            within(node.getBoundingClientRect()));
+        }));
+        assert.equal(valid, true, name + ' boxes contain nested boxes, text and labels');
+        assert.equal(await page.locator('.clause-box').count(), drawable.length);
+        await checkLayout();
+        return;
+      }
+      assert.equal(await page.locator('.clause-box').count(), 0, name + ' no boxes');
       const geometry = await clauseGeometry(fixture);
       assert.deepEqual(geometry.panel.map(item => [item.number, item.type, item.text]),
         expected.map(item => [item.number, item.type, item.text]), `${name} panel`);
@@ -717,7 +737,7 @@ async function main() {
       await page.waitForTimeout(120);
       const core = fixture.sentences[0].segments.filter(part => part.role !== 'other' && part.level === 'core');
       assert.equal(await page.locator('.clause-panel').count(), 0, `${name} core panel`);
-      assert.equal(await page.locator('.clause-track').count(), 0, `${name} core tracks`);
+      assert.equal(await page.locator('.clause-track,.clause-box').count(), 0, `${name} core ranges`);
       assert.equal(await page.locator('.clause-hint').count(), clauseItemCount > 0 ? 1 : 0, `${name} core clause hint`);
       if (clauseItemCount > 0) {
         assert.match(await page.locator('.clause-hint').innerText(), new RegExp(`这句有 ${clauseItemCount} 个从句`), `${name} hint count`);
@@ -756,6 +776,38 @@ async function main() {
       await checkClauseFixture(name, fixture, depths);
     }
 
+    // Short nested clauses wrap with real DOM containment, retaining interactions.
+    const nurse = clauseFixtures.nurseClause();
+    const said = nurse.sentences[0].text.indexOf('said');
+    nurse.sentences[0].corrections = [{start:said,end:said+4,text:'said',fix:'says',reason:'模拟纠错'}];
+    for (const width of [1280, 390]) {
+      await page.setViewportSize({width,height:900});
+      await showClauseFixture(nurse, true);
+      await checkClauseFixture('nurse-' + width, nurse, [1,2]);
+      assert.equal(await page.locator('.clause-box > .clause-box-body > .clause-box').count(), 1);
+      await page.locator('.clause-box .role-predicate .english').click();
+      assert.match(await page.locator('.phrase-detail').innerText(), /said/);
+      await page.locator('.clause-box .role-attribute .english').click();
+      assert.deepEqual(await page.locator('.modifier-target').allTextContents(), ['results']);
+      assert.deepEqual(await page.locator('.clause-box .correction-letter').evaluateAll(nodes => nodes.map(n => n.dataset.letter)), ['a']);
+      await page.locator('#text-size').click();
+      await checkClauseFixture('nurse-large-' + width, nurse, [1,2]);
+      if (width === 390) {
+        require('node:fs').mkdirSync('artifacts', {recursive:true});
+        await page.screenshot({path:'artifacts/clause-boxes-390-large.png',fullPage:true});
+      }
+      await page.locator('#text-size').click();
+      await page.locator('#detail-toggle').uncheck();
+      assert.equal(await page.locator('.clause-box,.clause-track').count(), 0);
+      assert.equal(await page.locator('.clause-hint').count(), 1);
+      await page.locator('#detail-toggle').check();
+      assert.equal(await page.locator('.clause-box').count(), 2);
+      await page.locator('#clear-button').click();
+      assert.equal(await page.locator('.clause-box,.clause-track').count(), 0);
+      await showClauseFixture(nurse, true);
+      assert.equal(await page.locator('.clause-box').count(), 2);
+    }
+
     // Form fixture: labels show structural type and post-position marker.
     const formFixture = clauseFixtures.withForm();
     await showClauseFixture(formFixture, true);
@@ -784,22 +836,23 @@ async function main() {
 
     // Width, phone and large-text changes re-measure the same ranges.
     const nested = clauseFixtures.nestedRelative();
-    await showClauseFixture(nested, true);
+    const trackFixture = clauseFixtures.longTextAnchors();
+    await showClauseFixture(trackFixture, true);
     for (const width of [900, 390, 380]) {
       await page.setViewportSize({width, height: 900});
       await page.waitForTimeout(220);
-      const geometry = await clauseGeometry(nested);
+      const geometry = await clauseGeometry(trackFixture);
       assert.equal(geometry.tracks.some(track => track.textHit || track.labelHit), false, `no overlap at ${width}px`);
       assert.ok(geometry.tracks.filter(track => track.clause === 1).length >= 2, `outer clause wraps per row at ${width}px`);
       assert.equal(geometry.tracks.filter(track => track.clause === 2).length,
         geometry.perClause[1].rows.length, `inner clause numbers match rows at ${width}px`);
-      await checkClauseFixture(`nested-${width}`, nested, [1, 2]);
+      await checkClauseFixture(`nested-${width}`, trackFixture, [1, 2, 3]);
     }
     await page.locator('#text-size').click();
     await page.waitForTimeout(260);
     await page.setViewportSize({width: 1280, height: 1000});
     await page.waitForTimeout(220);
-    await checkClauseFixture('nested-large-text', nested, [1, 2]);
+    await checkClauseFixture('nested-large-text', trackFixture, [1, 2, 3]);
     await page.locator('#text-size').click();
     await page.waitForTimeout(220);
 
