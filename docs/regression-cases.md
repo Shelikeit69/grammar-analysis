@@ -19,22 +19,22 @@
 
 涉及复杂或不连续结构时，优先检查原文对应和解释是否正确。不能为了让展示「好看」而强行合并不相邻的词。格式校验通过只说明数据可显示，不能充当语法正确性评分。
 
-## 任务 B PR 2 从句条带检查点（2026-11-01）
+## 从句显示检查点（2026-11-08 更新 C4 框模式）
 
-下面这些检查用于人工复核详细视图的从句清单和范围条带；句子是改写过的虚构句，来自 Issue #27 同类结构，不直接复制用户原句。浏览器自动检查使用同样结构，但模拟响应不等于真实模型。
+下面这些检查用于人工复核详细视图的从句清单、短从句嵌套框和长从句范围条带；句子是改写过的虚构句，来自 Issue #27 同类结构，不直接复制用户原句。浏览器自动检查使用同样结构，但模拟响应不等于真实模型。
 
 | 结构 | 虚构句 | 参考检查点 |
 |---|---|---|
-| 两层嵌套定语从句 | The guide that the caretaker who works upstairs recommended is helpful. | 外层 `that the caretaker who works upstairs recommended` 和内层 `who works upstairs` 都在清单里；两层范围不交叉；详细视图两条不同轨道；默认视图只留主句主干；时态依据要提到 `works`（若依据了这层时态）。 |
-| 三层嵌套 | The guide that the caretaker who works in the office that stands upstairs recommended is helpful. | 三层范围按包含关系排列，条带占三条轨道、互不重叠；不超过三层。 |
-| 简单定语从句 | The book that you lent me is interesting. | 从句范围线在英文下方、编号与清单一致；`lent` 和 `me` 在详细视图里可见。 |
+| 两层嵌套定语从句 | The guide that the caretaker who works upstairs recommended is helpful. | 外层 `that the caretaker who works upstairs recommended` 和内层 `who works upstairs` 都在清单里；两层范围不交叉；详细视图两个嵌套框；默认视图只留主句主干；时态依据要提到 `works`（若依据了这层时态）。 |
+| 三层嵌套 | The guide that the caretaker who works in the office that stands upstairs recommended is helpful. | 三层范围按包含关系排列，嵌套框按三层包含、互不交叉；不超过三层。 |
+| 简单定语从句 | The book that you lent me is interesting. | 拆成多个片段时画从句外框、编号与清单一致；`lent` 和 `me` 在详细视图里可见。 |
 | 简单宾语从句 | I know that she was working. | 宾语从句范围正确；6 词以内、无嵌套且保持整框时仍是 object/core，行为不变。 |
 | 条件状语从句 | If it rains, we will stay at home. | 从句范围覆盖 `If it rains`；类型为条件状语从句；主句将来时在前、从句现在时在后。 |
-| 单片段短从句 | 内置例句中的 `who keep going every day`（5 词） | 清单显示编号、定语从句、原文；不画条带，并标明「单片段短从句，不画范围线」；不要为展示条带改写原句。 |
-| 同终点/相邻范围 | `I know that she left because he called.`；`I know that she was working and that he was resting.` | 两个范围可区分，编号不同，轨道不重叠；相邻范围不合并成一个。 |
+| 单片段短从句 | 内置例句中的 `who keep going every day`（5 词） | 清单显示编号、定语从句、原文；不画框或条带，并标明「单片段短从句，不画范围线」；不要为展示条带改写原句。 |
+| 同终点/相邻范围 | `I know that she left because he called.`；`I know that she was working and that he was resting.` | 两个范围可区分，编号不同，框按范围包含或相邻排列；相邻范围不合并成一个。 |
 | 单片段内部换行 | 上表三层句中的 `upstairs` 换成 `near the very old and unusually spacious reception room on the far eastern side of the building`（仍是一个 adverbial 片段、同一组三层范围） | 手机宽度下这个片段自身折成多行；每一行英文下方各有该行需要的三层条带和编号，不压下一行文字、成分标签或清单；末行条带不碰撞后续内容；普通、大字、380/390px 都成立。这是渲染夹具，不代表模型必须这样切分。 |
 
-人工检查顺序：先确认原文完整和主干正确，再确认清单编号/类型/原文，最后确认条带属于哪一行、是否落在对应文字下方。手机 390px 和 380px、大字模式各看一次；切换详细视图、重新分析、换例句、清空后不应有旧线残留。
+人工检查顺序：先确认原文完整和主干正确，再确认清单编号/类型/原文，最后确认短从句框包含正确片段、长从句条带属于哪一行并落在对应文字下方。手机 390px 和 380px、大字模式各看一次；切换详细视图、重新分析、换例句、清空后不应有旧框或旧线残留。
 
 ## Issue #19 专项验收
 

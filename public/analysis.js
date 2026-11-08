@@ -42,6 +42,22 @@ function englishWordCount(text) {
   return (text.match(/[A-Za-z]+(?:['’-][A-Za-z]+)*/g) || []).length;
 }
 
+// Owner-selected initial desktop threshold, decisions 2026-11-07.
+// Adjust this one constant if real layouts require a different cutoff.
+export const CLAUSE_BOX_WORD_LIMIT = 12;
+
+// Input uses the existing normalized, segment-index clause ranges.
+export function clauseDisplayMode(sentence, clauses = sentence.clauses || []) {
+  if (!clauses.some(clause => sentence.segments.slice(clause.start, clause.end)
+    .filter(part => /[\p{L}\p{N}]/u.test(part.text)).length >= 2)) return 'none';
+  const outer = clauses.filter(clause => !clauses.some(other =>
+    other.start <= clause.start && other.end >= clause.end &&
+    (other.start < clause.start || other.end > clause.end)));
+  return outer.every(clause => englishWordCount(sentence.segments
+    .slice(clause.start, clause.end).map(part => part.text).join('')) <= CLAUSE_BOX_WORD_LIMIT)
+    ? 'boxes' : 'tracks';
+}
+
 export function findUnsplitClauses({sentences}) {
   const violations = [];
   sentences.forEach(({segments, clauses}, index) => {

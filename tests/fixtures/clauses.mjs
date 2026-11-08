@@ -252,3 +252,23 @@ export function unsplitLongClause() {
   sentence.clauses = [{type: 'relative', text}];
   return fixture;
 }
+
+export function nurseClause() {
+  const segments = [];
+  for (const [text, role, level = 'detail', lemma = ''] of [
+    ['She','subject','core'], ['thanked','predicate','core','thank'],
+    ['the nurse','object','core'], ['who','subject'], ['said','predicate','detail','say'],
+    ['that','other'], ['the','attribute'], ['results','subject'],
+    ['were','linking','detail','be'], ['good','predicative'],
+  ]) {
+    if (segments.length) segments.push(gap());
+    segments.push(span(text, role, role === 'other' ? '' : '测试', lemma, level));
+  }
+  const at = text => segments.findIndex(part => part.text === text);
+  segments[at('the')].modifies = at('results');
+  segments.push(span('.', 'other', '', '', 'detail'));
+  return analysis(segments, [
+    {start:at('who'), end:segments.length - 1, type:'relative'},
+    {start:at('that'), end:segments.length - 1, type:'object'},
+  ]);
+}
