@@ -11,9 +11,23 @@
   --adverbial:#7753a0;
   --attribute:#706b60;
   --complement:#006b73;
+  --page-light:#f7fafc;
+  --panel-light:#ffffff;
+  --grid-light:#e9eef2;
+  --subject-light:#dcecfb;
+  --predicate-light:#fff0de;
+  --object-light:#f0faf3;
+  --adverbial-light:#ecdef5;
+  --attribute-light:#f1efe9;
+  --complement-light:#cae6e4;
+  --error-light:#fceaf0;
+  --tense-light:#fdf8e1;
   font-family:"Segoe UI","Microsoft YaHei",sans-serif;
   color:var(--ink);
-  background:var(--paper);
+  background-color:var(--page-light);
+  background-image:linear-gradient(var(--grid-light) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid-light) 1px,transparent 1px);
+  background-size:28px 28px;
   font-synthesis:none
 }
 
@@ -109,7 +123,7 @@ main {
   display:none
 }
 .input-panel {
-  background:#fffefa;
+  background:var(--panel-light);
   border:1px solid #d7ded2;
   border-radius:13px;
   box-shadow:0 5px 20px #273c2b04;
@@ -255,40 +269,44 @@ button {
   color:var(--muted);
   margin:20px 0 16px
 }
-.legend span:before {
-  content:"";
-  display:inline-block;
-  width:7px;
-  height:7px;
-  border-radius:2px;
-  background:currentColor;
-  margin-right:6px
+.legend span {
+  padding:3px 6px;
+  border-radius:4px;
+  line-height:1.5
 }
 .legend-subject {
+  background:var(--subject-light);
   color:var(--subject)
 }
 .legend-predicate {
+  background:var(--predicate-light);
   color:var(--predicate)
 }
 .legend-object {
+  background:var(--object-light);
   color:var(--object)
 }
 .legend-adverbial {
+  background:var(--adverbial-light);
   color:var(--adverbial)
 }
 .legend-attribute {
+  background:var(--attribute-light);
   color:var(--attribute)
 }
 .legend-complement {
+  background:var(--complement-light);
   color:var(--complement)
 }
 .legend-tense {
+  background:var(--tense-light);
   color:#8a6d1c
 }
 .sentence-card {
-  background:#fffefa;
+  background:var(--panel-light);
   border:1px solid var(--line);
-  border-radius:12px;
+  border-radius:14px;
+  box-shadow:none;
   margin-bottom:17px;
   overflow:hidden
 }
@@ -304,7 +322,7 @@ button {
   margin:12px 23px 0;
   padding:7px 12px;
   color:#7a6420;
-  background:#fdf8e1;
+  background:var(--tense-light);
   border:1px solid #efe2a8;
   border-radius:8px;
   font-size:13px;
@@ -396,34 +414,34 @@ button {
 /* Labels share the english cell and overflow outward (height:0), so a line only
    grows when one of its phrases really has a top/bottom label. */
 .phrase {
-  --label-space:58px;
+  --label-space:42px;
   display:inline-grid;
   vertical-align:baseline;
   max-width:100%;
   position:relative;
   margin:0 2px;
   --role:var(--attribute);
-  --tint:#f0efe9
+  --tint:var(--attribute-light)
 }
 .phrase.role-subject {
   --role:var(--subject);
-  --tint:#edf4fa
+  --tint:var(--subject-light)
 }
 .phrase.role-predicate,.phrase.role-linking {
   --role:var(--predicate);
-  --tint:#fff0de
+  --tint:var(--predicate-light)
 }
 .phrase.role-object,.phrase.role-predicative {
   --role:var(--object);
-  --tint:#eef6ee
+  --tint:var(--object-light)
 }
 .phrase.role-adverbial {
   --role:var(--adverbial);
-  --tint:#f4eff9
+  --tint:var(--adverbial-light)
 }
 .phrase.role-complement {
   --role:var(--complement);
-  --tint:#e7f4f3
+  --tint:var(--complement-light)
 }
 .english {
   grid-row:1;
@@ -435,23 +453,30 @@ button {
   white-space:pre-wrap;
   overflow-wrap:anywhere;
   min-width:0;
-  padding:2px 6px;
-  border:1px solid transparent;
+  padding:3px 7px;
+  border:0;
   border-radius:4px
 }
 .annotated>.english {
   background:var(--tint);
-  border-color:color-mix(in srgb,var(--role) 60%,transparent);
   color:#26352d
 }
-.annotated>.english:hover,.annotated>.english[aria-pressed="true"] {
-  border-color:var(--role);
-  box-shadow:0 0 0 2px var(--tint)
+.annotated>.english:hover {
+  box-shadow:0 0 0 1px var(--role)
+}
+.annotated>.english[aria-pressed="true"] {
+  outline:2px solid var(--role);
+  outline-offset:1px
+}
+.annotated>.english:focus-visible {
+  outline:3px dashed var(--ink);
+  outline-offset:3px
 }
 .annotated>.english.modifier-target {
-  background:color-mix(in srgb,var(--role) 16%,#fffefa);
-  border-color:var(--role);
-  box-shadow:0 0 0 2px var(--role)
+  background:var(--tint);
+  outline:3px double var(--role);
+  outline-offset:2px;
+  box-shadow:0 0 0 1px var(--panel-light)
 }
 .modifies-note {
   display:block;
@@ -477,9 +502,11 @@ button {
   overflow-wrap:anywhere
 }
 .annotation.top {
+  transform:translateY(-4px);
   align-self:start
 }
 .annotation.bottom {
+  transform:translateY(4px);
   align-self:end;
   justify-content:flex-start
 }
@@ -490,26 +517,15 @@ button {
   margin-bottom:var(--label-space)
 }
 .annotation .label {
+  background:var(--tint);
+  border-radius:4px;
+  padding:2px 5px;
   flex-shrink:0;
   max-width:100%;
   display:-webkit-box;
   -webkit-line-clamp:2;
   -webkit-box-orient:vertical;
   overflow:hidden
-}
-.connector {
-  display:block;
-  flex-shrink:0;
-  height:20px;
-  width:1px;
-  background:var(--role);
-  opacity:.65
-}
-.annotation.top .connector {
-  margin-top:4px
-}
-.annotation.bottom .connector {
-  margin-bottom:4px
 }
 .phrase.plain {
   margin:0
@@ -793,7 +809,7 @@ footer {
 }
 .key-panel {
   margin:14px 0 0;
-  background:#fffefa;
+  background:var(--panel-light);
   border:1px solid #d7ded2;
   border-radius:11px;
   font-size:13px
@@ -875,7 +891,7 @@ footer {
   padding:0 16px;
   border:1px solid #cfd8cb;
   border-radius:999px;
-  background:#fffefa;
+  background:var(--panel-light);
   color:var(--ink);
   font-size:14px;
   cursor:pointer
@@ -897,7 +913,7 @@ footer {
   display:flex;
   align-items:center;
   gap:12px;
-  background:#fffefa;
+  background:var(--panel-light);
   border:1px solid #d7ded2;
   border-radius:11px;
   padding:12px 14px
@@ -1040,7 +1056,7 @@ html.large-text .masthead,html.large-text main,html.large-text footer {
   line-height:1
 }
 
-.legend-error { color:var(--error) }
+.legend-error { color:var(--error); background:var(--error-light) }
 
 /* Short clauses participate in normal inline flow; nested boxes wrap inside
    the available parent width without measured overlays. */
@@ -1066,3 +1082,19 @@ html.large-text .masthead,html.large-text main,html.large-text footer {
   margin-bottom:5px
 }
 .clause-box-body { display:block }
+
+/* One inline flex unit keeps punctuation with the preceding phrase or box.
+   Its final glyph is aligned with the preceding text row after layout. */
+.punctuation-group {
+  display:inline-flex;
+  align-items:baseline;
+  vertical-align:baseline;
+  max-width:100%
+}
+.punctuation-group > .phrase,.punctuation-group > .clause-box {
+  min-width:0
+}
+.punctuation-group > .punctuation-tail {
+  flex:none;
+  margin-left:0
+}

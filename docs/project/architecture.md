@@ -1,6 +1,6 @@
 # 技术架构
 
-最后更新：2026-11-08（C4 短从句嵌套外框）
+最后更新：2026-11-08（C4 荧光笔外观与句末标点）
 
 ## 三种运行方式（共用同一套页面 public/）
 | 方式 | 密钥在哪里 | 页面怎么判断 |
@@ -16,11 +16,11 @@
 ## 文件结构
 - `public/index.html`：页面，含反馈对话框 `#feedback-dialog`。meta CSP 只允许连接本站和 `https://api.deepseek.com`，资源用相对路径（适配 `/grammar-analysis/` 子路径）。
 - `public/app.js`：界面逻辑（渲染批注、修饰高亮、分离谓语标签和说明、详细视图的从句清单、短从句嵌套框与长从句跨行条带、模式判断、密钥面板、三步引导、大字开关、错误提示、格式修正提示、反馈表单）。
-- `public/styles.css`：样式。标签和英文放在同一格，高度为 0 向外溢出；只有带标签的片段才通过 `--label-space` 留出空间。详细视图在最外层从句全部不超过 12 词时用嵌套框；长句模式的从句条带在英文下方按行绘制，深度 1/2/3 各占一条轨道，行内有底标签时额外留出 58px。大字模式用 `html.large-text` 加 CSS zoom 1.25（只放大 masthead、main、footer，不影响反馈弹窗），条带坐标按 zoom 换算回本地 CSS 像素。反馈按钮用 `.report-button`；反馈弹窗底部操作区固定（`.feedback-footer`），主按钮在 `.feedback-steps` 里（PR #28）。
+- `public/styles.css`：样式。页面使用纯 CSS 28px 浅方格背景，句子卡片为白底浅边框、14px 圆角。成分用浅底色高亮，不画完整边框；上下色块标签无引线，标签和英文放在同一格，高度为 0 向外溢出；只有带标签的片段才通过 `--label-space` 留出空间。详细视图在最外层从句全部不超过 12 词时用嵌套框；长句模式的从句条带在英文下方按行绘制，深度 1/2/3 各占一条轨道，行内有底标签时按 --label-space（42px）留出空间。大字模式用 `html.large-text` 加 CSS zoom 1.25（只放大 masthead、main、footer，不影响反馈弹窗），条带坐标按 zoom 换算回本地 CSS 像素。反馈按钮用 `.report-button`；反馈弹窗底部操作区固定（`.feedback-footer`），主按钮在 `.feedback-steps` 里（PR #28）。
 - `public/deepseek.js`：Node 和浏览器共用的 DeepSeek 客户端，系统提示词常量 `SYSTEM` 和「格式或长从句重做一次」的逻辑都在这里。
 - `public/analysis.js`：`validateInput`、`validateAnalysis`、`AnalysisValidationError`，Node 和浏览器共用。
 - `public/feedback.js`：`FEEDBACK_TYPES`（5 个问题类型）、反馈标题和易读正文生成（只放白名单字段）、GitHub Issue 预填链接（上限 6000 字符；超过时只带真实标题和粘贴说明，正文由用户粘贴）（PR #21、#25、#28）。
-- `public/version.js`：`TOOL_VERSION`，写进反馈正文。当前值为 `2026-11-08.1`。发布影响分析或反馈的改动时要更新，用实际合并日期加序号。
+- `public/version.js`：`TOOL_VERSION`，写进反馈正文。当前值为 `2026-11-08.2`。发布影响分析或反馈的改动时要更新，用实际合并日期加序号。
 - `public/server-client.js`：本地和 Codespaces 模式下读取服务器返回结果（支持 NDJSON 进度消息，旧的纯 JSON 也兼容）。
 - `public/demo.js`：内置例句和它的分析结果（含 `modifies` 和 `clauses`）。例句的 `who keep going every day` 是 5 词短从句，保持单片段，只显示清单，不画框或条带。
 - `lib/analysis.mjs`、`lib/deepseek.mjs`：只是转发 `public/` 里的共用模块。
@@ -110,7 +110,7 @@
 - clauseDisplayMode 复用 englishWordCount，按所有最外层从句决定整句模式。全部不超过 CLAUSE_BOX_WORD_LIMIT（负责人定的初始值 12）时用框，任一超过时用横线。只有单片段从句或无从句时不画框或线。
 - 框模式按 start/end 包住原有片段 DOM，外层包含内层，最多三层。中性灰蓝边框和底色按深度加深，框头为原有方框编号与 clauseName。容器按可用宽度自然换行，无坐标覆盖层；点击与修饰关系仍使用原片段按钮。
 - 横线模式中，范围跨两个及以上含字母或数字的片段时，在英文下方画细线，编号与清单一致；只有一个这样的片段时只列清单，写明「单片段短从句，不画范围线」。
-- 跨行范围按实际文字矩形分行绘制，每行一条线；同一从句每行的编号相同，不在每行重复清单。深度 1/2/3 分别使用不同轨道（间隔 13px），行内有底标签时先留出 58px，避免与成分标签重叠。
+- 跨行范围按实际文字矩形分行绘制，每行一条线；同一从句每行的编号相同，不在每行重复清单。深度 1/2/3 分别使用不同轨道（间隔 13px），行内有底标签时先留出 42px，避免与成分标签重叠。
 - 条带层 `aria-hidden`、`pointer-events: none`、无 tabindex，不进入 Tab 顺序，也不拦截成分框点击；完整信息由清单的可访问文本提供。
 - 布局刷新：`ResizeObserver` 观察句子列表，监听窗口 resize、字体加载完成、大字切换；先取消上一帧和定时器再重排。重新分析、换例句或清空时移除旧 `.clause-layer` 和 `.clause-panel`，同时解开旧框容器，避免残留。
 - 大字模式的 CSS zoom 会放大测量结果，绘制前按 `实际宽度 / 本地宽度` 换算回本地 CSS 像素。
@@ -140,3 +140,7 @@ corrections 为可选元数据，非法项单独丢弃，不拒绝整句或触�
 ## C4 第一步（2026-11-07）
 
 谓语、系动词为橙色，补语为青色，错误及问题反馈为独立红色。标签按角色定位，subject/predicate/linking/object/predicative 在上方，attribute/adverbial/complement 在下方。句中错误范围末端和纠错列表用同序红圆字母，标记 aria-hidden，按钮可访问名称保留原文。字母由 data-letter 的生成内容显示，不进入英文原文文本。条带和清单编号为灰色方框，轨道位置沿用现有算法。
+
+## C4 第 ③ 步（2026-11-08）
+
+颜色深色变量沿用第 ① 步，新增各成分浅底色供英文、标签和图例使用。选中为实线描边，修饰目标为双线描边，键盘焦点为虚线描边。--label-space 从 58px 收紧为 42px，条带预留读取同一 CSS 变量。纯标点片段与前一显示单元（含从句外框）放入 inline-flex 容器，保留原片段、文本和 aria-label；在重绘、宽度和大字模式变化后按实际末行文字对齐。清空和重新分析会解除标点包装。模式判断和 12 词阈值保持原实现。
