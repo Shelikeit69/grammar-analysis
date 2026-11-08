@@ -208,6 +208,7 @@ function localRect(rect, lineRect, scale) {
     right: (rect.right - lineRect.left) / scale,
     top: (rect.top - lineRect.top) / scale,
     bottom: (rect.bottom - lineRect.top) / scale,
+    height: rect.height / scale,
   };
 }
 function groupTextRows(rects) {
@@ -284,15 +285,20 @@ function clauseRowHeight(nodes, geometry) {
   if (!node) return 0;
   const style = getComputedStyle(node);
   const base = (parseFloat(style.fontSize) || 0) * (parseFloat(style.getPropertyValue('--clause-base-row')) || 2);
-  const textHeight = Math.max(...geometry.rects.map(rect => rect.bottom - rect.top));
+  const textHeight = Math.max(...geometry.rects.map(rect => rect.height));
   const gap = Math.max(...geometry.entries.map(entry => clauseTrackGap(entry.depth)));
-  // Round up so repeated measurements settle on one value instead of jittering.
+  // Use the original DOMRect height, scaled once. Subtracting separately
+  // scaled top/bottom coordinates introduces position-dependent floating error
+  // at an integer boundary, making ceil alternate between adjacent heights.
   return Math.ceil(Math.max(base, textHeight + gap));
 }
 function drawClauseLayer(line, sentence, nodes, clauses) {
-  line.querySelector('.clause-layer')?.remove();
+  const existingLayer = line.querySelector('.clause-layer');
   let geometry = clauseGeometry(line, sentence, nodes, clauses);
-  if (!geometry.lineRect.width || !geometry.entries.length) return;
+  if (!geometry.lineRect.width || !geometry.entries.length) {
+    existingLayer?.remove();
+    return;
+  }
   const height = clauseRowHeight(nodes, geometry);
   const applied = parseFloat(line.style.getPropertyValue('--clause-row-height')) || 0;
   if (height !== applied) {
@@ -301,25 +307,29 @@ function drawClauseLayer(line, sentence, nodes, clauses) {
     geometry = clauseGeometry(line, sentence, nodes, clauses);
   }
   if (!geometry.rows.length) return;
-  const layer = element('div', 'clause-layer');
+  const layer = existingLayer || element('div', 'clause-layer');
   layer.setAttribute('aria-hidden', 'true');
-  geometry.entries.forEach(({clause, clauseIndex, depth, part, row}) => {
+  geometry.entries.forEach(({clause, clauseIndex, depth, part, row}, index) => {
     const labelSpace = parseFloat(getComputedStyle(nodes[clause.start].closest('.phrase')).getPropertyValue('--label-space')) || 0;
     const base = row.hasBottom ? row.bottom + labelSpace + CLAUSE_TRACK_BASE : part.bottom + CLAUSE_TRACK_BASE;
     const y = base + (depth - 1) * 13;
     const width = Math.max(2, part.right - part.left);
-    const track = element('span', `clause-track type-${clause.type}`);
+    const track = layer.children[index * 2] || element('span', '');
+    track.className = 'clause-track type-' + clause.type;
     track.style.left = `${part.left}px`;
     track.style.width = `${width}px`;
     track.style.top = `${y}px`;
     track.dataset.clause = String(clauseIndex + 1);
     track.dataset.depth = String(depth);
-    const number = element('span', `clause-mark type-${clause.type}`, String(clauseIndex + 1));
+    const number = layer.children[index * 2 + 1] || element('span', '');
+    number.className = 'clause-mark type-' + clause.type;
+    number.textContent = String(clauseIndex + 1);
     number.style.left = `${part.left}px`;
     number.style.top = `${y}px`;
-    layer.append(track, number);
+    if (!track.parentNode) layer.append(track, number);
   });
-  if (layer.childElementCount) line.append(layer);
+  while (layer.children.length > geometry.entries.length * 2) layer.lastElementChild.remove();
+  if (!layer.parentNode) line.append(layer);
 }
 function wrapClauseBoxes(line, sentence, clauses) {
   const phrases = [...line.children];

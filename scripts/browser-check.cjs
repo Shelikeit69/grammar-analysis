@@ -18,6 +18,27 @@ async function main() {
     await page.goto(`http://127.0.0.1:${server.address().port}`);
     require('node:fs').mkdirSync('artifacts/c4-highlighter', {recursive:true});
     const screenshot = name => page.screenshot({path:'artifacts/c4-highlighter/' + name + '.png',fullPage:true});
+    async function waitForClauseLayout() {
+      await page.evaluate(async () => {
+        await document.fonts.ready;
+        let previous;
+        let unchanged = 0;
+        for (let frame = 0; frame < 180; frame++) {
+          await new Promise(resolve => requestAnimationFrame(resolve));
+          const signature = JSON.stringify([...document.querySelectorAll('.annotation-line')].map(line => ({
+            height: line.style.getPropertyValue('--clause-row-height'),
+            bounds: [...line.querySelectorAll('.english,.clause-track,.clause-mark')].map(node => {
+              const rect = node.getBoundingClientRect();
+              return [rect.x, rect.y, rect.width, rect.height];
+            }),
+          })));
+          unchanged = signature === previous ? unchanged + 1 : 0;
+          previous = signature;
+          if (document.fonts.status === 'loaded' && unchanged === 3) return;
+        }
+        throw new Error('Clause layout did not stabilize after fonts loaded');
+      });
+    }
     async function checkPunctuation() {
       const attached = await page.evaluate(() => {
         const nodes = [...document.querySelectorAll('.annotation-line .english')];
@@ -81,7 +102,9 @@ async function main() {
           const a = luminance(style.color), b = luminance(style.backgroundColor);
           return (Math.max(a,b)+.05)/(Math.min(a,b)+.05) >= 4.5;
         };
-        return [...document.querySelectorAll('.annotation .label,.annotated > .english,.legend > span')].every(contrast);
+        return [...document.querySelectorAll('.annotation .label,.annotated > .english,.legend > span')].every(contrast) &&
+          [...document.querySelectorAll('.role-object.annotated > .english,.role-predicative.annotated > .english,.tense-box')]
+            .every(node => 1.05 / (luminance(getComputedStyle(node).backgroundColor) + .05) >= 1.12);
       }), 'label, legend and English text contrast on highlighter fills');
       checks++;
     }
@@ -682,6 +705,7 @@ async function main() {
     }
 
     async function checkClauseFixture(name, fixture, expectedDepths) {
+      await waitForClauseLayout();
       const sentence = fixture.sentences[0];
       const expected = sentence.clauses.map(clause => ({
         number: String(sentence.clauses.indexOf(clause) + 1),
@@ -1000,11 +1024,30 @@ async function main() {
     await checkPunctuation();
     const laneSignature = geometry => geometry.tracks.map(track =>
       `${track.clause}/${track.depth}:${Math.round(track.rect.top * 100) / 100},${Math.round(track.rect.left * 100) / 100}`).join('|');
+    await waitForClauseLayout();
     const settled = await clauseGeometry(longSpan, longTarget);
     await page.waitForTimeout(300);
     const again = await clauseGeometry(longSpan, longTarget);
     assert.equal(again.appliedRowHeight, settled.appliedRowHeight, 'wrapped row height settles');
     assert.equal(laneSignature(again), laneSignature(settled), 'wrapped lanes settle');
+    const mark = await page.locator('.clause-mark').first().elementHandle();
+    await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+    await waitForClauseLayout();
+    assert.equal(await mark.evaluate(node => node.isConnected), true, 'redraw preserves number nodes');
+    for (const padding of [0, 0.25, 0.5, 0.75]) {
+      await page.evaluate(value => {
+        document.querySelector('.annotation-line').style.paddingTop = value + 'px';
+        window.dispatchEvent(new Event('resize'));
+      }, padding);
+      await waitForClauseLayout();
+      assert.equal((await clauseGeometry(longSpan, longTarget)).appliedRowHeight,
+        settled.appliedRowHeight, 'glyph height is independent of fractional row origin');
+    }
+    await page.evaluate(() => {
+      document.querySelector('.annotation-line').style.removeProperty('padding-top');
+      window.dispatchEvent(new Event('resize'));
+    });
+    await waitForClauseLayout();
     checks++;
     await page.locator('#text-size').click();
     await page.waitForTimeout(300);

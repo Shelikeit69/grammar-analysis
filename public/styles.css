@@ -16,12 +16,12 @@
   --grid-light:#e9eef2;
   --subject-light:#dcecfb;
   --predicate-light:#fff0de;
-  --object-light:#f0faf3;
+  --object-light:#d4f2dc;
   --adverbial-light:#ecdef5;
   --attribute-light:#f1efe9;
   --complement-light:#cae6e4;
   --error-light:#fceaf0;
-  --tense-light:#fdf8e1;
+  --tense-light:#f7e8aa;
   font-family:"Segoe UI","Microsoft YaHei",sans-serif;
   color:var(--ink);
   background-color:var(--page-light);
@@ -284,7 +284,7 @@ button {
 }
 .legend-object {
   background:var(--object-light);
-  color:var(--object)
+  color:#33734f
 }
 .legend-adverbial {
   background:var(--adverbial-light);
@@ -300,7 +300,7 @@ button {
 }
 .legend-tense {
   background:var(--tense-light);
-  color:#8a6d1c
+  color:#7a6420
 }
 .sentence-card {
   background:var(--panel-light);
@@ -333,7 +333,7 @@ button {
 }
 .tense-reason {
   font-size:12px;
-  color:#8a7632
+  color:#7a6420
 }
 .annotation-line {
   position:relative;
@@ -500,6 +500,10 @@ button {
   color:var(--role);
   padding:0 5px;
   overflow-wrap:anywhere
+}
+/* Darker label ink maintains 4.5:1 on the stronger object fill. */
+.role-object > .annotation,.role-predicative > .annotation {
+  color:#33734f
 }
 .annotation.top {
   transform:translateY(-4px);
