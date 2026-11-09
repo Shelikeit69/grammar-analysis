@@ -391,3 +391,36 @@ main 同一输入只有 1/3 拆开，#47 为 3/3。main 本身不稳定，这组
 - Issue #27 原句：仍为三层横线，无外框，编号为方框 1、2、3；were born not made 为一个谓语框。纠错只给出 argured → argued，sub human → subhuman 再次未纠出（最近 4 次中 2 次漏纠）。
 - 内置例句：who keep going every day 不画框，从句清单列出；第一行与第二行之间的留白明显变小。
 - 样本小，不代表稳定。
+
+## 2026-11-09：PR #55 UI 改版第 ③ 步上线实测（负责人，DeepSeek，TOOL_VERSION 2026-11-08.2，详细视图）
+
+- 内置例句：方格纸背景、白卡片、成分底色高亮、标签为小色块且无引线；who keep going every day 不画框，从句清单列出；句号跟在 in the end 后，没有单独换行。
+- The contents of the box is very unique, so please handles them with care.：is、handles 的底色高亮上同时显示红圆 a、b 和波浪线，纠错列表 a、b 一一对应；very unique 未改动。
+- She thanked the nurse who said that the results were good. 2 次：两层嵌套外框套住底色高亮，无挤压，句号跟在外框后；大字模式下标签不重叠，句号不掉行。2 次说明文字都出现「按规则全部为 detail」，内部规则术语累计 5 次。
+- Issue #27 原句：三层横线，编号为方框 1、2、3；were born not made 为一个谓语框；纠错给出 argured → argued 和 sub human → subhuman（最近 5 次中 3 次纠出 subhuman）。同位语 a 19th-century Italian medic 被标为定语，而说明文字写的是同位语，这是第 2 次出现，暂不处理。
+- 点击 to a primitive sub human state：自身显示虚线框，throwbacks 显示实线框，说明里写「修饰：throwbacks」。
+- 负责人确认：时态说明框的颜色保持不变。
+- 样本小，不代表稳定。
+
+## 2026-11-09：说明文字内部术语真实对照（DeepSeek deepseek-flash，temperature 0）
+
+- 基线为 origin/main（1b6a680，TOOL_VERSION 2026-11-08.2），本分支 TOOL_VERSION 2026-11-09.1。仅新增 Internal-terms rule；模型、temperature、max_tokens 未改。
+- 术语实验各句各 5 次，每次只请求一次，不走重做。先运行基线 --terms --runs 5 --ref origin/main，再运行本分支 --terms --runs 5。
+
+| 句子 | main 命中 / 次数 | 本分支命中 / 次数 | main 校验通过 | 本分支校验通过 |
+| --- | --- | --- | --- | --- |
+| She thanked the nurse who said that the results were good. | 5/5 | 0/5 | 5/5 | 5/5 |
+| The book that the teacher who lives next door recommended is useful. | 0/5 | 0/5 | 5/5 | 5/5 |
+| I know that she was working when you called. | 0/5 | 0/5 | 5/5 | 5/5 |
+| Issue #27 原句 | 0/5 | 0/5 | 5/5 | 5/5 |
+
+- main 的 nurse 句五次均在 note 命中 detail、默认规则；命中次数按含至少一个术语的返回计，不是术语总个数。40 次返回的 finish_reason 均为 stop。
+- #27 完整流程分别运行 npm run ab:clauses -- --flow --runs 5；基线在独立 worktree 检出上述 main。先本分支，后基线。
+
+| 版本 | 最终拆对 | 触发重做 | 重做后拆对 | 总请求数 | 平均耗时（秒） |
+| --- | --- | --- | --- | --- | --- |
+| main | 4/5 | 2 | 1 | 7 | 10.02 |
+| 本分支 | 5/5 | 0 | 0 | 5 | 7.55 |
+
+- main 第一次完整流程未取得有效最终结果；其余四次最终拆对。本分支未出现比 main 少两次或以上的情况，无需触发停止条件。
+- “最终拆对”沿用实验脚本口径：最终 3 条从句且未发现整块未拆，不代表人工确认每个锚点或语法分析正确。术语检测通过也不代表解释正确。样本小，不代表稳定；两组顺序运行，存在服务端随机性和时间因素。

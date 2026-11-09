@@ -640,3 +640,9 @@ test('empty clauses array and missing clauses both pass without paid repair', as
 test('corrections require the smallest error fragment', () => {
   assert.ok(SYSTEM.includes('Correction text must be the smallest fragment containing the error'));
 });
+
+test('learner explanations exclude internal labels through the exact rule after the level rule', () => {
+  const rule = "Internal-terms rule: note, tenseReason, every segment detail and every correction reason are read by learners. Never write the instruction labels core, detail or level, rule names such as long-clause rule, level rule, default or exception, or Chinese equivalents such as 默认规则、长从句规则、例外规则、按规则 in these fields. Describe the grammar itself instead: say which clause contains a constituent and what it does (for example 宾语从句 that the results were good 位于定语从句内部，作 said 的宾语), not how the app labels or displays it. Words that appear in the user's sentence may still be quoted.";
+  assert.ok(SYSTEM.includes('End of level rule.\n' + rule));
+  assert.equal(SYSTEM.split(rule).length - 1, 1);
+});

@@ -269,3 +269,8 @@
 - 改版分三个 PR：① 配色、标签位置和编号标记；② 短从句外框；③ 荧光笔整体外观（衬线英文字体、背景、卡片）。
 
 英文字体沿用 Georgia，不引入外部字体，CSP 不变（第 ③ 步，2026-11-08）。
+
+## 2026-11-09（学习者说明文字禁止内部术语）
+
+- 说明文字中的内部术语累计出现 5 次，均在含嵌套从句的句子中。SYSTEM 在 End of level rule. 后加入 Internal-terms rule，要求 note、tenseReason、片段 detail、纠错 reason 只讲语法本身，原句出现的词允许引用。
+- 只靠提示词约束，不在 validateAnalysis 或网页中增加术语拦截。用户原句可能正常出现 detail、level 等词，拦截会误伤。findInternalTerms 只在实验脚本中用于对照记录，保留原有校验与重做流程。
