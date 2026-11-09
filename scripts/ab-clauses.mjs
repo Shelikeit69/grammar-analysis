@@ -24,7 +24,7 @@ export const CORRECTION_CASES = [
   {id:'essay1', input:'Last summer, my family and I goes to a small town that is famous for its old bridges.',
     checks:[{type:'correction',text:'goes',fix:'went'}]},
   {id:'essay3', input:'Every morning, my brother wake up early and took many photo of the bridges.',
-    checks:[{type:'correction',text:'wake',fix:'woke'}, {type:'correction',text:'photo',fix:'photos'}]},
+    checks:[{type:'consistent-tense',text:'wake'}, {type:'correction',text:'photo',fix:'photos'}]},
   {id:'essay6', input:'I also made my homework in the hotel because the teacher had asked us to write a diary.',
     checks:[{type:'correction',text:'made',fix:'did'}, {type:'lemma',text:'made',lemma:'make'}]},
   {id:'unseen', input:'Yesterday my sister buy a new bike and rode it to the park.',
@@ -34,6 +34,16 @@ export const CORRECTION_CASES = [
   {id:'box', input:'The contents of the box is very unique, so please handles them with care.',
     checks:[{type:'correction',text:'is',fix:'are'}, {type:'correction',text:'handles',fix:'handle'},
       {type:'no-correction',text:'unique'}]},
+  {id:'essayPara', multiSentence:true, input:"Last summer, my family and I goes to a small town that is famous for its old bridges. The hotel where we stayed was run by a woman who told us that the river had been cleaned only two years ago. Every morning, my brother wake up early and took many photo of the bridges. My father, a engineer who loves history, explained that most of the bridges were built not bought and could still be used today. When I saw a strange word on a sign, I wrote it down and looked it up in the evening. I also made my homework in the hotel because the teacher had asked us to write a diary. The trip was very unique, and I hope we can visit there again next year.",
+    checks:[{type:'correction',text:'goes',fix:'went'}, {type:'correction',text:'wake',fix:'woke'},
+      {type:'no-correction',text:'took'}, {type:'correction',text:'photo',fix:'photos'},
+      {type:'correction',text:'a',fix:'an'}, {type:'correction',text:'made',fix:'did'},
+      {type:'lemma',text:'made',lemma:'make'}, {type:'no-correction',text:'unique'}]},
+  {id:'unseenPara', multiSentence:true, input:'Last week we visited a farm. Every morning my cousin feed the goats and cleaned the barn.',
+    checks:[{type:'correction',text:'feed',fix:'fed'}, {type:'no-correction',text:'cleaned'}]},
+  {id:'shiftControl', multiSentence:true, input:'Last summer we visited Kyoto. I still think it is the most beautiful city I know.',
+    checks:[{type:'no-correction',text:'think'}, {type:'no-correction',text:'is'}, {type:'no-correction',text:'know'}]},
+
 ];
 
 export function evaluateCorrectionCase(caseItem, data) {
@@ -42,13 +52,16 @@ export function evaluateCorrectionCase(caseItem, data) {
     return {pass:false, failures:['用例或返回格式不正确']};
   }
   const sentence = data.sentences.find(item => item?.text === caseItem.input);
-  if (!sentence || !Array.isArray(sentence.corrections) || !Array.isArray(sentence.segments)) {
+  const sentences = caseItem.multiSentence ? data.sentences : (sentence ? [sentence] : []);
+  if (!sentences.length || sentences.some(item => !Array.isArray(item?.corrections) || !Array.isArray(item?.segments))) {
     return {pass:false, failures:['缺少原句、corrections 或 segments']};
   }
+  const corrections = sentences.flatMap(item => item.corrections);
+  const segments = sentences.flatMap(item => item.segments);
   const hasWord = (text, word) => typeof text === 'string' &&
     text.toLowerCase().split(/[^a-z]+/).includes(word.toLowerCase());
   for (const check of caseItem.checks) {
-    const matching = sentence.corrections.filter(item => hasWord(item?.text, check.text));
+    const matching = corrections.filter(item => hasWord(item?.text, check.text));
     if (check.type === 'correction') {
       if (!matching.length) failures.push('缺少纠错：' + check.text + ' → ' + check.fix);
       else if (!matching.some(item => hasWord(item.fix, check.fix))) {
@@ -57,8 +70,20 @@ export function evaluateCorrectionCase(caseItem, data) {
       if (check.notFix && matching.some(item => hasWord(item.fix, check.notFix))) {
         failures.push('纠错不应包含：' + check.notFix);
       }
+    } else if (check.type === 'consistent-tense') {
+      const took = corrections.filter(item => hasWord(item?.text, 'took'));
+      const woke = matching.some(item => hasWord(item.fix, 'woke'));
+      const wakes = matching.some(item => hasWord(item.fix, 'wakes'));
+      const past = woke && !wakes && !took.length;
+      const present = wakes && !woke && took.length > 0 && took.every(item => hasWord(item.fix, 'takes'));
+      if (!past && !present) {
+        if (!matching.length) failures.push('D 类：缺少 wake 的纠错');
+        else if (wakes && !woke && !took.length) failures.push('C 类：wake → wakes，但 took 未改（时态不一致）');
+        else if (woke && took.length) failures.push('D 类：wake → woke，但 took 也被纠正');
+        else failures.push('D 类：wake / took 的纠错不属于两种一致时态');
+      }
     } else if (check.type === 'lemma') {
-      const predicates = sentence.segments.filter(item => item?.role === 'predicate' && hasWord(item.text, check.text));
+      const predicates = segments.filter(item => item?.role === 'predicate' && hasWord(item.text, check.text));
       if (!predicates.length || !predicates.every(item => item.lemma === check.lemma)) {
         failures.push('原文谓语 ' + check.text + ' 的 lemma 应为 ' + check.lemma);
       }

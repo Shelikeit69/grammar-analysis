@@ -653,3 +653,10 @@ test('verb corrections use time context and keep the original lemma through the 
   assert.ok(SYSTEM.includes("reason is one short Chinese sentence explaining the error. " + rule));
   assert.equal(SYSTEM.split(rule).length - 1, 1);
 });
+
+
+test('frequency words allow past habits and corrections follow surrounding sentences through the exact rule', () => {
+  const rule = "Frequency words such as every morning, every day, usually or often do not set the tense; they fit both past and present. When a sentence has no word that sets the tense (such as last summer, yesterday, ago, now, today or tomorrow), follow the tense already set by the surrounding sentences of the input. Example: after \"Last year we lived near a lake.\", correct \"On weekends my father fish there and cooked what he caught.\" to fished, not fishes. After all corrections, the predicates of one sentence must agree in tense: never leave a fix such as fishes beside an unchanged past verb such as cooked. Keep a tense shift the writer clearly intends, such as a present-tense opinion inside a past story.";
+  assert.ok(SYSTEM.includes("that the verb form is corrected in corrections. " + rule));
+  assert.equal(SYSTEM.split(rule).length - 1, 1);
+});
