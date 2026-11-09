@@ -430,3 +430,43 @@ main 同一输入只有 1/3 拆开，#47 为 3/3。main 本身不稳定，这组
 - She thanked the nurse who said that the results were good. 2 次：说明文字均未出现 core、detail、level 或规则名，写法为「that the results were good 是 said 的宾语从句，位于定语从句内部」。PR #56 上线前同一句 2026-11-09 线上 2/2 出现「按规则全部为 detail」。
 - 默认视图只显示 She thanked the nurse，并提示「这句有 2 个从句」；详细视图两层嵌套外框、从句清单、时态均正常。
 - 样本小，不代表稳定。
+
+## 2026-11-09：小作文自测（负责人，DeepSeek，TOOL_VERSION 2026-11-09.1，详细视图）
+
+- 输入为负责人自测用的 7 句小作文，埋了 5 处错误。5 处都找到了；photo → photos、a → an、made → did 正确；very unique 未改动；visit there 未改动。
+- goes → go、wake → wakes 只按主谓一致改，没有看时态，应为 went、woke；made 的标签原形写成 do，应为 make。已开 Issue #58。
+- 第 6 句 to write a diary（ask us to write a diary）被标为目的状语，应为宾语补足语。观察项，第 1 次。
+- 第 4 句同位语 a engineer 被标为定语，累计第 3 次。观察项。
+- 第 5 句 up 显示「谓语组成部分：与 look 构成 look up」，down 显示为独立谓语「write down」，同句两组分离短语动词处理不一致。观察项，第 1 次。
+- 第 7 句 can visit 释义为「能去」，混入情态，属路线图已有待做项「原形释义只写原形本身的意思」。
+- 第 2 句 had been cleaned only two years ago 是出题本身不严谨（转述时宜用 before），模型未纠可接受。
+- 7 句说明文字均无内部术语；第 2 句三层从句横线、第 4 句 were built not bought 一个谓语框、外框与横线切换均正常。
+- 样本小，不代表稳定。
+
+## 2026-11-09：Issue #58 动词纠错与原文 lemma 真实对照（DeepSeek deepseek-flash，temperature 0）
+
+- 基线 origin/main 为 a49280c（TOOL_VERSION 2026-11-09.1）；本分支 TOOL_VERSION 2026-11-09.2。只在 corrections 的指定位置加入负责人提供的段落，其余 SYSTEM 和模型参数不变。
+- 依次运行 npm run ab:clauses -- --corrections --runs 5 --ref origin/main、npm run ab:clauses -- --corrections --runs 5；每组 30 次，每次只请求一次，不走重做。60 次返回的 finish_reason 全为 stop。
+- 通过次数要求格式校验和固定用例检查同时通过；逐次输出中 pass 单独表示 evaluateCorrectionCase 的检查结果，valid 单独表示格式校验。检查仅覆盖指定纠错、lemma 和 unique 保护，不判断完整语法或说明文字是否正确。
+
+| 用例 | main 通过 | 本分支通过 | main 校验通过 | 本分支校验通过 |
+| --- | --- | --- | --- | --- |
+| essay1（goes → went） | 2/5 | 4/5 | 5/5 | 4/5 |
+| essay3（wake → woke、photo → photos） | 0/5 | 0/5 | 5/5 | 5/5 |
+| essay6（made → did、lemma make） | 5/5 | 5/5 | 5/5 | 5/5 |
+| unseen（buy → bought、lemma buy） | 4/5 | 5/5 | 4/5 | 5/5 |
+| control（wake → wakes，不能为 woke） | 5/5 | 5/5 | 5/5 | 5/5 |
+| box（is → are、handles → handle，不改 unique） | 4/5 | 4/5 | 5/5 | 5/5 |
+
+- unseen 用例不在提示词示例里。本分支 essay1 的固定检查本身 5/5 通过，但第 5 次格式校验失败，故有效通过计为 4/5；main unseen 第 1 次格式校验失败，故有效通过计为 4/5。这两次均未重做。
+- essay3 本分支仍为 0/5，未达到预期；例如第 1 次按 Every morning 将 wake up 改为 wakes up，同时将 took 改为 takes。没有自行追加或改写提示词。box 两组各有一次纠正 unique，说明仅靠提示词仍可能误改用法。
+- #27 完整流程依次在本分支与独立 main worktree 运行 npm run ab:clauses -- --flow --runs 5。
+
+| 版本 | 最终拆对 | 触发重做 | 重做后拆对 | 请求总数 | 平均耗时（秒） |
+| --- | --- | --- | --- | --- | --- |
+| main | 5/5 | 1 | 1 | 6 | 9.03 |
+| 本分支 | 5/5 | 4 | 4 | 9 | 11.38 |
+
+- 三项停止条件均未触发：#27、control、box 的有效通过次数均没有比 main 少两次或以上。但本分支长从句重做次数较多（4/5 对 1/5），请求总数和平均耗时也较高，应继续观察。
+- 原始纠错返回及 summary.json 位于忽略目录 ab-results/，流程日志位于忽略目录 artifacts/。临时密钥只经环境变量传入实验进程，结束后移除，不写入文件或输出。
+- 样本小，不代表稳定；两组顺序运行，模型输出仍有随机性。脚本的“最终拆对”仅指三条从句且未发现整块未拆，不代替人工检查范围、语法或网页显示。

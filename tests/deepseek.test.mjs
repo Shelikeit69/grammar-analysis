@@ -646,3 +646,10 @@ test('learner explanations exclude internal labels through the exact rule after 
   assert.ok(SYSTEM.includes('End of level rule.\n' + rule));
   assert.equal(SYSTEM.split(rule).length - 1, 1);
 });
+
+
+test('verb corrections use time context and keep the original lemma through the exact rule', () => {
+  const rule = "For a verb-form error, choose the fix that fits both subject agreement and the time the sentence sets: time markers actually present (for example last summer, yesterday, ago) and the tense of coordinated or main verbs. Example: in \"Yesterday he walk home and cooked dinner.\", walk -> walked, not walks. Only when the sentence gives no past marker and no past verb, fix agreement alone: in \"She usually walk to school.\", walk -> walks. lemma always comes from the original word, never from fix: if made is corrected to did, the made segment keeps lemma make. tense and tenseReason describe the original sentence; never claim that a wrongly formed verb (such as goes after Last summer) expresses the past; say instead that the time marker shows the past and that the verb form is corrected in corrections.";
+  assert.ok(SYSTEM.includes("reason is one short Chinese sentence explaining the error. " + rule));
+  assert.equal(SYSTEM.split(rule).length - 1, 1);
+});

@@ -275,3 +275,8 @@
 - 说明文字中的内部术语累计出现 5 次，均在含嵌套从句的句子中。SYSTEM 在 End of level rule. 后加入 Internal-terms rule，要求 note、tenseReason、片段 detail、纠错 reason 只讲语法本身，原句出现的词允许引用。
 - 只靠提示词约束，不在 validateAnalysis 或网页中增加术语拦截。用户原句可能正常出现 detail、level 等词，拦截会误伤。findInternalTerms 只在实验脚本中用于对照记录，保留原有校验与重做流程。
 - 2026-11-09 网页实测 nurse 句 2/2 未再出现内部术语，样本小，见 verification.md。
+
+## 2026-11-09（动词纠错兼顾时间，#58）
+
+- 动词形式纠错要同时看主谓一致和句中时间，包括实际时间标记与并列、主句谓语时态。lemma 取原文的词，时态说明不得把错误动词形式说成正确时态。
+- 只改提示词，不加校验拦截：「改得对不对」无法用格式校验判断。六个固定用例的 evaluateCorrectionCase 与 --corrections 只用于实验，不接入网页或 validateAnalysis。

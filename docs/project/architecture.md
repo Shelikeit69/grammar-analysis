@@ -1,6 +1,6 @@
 # 技术架构
 
-最后更新：2026-11-08（C4 荧光笔外观与句末标点）
+最后更新：2026-11-09（#58 动词纠错提示词与实验检测）
 
 ## 三种运行方式（共用同一套页面 public/）
 | 方式 | 密钥在哪里 | 页面怎么判断 |
@@ -20,7 +20,7 @@
 - `public/deepseek.js`：Node 和浏览器共用的 DeepSeek 客户端，系统提示词常量 `SYSTEM` 和「格式或长从句重做一次」的逻辑都在这里。
 - `public/analysis.js`：`validateInput`、`validateAnalysis`、`AnalysisValidationError`，Node 和浏览器共用。
 - `public/feedback.js`：`FEEDBACK_TYPES`（5 个问题类型）、反馈标题和易读正文生成（只放白名单字段）、GitHub Issue 预填链接（上限 6000 字符；超过时只带真实标题和粘贴说明，正文由用户粘贴）（PR #21、#25、#28）。
-- `public/version.js`：`TOOL_VERSION`，写进反馈正文。当前值为 `2026-11-09.1`。发布影响分析或反馈的改动时要更新，用实际合并日期加序号。
+- `public/version.js`：`TOOL_VERSION`，写进反馈正文。当前值为 `2026-11-09.2`。发布影响分析或反馈的改动时要更新，用实际合并日期加序号。
 - `public/server-client.js`：本地和 Codespaces 模式下读取服务器返回结果（支持 NDJSON 进度消息，旧的纯 JSON 也兼容）。
 - `public/demo.js`：内置例句和它的分析结果（含 `modifies` 和 `clauses`）。例句的 `who keep going every day` 是 5 词短从句，保持单片段，只显示清单，不画框或条带。
 - `lib/analysis.mjs`、`lib/deepseek.mjs`：只是转发 `public/` 里的共用模块。
