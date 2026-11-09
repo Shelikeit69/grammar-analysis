@@ -13,6 +13,45 @@ import { findUnsplitClauses, validateAnalysis } from '../public/analysis.js';
 export const ISSUE27_INPUT =
   'the word has ugly connotations thanks largely to Cesare Lombroso, a 19th-century Italian medic who argured that criminals were born not made and could be identified by certain physical features that were throwbacks to a primitive sub human state.';
 
+export const TERMS_INPUTS = [
+  'She thanked the nurse who said that the results were good.',
+  'The book that the teacher who lives next door recommended is useful.',
+  'I know that she was working when you called.',
+  ISSUE27_INPUT,
+];
+
+export function findInternalTerms(data) {
+  const hits = [];
+  if (!Array.isArray(data?.sentences)) return hits;
+  data.sentences.forEach((sentence, index) => {
+    const text = typeof sentence?.text === 'string' ? sentence.text : '';
+    const quoted = new Set((text.match(/\b(?:core|detail|level)\b/gi) || []).map(word => word.toLowerCase()));
+    const fields = [['note', sentence?.note], ['tenseReason', sentence?.tenseReason]];
+    for (const [array, field] of [['segments', 'detail'], ['corrections', 'reason']]) {
+      if (Array.isArray(sentence?.[array])) sentence[array].forEach((item, position) =>
+        fields.push([array + '[' + position + '].' + field, item?.[field]]));
+    }
+    for (const [field, value] of fields) {
+      if (typeof value !== 'string') continue;
+      for (const term of ['core', 'detail', 'level']) {
+        if (!quoted.has(term) && new RegExp('\\b' + term + '\\b', 'i').test(value)) {
+          hits.push({sentence: index + 1, field, term});
+        }
+      }
+      for (const term of ['默认规则', '长从句规则', '例外规则', '按规则', '层级规则']) {
+        if (value.includes(term)) hits.push({sentence: index + 1, field, term});
+      }
+      for (const [term, pattern] of [
+        ['level rule', /\blevel\s+rule\b/i],
+        ['long-clause rule', /\blong-clause\s+rule\b/i],
+      ]) {
+        if (pattern.test(value)) hits.push({sentence: index + 1, field, term});
+      }
+    }
+  });
+  return hits;
+}
+
 export const PR47_COMMIT = '72cdc87';
 export const CORRECTIONS_START = 'corrections is REQUIRED:';
 export const CORRECTIONS_END = 'A separable phrasal verb';
@@ -43,14 +82,18 @@ export function extractSystem(source) {
   throw new Error('SYSTEM 模板字符串未闭合。');
 }
 
-// 从 git 仓库读取 PR #47 合并提交里的 public/deepseek.js 并取出 SYSTEM。
-export function loadPr47System(cwd = path.dirname(fileURLToPath(import.meta.url))) {
-  const source = execFileSync('git', ['show', `${PR47_COMMIT}:public/deepseek.js`], {
+export function loadSystemAtRef(ref, cwd = path.dirname(fileURLToPath(import.meta.url))) {
+  const source = execFileSync('git', ['show', ref + ':public/deepseek.js'], {
     cwd,
     encoding: 'utf8',
     maxBuffer: 4 * 1024 * 1024,
   });
   return extractSystem(source);
+}
+
+// 从 git 仓库读取 PR #47 合并提交里的 SYSTEM。
+export function loadPr47System(cwd = path.dirname(fileURLToPath(import.meta.url))) {
+  return loadSystemAtRef(PR47_COMMIT, cwd);
 }
 
 // C 组 SYSTEM：替换纠错规则整段。替换前后都断言目标段落存在，找不到就抛错。
@@ -170,7 +213,7 @@ async function callOnce(group, apiKey) {
       record.validationError = error.message;
     }
   }
-  return { record, envelope };
+  return { record, envelope, parsed };
 }
 
 function printSummary(records, groups) {
@@ -236,6 +279,44 @@ async function runFlow(apiKey, runs) {
     总请求次数: requests, 平均耗时秒: ((performance.now() - start) / 1000 / runs).toFixed(2)});
 }
 
+async function runTerms(apiKey, runs, ref) {
+  const system = ref ? loadSystemAtRef(ref) : SYSTEM;
+  const groups = TERMS_INPUTS.map((input, index) => ({
+    name: String.fromCharCode(65 + index), label: input, system, input,
+  }));
+  const outDir = path.join('ab-results', new Date().toISOString().replace(/[:.]/g, '-') + '-terms');
+  mkdirSync(outDir, {recursive: true});
+  const records = [];
+  for (let run = 1; run <= runs; run++) {
+    for (const [index, group] of groups.entries()) {
+      let result;
+      try {
+        result = await callOnce(group, apiKey);
+      } catch {
+        result = {record: {validOk:false, clauses:0}, envelope:{error:'Request failed'}};
+      }
+      const record = {sentence: index + 1, text: group.input, run,
+        valid: result.record.validOk, clauses: result.record.clauses,
+        hits: findInternalTerms(result.parsed)};
+      records.push(record);
+      // Provider diagnostics must never echo a credential into saved responses.
+      writeFileSync(path.join(outDir, group.name + '-' + run + '.json'),
+        JSON.stringify(result.envelope, null, 2).replaceAll(apiKey, '[REDACTED]'));
+      console.log(JSON.stringify(record));
+    }
+  }
+  const summary = groups.map((group, index) => {
+    const own = records.filter(record => record.sentence === index + 1);
+    return {sentence: index + 1, text: group.input,
+      hits: own.filter(record => record.hits.length > 0).length,
+      valid: own.filter(record => record.valid).length, runs};
+  });
+  writeFileSync(path.join(outDir, 'summary.json'), JSON.stringify({ref: ref || 'working-tree', records, summary}, null, 2));
+  console.log('句子 | 命中次数 / 总次数 | 校验通过次数 / 总次数');
+  for (const row of summary) console.log(row.sentence + ' | ' + row.hits + '/' + runs + ' | ' + row.valid + '/' + runs);
+  console.log('原始返回已保存到 ' + outDir + '/');
+}
+
 async function main() {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
@@ -243,6 +324,15 @@ async function main() {
     process.exit(1);
   }
 
+  if (process.argv.includes('--terms')) {
+    const index = process.argv.indexOf('--runs');
+    const runs = index < 0 ? 5 : Number(process.argv[index + 1]);
+    if (!Number.isSafeInteger(runs) || runs < 1) throw new Error('--runs 需要正整数');
+    const refIndex = process.argv.indexOf('--ref');
+    const ref = refIndex < 0 ? undefined : process.argv[refIndex + 1];
+    if (refIndex >= 0 && (!ref || ref.startsWith('--'))) throw new Error('--ref 需要 git ref');
+    return runTerms(apiKey, runs, ref);
+  }
   if (process.argv.includes('--flow')) {
     const index = process.argv.indexOf('--runs');
     const runs = index < 0 ? 10 : Number(process.argv[index + 1]);
