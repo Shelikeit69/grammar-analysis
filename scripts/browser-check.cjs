@@ -16,6 +16,45 @@ async function main() {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(`http://127.0.0.1:${server.address().port}`);
+    require('node:fs').mkdirSync('artifacts/c4-highlighter', {recursive:true});
+    const screenshot = name => page.screenshot({path:'artifacts/c4-highlighter/' + name + '.png',fullPage:true});
+    async function waitForClauseLayout() {
+      await page.evaluate(async () => {
+        await document.fonts.ready;
+        let previous;
+        let unchanged = 0;
+        for (let frame = 0; frame < 180; frame++) {
+          await new Promise(resolve => requestAnimationFrame(resolve));
+          const signature = JSON.stringify([...document.querySelectorAll('.annotation-line')].map(line => ({
+            height: line.style.getPropertyValue('--clause-row-height'),
+            bounds: [...line.querySelectorAll('.english,.clause-track,.clause-mark')].map(node => {
+              const rect = node.getBoundingClientRect();
+              return [rect.x, rect.y, rect.width, rect.height];
+            }),
+          })));
+          unchanged = signature === previous ? unchanged + 1 : 0;
+          previous = signature;
+          if (document.fonts.status === 'loaded' && unchanged === 3) return;
+        }
+        throw new Error('Clause layout did not stabilize after fonts loaded');
+      });
+    }
+    async function checkPunctuation() {
+      const attached = await page.evaluate(() => {
+        const nodes = [...document.querySelectorAll('.annotation-line .english')];
+        const lastRect = node => {
+          const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+          const texts = [];
+          while (walker.nextNode()) if (walker.currentNode.textContent.trim()) texts.push(walker.currentNode);
+          const range = document.createRange();
+          range.selectNodeContents(texts.at(-1));
+          return [...range.getClientRects()].at(-1);
+        };
+        const a = lastRect(nodes.at(-2)), b = lastRect(nodes.at(-1));
+        return {gap:Math.abs(a.bottom-b.bottom), previous:{x:a.x,y:a.y,w:a.width,h:a.height,bottom:a.bottom}, punctuation:{x:b.x,y:b.y,w:b.width,h:b.height,bottom:b.bottom}};
+      });
+      assert.ok(attached.gap < 2, 'final punctuation shares the previous text row');
+    }
     const originalText = () => page.locator('.english').allTextContents().then(parts => parts.join(''));
     assert.equal(await originalText(), demoText);
     checks++;
@@ -32,11 +71,11 @@ async function main() {
         const rects = [...document.querySelectorAll('.annotated')].map(node => ({
           box: node.querySelector('.english').getBoundingClientRect(),
           label: node.querySelector('.label').getBoundingClientRect(),
-          line: node.querySelector('.connector').getBoundingClientRect(),
+
         }));
         return {
           overflow: document.documentElement.scrollWidth > innerWidth,
-          aligned: rects.length > 0 && rects.every(({ box, line }) => Math.abs(box.x + box.width / 2 - line.x - line.width / 2) < 1),
+          connectorsVisible: [...document.querySelectorAll('.connector')].some(node => node.getBoundingClientRect().height > 0),
           overlap: rects.some((a, index) => rects.slice(index + 1).some(b =>
             a.label.left < b.label.right && a.label.right > b.label.left &&
             a.label.top < b.label.bottom && a.label.bottom > b.label.top)),
@@ -47,7 +86,26 @@ async function main() {
           })),
         };
       });
-      assert.deepEqual(outcome, { overflow: false, aligned: true, overlap: false, labelOnText: false });
+      assert.deepEqual(outcome, { overflow: false, connectorsVisible: false, overlap: false, labelOnText: false });
+      assert.ok(await page.locator('.annotated > .english').evaluateAll(nodes => nodes.every(node => {
+        const style = getComputedStyle(node);
+        return parseFloat(style.borderTopWidth) === 0 && style.backgroundColor !== 'rgba(0, 0, 0, 0)';
+      })), 'constituents have highlighter fills without box borders');
+      assert.ok(await page.locator('.annotated .label').evaluateAll(nodes => nodes.every(node =>
+        getComputedStyle(node).backgroundColor !== 'rgba(0, 0, 0, 0)')), 'labels have fills');
+      assert.ok(await page.evaluate(() => {
+        const luminance = color => color.match(/[\d.]+/g).slice(0,3).map(Number).map(x => x/255)
+          .map(x => x <= .04045 ? x/12.92 : ((x+.055)/1.055)**2.4)
+          .reduce((sum,x,i) => sum+x*[.2126,.7152,.0722][i],0);
+        const contrast = node => {
+          const style = getComputedStyle(node);
+          const a = luminance(style.color), b = luminance(style.backgroundColor);
+          return (Math.max(a,b)+.05)/(Math.min(a,b)+.05) >= 4.5;
+        };
+        return [...document.querySelectorAll('.annotation .label,.annotated > .english,.legend > span')].every(contrast) &&
+          [...document.querySelectorAll('.role-object.annotated > .english,.role-predicative.annotated > .english,.tense-box')]
+            .every(node => 1.05 / (luminance(getComputedStyle(node).backgroundColor) + .05) >= 1.12);
+      }), 'label, legend and English text contrast on highlighter fills');
       checks++;
     }
 
@@ -84,6 +142,8 @@ async function main() {
       for (const [modifier, target] of [['Tired', 'learners'], ['who keep going every day', 'learners'], ['of English grammar', 'the beauty'], ['in the end', 'will see']]) {
         await phraseButton(modifier).click();
         assert.deepEqual(await targets(), [target], `${modifier} at ${width}px`);
+        assert.equal(await page.locator('.modifier-target').evaluate(node => getComputedStyle(node).outlineStyle), 'double');
+        assert.equal(await phraseButton(modifier).evaluate(node => getComputedStyle(node).outlineStyle), 'solid');
         assert.equal(await page.locator('.phrase-detail').isVisible(), true);
         assert.equal(await page.locator('.modifies-note').innerText(), `修饰：${target}`);
         const describedBy = await page.locator('.modifier-target').getAttribute('aria-describedby');
@@ -105,10 +165,13 @@ async function main() {
       await phraseButton('will see').click();
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     }
+    await screenshot('demo-detail');
     await checkModifier(1280);
     checks++;
     // Keyboard: focus the span and press Enter.
     await phraseButton('Tired').focus();
+    await page.keyboard.press('ArrowRight');
+    assert.equal(await phraseButton('Tired').evaluate(node => getComputedStyle(node).outlineStyle), 'dashed');
     await page.keyboard.press('Enter');
     assert.deepEqual(await targets(), ['learners']);
     await page.keyboard.press('Enter');
@@ -324,6 +387,7 @@ async function main() {
     await page.locator('#detail-toggle').uncheck();
     await page.waitForTimeout(180);
     await checkCorrections(mainExpected);
+    await screenshot('box-default');
     await page.locator('#detail-toggle').check();
     await page.waitForTimeout(180);
     checks++;
@@ -641,6 +705,7 @@ async function main() {
     }
 
     async function checkClauseFixture(name, fixture, expectedDepths) {
+      await waitForClauseLayout();
       const sentence = fixture.sentences[0];
       const expected = sentence.clauses.map(clause => ({
         number: String(sentence.clauses.indexOf(clause) + 1),
@@ -727,6 +792,10 @@ async function main() {
       await page.setViewportSize({width: 1280, height: 1000});
       await showClauseFixture(fixture, true);
       await checkClauseFixture(name, fixture, depths);
+      if (name === 'long-text-anchors') {
+        await checkPunctuation();
+        await screenshot('long-detail');
+      }
       if (name === 'object-backbone') {
         assert.deepEqual(await page.locator('.clause-item .clause-type').allTextContents(), ['宾语从句', '时间状语从句']);
       }
@@ -784,6 +853,14 @@ async function main() {
       await page.setViewportSize({width,height:900});
       await showClauseFixture(nurse, true);
       await checkClauseFixture('nurse-' + width, nurse, [1,2]);
+      await checkPunctuation();
+      if (width === 1280) {
+        const clean = structuredClone(nurse);
+        delete clean.sentences[0].corrections;
+        await showClauseFixture(clean, true);
+        await screenshot('nurse-detail');
+        await showClauseFixture(nurse, true);
+      }
       assert.equal(await page.locator('.clause-box > .clause-box-body > .clause-box').count(), 1);
       await page.locator('.clause-box .role-predicate .english').click();
       assert.match(await page.locator('.phrase-detail').innerText(), /said/);
@@ -792,7 +869,17 @@ async function main() {
       assert.deepEqual(await page.locator('.clause-box .correction-letter').evaluateAll(nodes => nodes.map(n => n.dataset.letter)), ['a']);
       await page.locator('#text-size').click();
       await checkClauseFixture('nurse-large-' + width, nurse, [1,2]);
+      await checkPunctuation();
       if (width === 390) {
+        for (const ending of ['?', '!']) {
+          const punctuated = structuredClone(nurse);
+          punctuated.sentences[0].text = nurse.sentences[0].text.slice(0,-1) + ending;
+          punctuated.sentences[0].segments.at(-1).text = ending;
+          await showClauseFixture(punctuated, true);
+          await checkPunctuation();
+          await checkLayout();
+        }
+        await showClauseFixture(nurse, true);
         require('node:fs').mkdirSync('artifacts', {recursive:true});
         await page.screenshot({path:'artifacts/clause-boxes-390-large.png',fullPage:true});
       }
@@ -803,7 +890,7 @@ async function main() {
       await page.locator('#detail-toggle').check();
       assert.equal(await page.locator('.clause-box').count(), 2);
       await page.locator('#clear-button').click();
-      assert.equal(await page.locator('.clause-box,.clause-track').count(), 0);
+      assert.equal(await page.locator('.clause-box,.clause-track,.punctuation-group,.punctuation-tail').count(), 0);
       await showClauseFixture(nurse, true);
       assert.equal(await page.locator('.clause-box').count(), 2);
     }
@@ -853,6 +940,11 @@ async function main() {
     await page.setViewportSize({width: 1280, height: 1000});
     await page.waitForTimeout(220);
     await checkClauseFixture('nested-large-text', trackFixture, [1, 2, 3]);
+    await checkPunctuation();
+    await page.setViewportSize({width:390,height:900});
+    await page.waitForTimeout(260);
+    await checkClauseFixture('long-anchor-390-large', trackFixture, [1, 2, 3]);
+    await checkPunctuation();
     await page.locator('#text-size').click();
     await page.waitForTimeout(220);
 
@@ -929,13 +1021,33 @@ async function main() {
     await page.setViewportSize({width: 390, height: 844});
     await page.waitForTimeout(320);
     await checkWrappedSpan('long-span-390-large', true);
+    await checkPunctuation();
     const laneSignature = geometry => geometry.tracks.map(track =>
       `${track.clause}/${track.depth}:${Math.round(track.rect.top * 100) / 100},${Math.round(track.rect.left * 100) / 100}`).join('|');
+    await waitForClauseLayout();
     const settled = await clauseGeometry(longSpan, longTarget);
     await page.waitForTimeout(300);
     const again = await clauseGeometry(longSpan, longTarget);
     assert.equal(again.appliedRowHeight, settled.appliedRowHeight, 'wrapped row height settles');
     assert.equal(laneSignature(again), laneSignature(settled), 'wrapped lanes settle');
+    const mark = await page.locator('.clause-mark').first().elementHandle();
+    await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+    await waitForClauseLayout();
+    assert.equal(await mark.evaluate(node => node.isConnected), true, 'redraw preserves number nodes');
+    for (const padding of [0, 0.25, 0.5, 0.75]) {
+      await page.evaluate(value => {
+        document.querySelector('.annotation-line').style.paddingTop = value + 'px';
+        window.dispatchEvent(new Event('resize'));
+      }, padding);
+      await waitForClauseLayout();
+      assert.equal((await clauseGeometry(longSpan, longTarget)).appliedRowHeight,
+        settled.appliedRowHeight, 'glyph height is independent of fractional row origin');
+    }
+    await page.evaluate(() => {
+      document.querySelector('.annotation-line').style.removeProperty('padding-top');
+      window.dispatchEvent(new Event('resize'));
+    });
+    await waitForClauseLayout();
     checks++;
     await page.locator('#text-size').click();
     await page.waitForTimeout(300);

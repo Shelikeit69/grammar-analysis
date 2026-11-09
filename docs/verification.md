@@ -384,3 +384,10 @@ main 同一输入只有 1/3 拆开，#47 为 3/3。main 本身不稳定，这组
 - 内置例句（详细视图）：主语、谓语、宾语标签在上方，定语、状语标签在下方；will see 为橙框；从句清单编号为方框 1。第一行与第二行之间留白较大，留到第 ③ 步收紧。
 - Issue #27 原句（详细视图）：谓语、系动词为橙框；argured 旁有 a；从句条带起点和清单编号为方框 1、2、3；标签按成分上下放置。
 - 同一次 #27 原句结果中，模型漏了 sub human → subhuman，并把 were born not made 拆成 were born / not / made。属模型单次输出差异，与本 PR 无关，暂不处理，再出现时记录。
+
+## 2026-11-08：PR #54 UI 改版第 ② 步实测（负责人，DeepSeek deepseek-flash，TOOL_VERSION 2026-11-08.1，详细视图）
+
+- She thanked the nurse who said that the results were good.：两层嵌套外框，「1 定语从句」包含「2 宾语从句」，无横线；电脑宽度下句号未掉行。说明文字再次出现「按默认规则全部为 detail」，内部规则术语累计 3 次，均出现在嵌套从句句子中，待单独处理。
+- Issue #27 原句：仍为三层横线，无外框，编号为方框 1、2、3；were born not made 为一个谓语框。纠错只给出 argured → argued，sub human → subhuman 再次未纠出（最近 4 次中 2 次漏纠）。
+- 内置例句：who keep going every day 不画框，从句清单列出；第一行与第二行之间的留白明显变小。
+- 样本小，不代表稳定。

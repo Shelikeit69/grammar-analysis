@@ -39,6 +39,11 @@ function teardownClauseLayout() {
   // Clear leaves the old cards in place until the next render; drop their
   // overlays and lists so no stale clause markup survives a clear or rerender.
   document.querySelectorAll('.clause-layer, .clause-panel, .correction-panel').forEach(node => node.remove());
+  document.querySelectorAll('.punctuation-group').forEach(group => group.replaceWith(...group.childNodes));
+  document.querySelectorAll('.punctuation-tail').forEach(tail => {
+    tail.classList.remove('punctuation-tail');
+    tail.style.removeProperty('transform');
+  });
   document.querySelectorAll('.clause-box').forEach(box =>
     box.replaceWith(...box.querySelector(':scope > .clause-box-body').childNodes));
   document.querySelectorAll('.clause-box-mode').forEach(line => line.classList.remove('clause-box-mode'));
@@ -203,6 +208,7 @@ function localRect(rect, lineRect, scale) {
     right: (rect.right - lineRect.left) / scale,
     top: (rect.top - lineRect.top) / scale,
     bottom: (rect.bottom - lineRect.top) / scale,
+    height: rect.height / scale,
   };
 }
 function groupTextRows(rects) {
@@ -279,15 +285,20 @@ function clauseRowHeight(nodes, geometry) {
   if (!node) return 0;
   const style = getComputedStyle(node);
   const base = (parseFloat(style.fontSize) || 0) * (parseFloat(style.getPropertyValue('--clause-base-row')) || 2);
-  const textHeight = Math.max(...geometry.rects.map(rect => rect.bottom - rect.top));
+  const textHeight = Math.max(...geometry.rects.map(rect => rect.height));
   const gap = Math.max(...geometry.entries.map(entry => clauseTrackGap(entry.depth)));
-  // Round up so repeated measurements settle on one value instead of jittering.
+  // Use the original DOMRect height, scaled once. Subtracting separately
+  // scaled top/bottom coordinates introduces position-dependent floating error
+  // at an integer boundary, making ceil alternate between adjacent heights.
   return Math.ceil(Math.max(base, textHeight + gap));
 }
 function drawClauseLayer(line, sentence, nodes, clauses) {
-  line.querySelector('.clause-layer')?.remove();
+  const existingLayer = line.querySelector('.clause-layer');
   let geometry = clauseGeometry(line, sentence, nodes, clauses);
-  if (!geometry.lineRect.width || !geometry.entries.length) return;
+  if (!geometry.lineRect.width || !geometry.entries.length) {
+    existingLayer?.remove();
+    return;
+  }
   const height = clauseRowHeight(nodes, geometry);
   const applied = parseFloat(line.style.getPropertyValue('--clause-row-height')) || 0;
   if (height !== applied) {
@@ -296,24 +307,29 @@ function drawClauseLayer(line, sentence, nodes, clauses) {
     geometry = clauseGeometry(line, sentence, nodes, clauses);
   }
   if (!geometry.rows.length) return;
-  const layer = element('div', 'clause-layer');
+  const layer = existingLayer || element('div', 'clause-layer');
   layer.setAttribute('aria-hidden', 'true');
-  geometry.entries.forEach(({clause, clauseIndex, depth, part, row}) => {
-    const base = row.hasBottom ? row.bottom + 58 + CLAUSE_TRACK_BASE : part.bottom + CLAUSE_TRACK_BASE;
+  geometry.entries.forEach(({clause, clauseIndex, depth, part, row}, index) => {
+    const labelSpace = parseFloat(getComputedStyle(nodes[clause.start].closest('.phrase')).getPropertyValue('--label-space')) || 0;
+    const base = row.hasBottom ? row.bottom + labelSpace + CLAUSE_TRACK_BASE : part.bottom + CLAUSE_TRACK_BASE;
     const y = base + (depth - 1) * 13;
     const width = Math.max(2, part.right - part.left);
-    const track = element('span', `clause-track type-${clause.type}`);
+    const track = layer.children[index * 2] || element('span', '');
+    track.className = 'clause-track type-' + clause.type;
     track.style.left = `${part.left}px`;
     track.style.width = `${width}px`;
     track.style.top = `${y}px`;
     track.dataset.clause = String(clauseIndex + 1);
     track.dataset.depth = String(depth);
-    const number = element('span', `clause-mark type-${clause.type}`, String(clauseIndex + 1));
+    const number = layer.children[index * 2 + 1] || element('span', '');
+    number.className = 'clause-mark type-' + clause.type;
+    number.textContent = String(clauseIndex + 1);
     number.style.left = `${part.left}px`;
     number.style.top = `${y}px`;
-    layer.append(track, number);
+    if (!track.parentNode) layer.append(track, number);
   });
-  if (layer.childElementCount) line.append(layer);
+  while (layer.children.length > geometry.entries.length * 2) layer.lastElementChild.remove();
+  if (!layer.parentNode) line.append(layer);
 }
 function wrapClauseBoxes(line, sentence, clauses) {
   const phrases = [...line.children];
@@ -338,6 +354,43 @@ function wrapClauseBoxes(line, sentence, clauses) {
     while (stack.length > 1 && stack.at(-1).end === index + 1) stack.pop();
   });
   line.classList.add('clause-box-mode');
+}
+function alignPunctuation(line) {
+  const tails = [...line.querySelectorAll('.punctuation-tail')];
+  tails.forEach(tail => tail.style.removeProperty('transform'));
+  const scale = localScale(line);
+  // Grid labels and nested boxes export different baselines. Align actual
+  // glyphs, including the last row of a phrase that wraps internally.
+  const lastTextBottom = node => {
+    const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+    let text;
+    while (walker.nextNode()) if (walker.currentNode.textContent.trim()) text = walker.currentNode;
+    const range = document.createRange();
+    range.selectNodeContents(text);
+    return [...range.getClientRects()].at(-1).bottom;
+  };
+  [...line.querySelectorAll('.punctuation-group')].reverse().forEach(group => {
+    const nodes = [...group.querySelectorAll('.english')].filter(node => node.textContent.trim());
+    const tail = group.querySelector(':scope > .punctuation-tail');
+    const offset = (lastTextBottom(nodes.at(-2)) - lastTextBottom(nodes.at(-1))) / scale;
+    tail.style.transform = 'translateY(' + offset + 'px)';
+  });
+}
+function keepPunctuationWithPrevious(line) {
+  line.querySelectorAll('.phrase.plain').forEach(phrase => {
+    if (!/^[\p{P}]+$/u.test(phrase.querySelector('.english').textContent.trim())) return;
+    const gaps = [];
+    let previous = phrase.previousElementSibling;
+    while (previous?.classList.contains('whitespace')) {
+      gaps.unshift(previous);
+      previous = previous.previousElementSibling;
+    }
+    if (!previous) return;
+    const group = element('span', 'punctuation-group');
+    previous.before(group);
+    phrase.classList.add('punctuation-tail');
+    group.append(previous, ...gaps, phrase);
+  });
 }
 function clausePanel(sentence, clauses) {
   const panel = element('section', 'clause-panel');
@@ -538,8 +591,7 @@ function render() {
         annotation.setAttribute('aria-hidden', 'true');
         const label = element('span', 'label', labelText);
         label.title = labelText;
-        const connector = element('span', 'connector');
-        annotation.append(...(placement === 'top' ? [label, connector] : [connector, label]));
+        annotation.append(label);
         annotationNode = annotation;
         phrase.classList.add(placement === 'top' ? 'has-top' : 'has-bottom');
         buttons.set(segmentIndex, english);
@@ -589,6 +641,8 @@ function render() {
         clauseLayouts.push(() => drawClauseLayer(line, sentence, englishNodes, clauses));
       }
     }
+    keepPunctuationWithPrevious(line);
+    if (line.querySelector('.punctuation-group')) clauseLayouts.unshift(() => alignPunctuation(line));
     card.append(detail);
     const clauseHintCount = sentenceClauses(sentence).length;
     if (!detailed && clauseHintCount > 0) {
