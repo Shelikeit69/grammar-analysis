@@ -127,7 +127,7 @@
 ## 改提示词时的要求
 - 不放宽 `validateAnalysis` 的核心校验。新加的可选字段，不合规时只丢字段，并且不触发付费的格式修正。
 - 在 `tests/deepseek.test.mjs` 里加一条测试，检查 `SYSTEM` 是否包含新规则的关键句，防止以后被误删。
-- 如果规则改变了示例的标注方式，同步更新 `public/demo.js` 和 README 里的说明。
+- 如果规则改变了示例的标注方式，同步更新 `public/demo.js`、README 和 docs/usage.md 里的说明。
 - 改完后用 [`docs/regression-cases.md`](../regression-cases.md) 的样例和触发问题的原句，在网页版实测，分别记录「格式正确」「语法判断正确」「显示位置正确」。
 - 用户反馈的原句可能来自出版物或含个人信息，加进公开测试前改写成结构相同的虚构句。
 
