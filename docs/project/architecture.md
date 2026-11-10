@@ -36,7 +36,7 @@
 - `CLAUDE.md`：给 Claude Code 的编码准则。
 - `AGENTS.md`：所有编码工具共用的规则（Codex、Trae、Claude Code、Qoder）：单会话、不用子代理、不提交计划文件和生成文件、走分支和 PR、修复 PR 用 `Fixes #N`、不放宽校验、版本号和旧说法检查（PR #23、#24，2026-10-29 扩充）。
 - `.trae/rules/project_rules.md`：Trae 的项目规则，始终生效，只指向 `AGENTS.md` 和 `CLAUDE.md`。
-- `docs/`：`usage.md`（详细使用说明）、`development.md`（开发者说明）、Codespaces 测试指南、验证记录（`verification.md`、`feedback-verification.md`）、`roadmap.md`（仓库里的路线图）、`regression-cases.md`（10 条语法样例 + Issue #19 五句）、`project/`（项目资料，见 `docs/project/README.md`）。
+- `docs/`：`usage.md`（详细使用说明）、`development.md`（开发者说明）、`why-not-perfect.md`（为什么做不到百分之百准确）、Codespaces 测试指南、验证记录（`verification.md`、`feedback-verification.md`）、`roadmap.md`（仓库里的路线图）、`regression-cases.md`（10 条语法样例 + Issue #19 五句）、`project/`（项目资料，见 `docs/project/README.md`）。
 
 ## AI 返回的数据格式
 ```json
