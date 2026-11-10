@@ -646,3 +646,12 @@ test('learner explanations exclude internal labels through the exact rule after 
   assert.ok(SYSTEM.includes('End of level rule.\n' + rule));
   assert.equal(SYSTEM.split(rule).length - 1, 1);
 });
+
+
+test('the surrounding-sentence frequency rule has been withdrawn', () => {
+  assert.ok(!SYSTEM.includes('Frequency words such as every morning'));
+});
+
+test('the verb-form experiment rule has been withdrawn', () => {
+  assert.ok(!SYSTEM.includes('For a verb-form error'));
+});

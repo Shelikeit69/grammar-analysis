@@ -7,6 +7,8 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {
+  CORRECTION_CASES,
+  evaluateCorrectionCase,
   findInternalTerms,
   TERMS_INPUTS,
   extractSystem,
@@ -185,4 +187,137 @@ test('terms CLI without a credential exits before creating results or fetching',
   assert.equal(result.status, 1);
   assert.match(result.stderr, /未发送任何请求/);
   assert.deepEqual(readdirSync(folder), []);
+});
+
+const correctionCase = id => CORRECTION_CASES.find(item => item.id === id);
+const correctionData = (id, corrections, segments = []) => ({sentences:[{text:correctionCase(id).input, corrections, segments}]});
+
+test('correction evaluation checks time-aware fixes, original lemmas and required corrections', () => {
+  for (const [id, corrections, segments, pass] of [
+    ['essay1', [{text:'goes',fix:'went'}], [], true],
+    ['essay1', [{text:'goes',fix:'go'}], [], false],
+    ['essay3', [{text:'wake',fix:'woke'},{text:'photo',fix:'photos'}], [], true],
+    ['essay3', [{text:'wake',fix:'woke'}], [], false],
+    ['essay6', [{text:'made',fix:'did'}], [{text:'also made',role:'predicate',lemma:'make'}], true],
+    ['essay6', [{text:'made',fix:'did'}], [{text:'made',role:'predicate',lemma:'do'}], false],
+    ['unseen', [{text:'buy',fix:'bought'}], [{text:'buy',role:'predicate',lemma:'buy'}], true],
+    ['unseen', [{text:'buy',fix:'bought'}], [], false],
+    ['control', [{text:'wake',fix:'wakes'}], [], true],
+    ['control', [{text:'wake',fix:'woke'}], [], false],
+    ['control', [{text:'wake',fix:'wakes or woke'}], [], false],
+    ['box', [{text:'is',fix:'are'},{text:'handles',fix:'handle'}], [], true],
+    ['box', [{text:'is',fix:'are'},{text:'handles',fix:'handle'},{text:'very unique',fix:'unique'}], [], false],
+  ]) {
+    const result = evaluateCorrectionCase(correctionCase(id), correctionData(id, corrections, segments));
+    assert.equal(result.pass, pass, id + JSON.stringify(result));
+    assert.equal(result.failures.length === 0, pass);
+  }
+  const missing = evaluateCorrectionCase(correctionCase('essay1'), correctionData('essay1', []));
+  assert.match(missing.failures.join(' '), /缺少纠错.*goes.*went/);
+});
+
+test('correction evaluation rejects malformed data without throwing or matching partial words', () => {
+  for (const data of [null, {}, {sentences:null}, {sentences:[null]}, {sentences:[{text:correctionCase('essay1').input}]}]) {
+    assert.equal(evaluateCorrectionCase(correctionCase('essay1'), data).pass, false);
+  }
+  assert.equal(evaluateCorrectionCase(correctionCase('essay1'), correctionData('essay1', [{text:'goes',fix:'unwent'}])).pass, false);
+  const duplicated = {sentences:[...correctionData('essay1', []).sentences,
+    ...correctionData('essay1', [{text:'goes',fix:'went'}]).sentences]};
+  assert.equal(evaluateCorrectionCase(correctionCase('essay1'), duplicated).pass, false);
+  assert.deepEqual(CORRECTION_CASES.map(item => item.id), ['essay1','essay3','essay6','unseen','control','box','essayPara','unseenPara','shiftControl']);
+});
+
+test('corrections CLI defaults to five rounds, supports refs and redacts saved responses', t => {
+  const folder = mkdtempSync(path.join(tmpdir(), 'grammar-corrections-'));
+  t.after(() => rmSync(folder, {recursive:true,force:true}));
+  const mock = path.join(folder, 'mock-fetch.mjs');
+  writeFileSync(mock, [
+    "import assert from 'node:assert/strict';",
+    "import {writeFileSync} from 'node:fs';",
+    "let calls = 0;",
+    "process.on('exit', () => writeFileSync('calls.json', JSON.stringify(calls)));",
+    "globalThis.fetch = async (url, options) => {",
+    "  calls++; const body = JSON.parse(options.body);",
+    "  assert.equal(body.messages[0].content, Buffer.from(process.env.EXPECTED_SYSTEM, 'base64').toString('utf8'));",
+    "  assert.equal(body.model, 'deepseek-flash'); assert.equal(body.temperature, 0); assert.equal(body.max_tokens, 16000);",
+    "  const text = body.messages[1].content;",
+    "  const pairs = [['goes','went'],['wake','woke'],['photo','photos'],['made','did'],['buy','bought'],['is','are'],['handles','handle'],['feed','fed'],['a','an']];",
+    "  const corrections = pairs.filter(([word]) => text.split(/[^a-z]+/i).includes(word) && !(text.includes('Kyoto') && word === 'is')).map(([text,fix]) => ({text,fix:body.messages[1].content.startsWith('My brother') ? 'wakes' : fix,reason:'测试'}));",
+    "  const segments = [{text,role:'predicate',level:'core',translation:'测试',detail:'',lemma:text.includes('made') ? 'make' : 'buy'}];",
+    "  const data = {translation:'测试',sentences:[{text,translation:'测试',note:'',segments,corrections}]};",
+    "  return Response.json({debug:process.env.DEEPSEEK_API_KEY,choices:[{finish_reason:'stop',message:{content:process.env.BROKEN_JSON ? '{broken' : JSON.stringify(data)}}]});",
+    "};",
+  ].join('\n'));
+  const script = fileURLToPath(new URL('../scripts/ab-clauses.mjs', import.meta.url));
+  const root = fileURLToPath(new URL('..', import.meta.url));
+  for (const [args, expected, runs, broken] of [
+    [[], SYSTEM, 5, false],
+    [['--ref','HEAD','--runs','1'], extractSystem(execFileSync('git',['show','HEAD:public/deepseek.js'],{cwd:root,encoding:'utf8'})), 1, false],
+    [['--runs','1'], SYSTEM, 1, true],
+  ]) {
+    const result = spawnSync(process.execPath, ['--import', pathToFileURL(mock).href, script, '--corrections', ...args], {
+      cwd:folder,encoding:'utf8',timeout:15000,
+      env:{...process.env,DEEPSEEK_API_KEY:'fake-corrections-test',EXPECTED_SYSTEM:Buffer.from(expected).toString('base64'),BROKEN_JSON:broken ? '1' : ''},
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(JSON.parse(readFileSync(path.join(folder,'calls.json'),'utf8')), 9 * runs);
+    const records = result.stdout.split('\n').filter(line => line.startsWith('{')).map(JSON.parse);
+    assert.equal(records.length, 9 * runs);
+    assert.ok(records.every(record => record.valid === !broken && record.pass === !broken), JSON.stringify(records));
+    assert.ok(!result.stdout.includes('fake-corrections-test'));
+  }
+  const dirs = readdirSync(path.join(folder,'ab-results'));
+  assert.equal(dirs.length, 3);
+  for (const dir of dirs) {
+    for (const file of readdirSync(path.join(folder,'ab-results',dir))) {
+      const content = readFileSync(path.join(folder,'ab-results',dir,file),'utf8');
+      assert.ok(!content.includes('fake-corrections-test'));
+      if (file !== 'summary.json') assert.ok(content.includes('[REDACTED]'));
+    }
+  }
+  const summary = dirs.map(dir => JSON.parse(readFileSync(path.join(folder,'ab-results',dir,'summary.json'),'utf8')));
+  assert.ok(summary.some(item => item.ref === 'working-tree' && item.summary.every(row => row.runs === 5 && row.pass === 5 && row.valid === 5)));
+  const noKey = {...process.env}; delete noKey.DEEPSEEK_API_KEY;
+  const missing = spawnSync(process.execPath, ['--import',pathToFileURL(mock).href,script,'--corrections'], {cwd:folder,env:noKey,encoding:'utf8'});
+  assert.equal(missing.status, 1); assert.match(missing.stderr, /未发送任何请求/);
+  assert.equal(JSON.parse(readFileSync(path.join(folder,'calls.json'),'utf8')), 0);
+});
+
+
+test('consistent-tense accepts A/B and rejects C and conflicting corrections with explicit failures', () => {
+  for (const [wake, took, pass, failure] of [
+    ['woke', null, true, null],
+    ['wakes', 'takes', true, null],
+    ['wakes', null, false, 'C 类'],
+    ['woke', 'takes', false, 'D 类'],
+  ]) {
+    const corrections = [{text:'wake',fix:wake},{text:'photo',fix:'photos'}];
+    if (took) corrections.push({text:'took',fix:took});
+    const result = evaluateCorrectionCase(correctionCase('essay3'), correctionData('essay3', corrections));
+    assert.equal(result.pass, pass);
+    if (failure) assert.ok(result.failures.some(message => message.includes(failure)));
+  }
+});
+
+test('paragraph cases scan corrections and original lemmas across all sentences', () => {
+  const sentences = [
+    {text:'Last summer we travelled.',corrections:[{text:'goes',fix:'went'},{text:'a',fix:'an'}],segments:[]},
+    {text:'We stayed there.',corrections:[],segments:[]},
+    {text:'Every morning we woke.',corrections:[{text:'wake',fix:'woke'},{text:'photo',fix:'photos'},{text:'made',fix:'did'}],
+      segments:[{text:'made',role:'predicate',lemma:'make'}]},
+  ];
+  assert.equal(evaluateCorrectionCase(correctionCase('essayPara'), {sentences}).pass, true);
+  const missing = structuredClone(sentences); missing[2].corrections = [];
+  assert.equal(evaluateCorrectionCase(correctionCase('essayPara'), {sentences:missing}).pass, false);
+  const shift = {sentences:[{text:'Last summer we visited Kyoto.',corrections:[],segments:[]},
+    {text:'I still think it is the most beautiful city I know.',corrections:[],segments:[]}]};
+  assert.equal(evaluateCorrectionCase(correctionCase('shiftControl'), shift).pass, true);
+  shift.sentences[1].corrections.push({text:'think',fix:'thought'});
+  assert.equal(evaluateCorrectionCase(correctionCase('shiftControl'), shift).pass, false);
+  const farm = {sentences:[{text:'Last week we visited a farm.',corrections:[],segments:[]},
+    {text:'Every morning my cousin feed the goats and cleaned the barn.',corrections:[{text:'feed',fix:'fed'}],segments:[]}]};
+  assert.equal(evaluateCorrectionCase(correctionCase('unseenPara'), farm).pass, true);
+  farm.sentences[1].corrections.push({text:'cleaned',fix:'cleans'});
+  assert.equal(evaluateCorrectionCase(correctionCase('unseenPara'), farm).pass, false);
+  assert.equal(evaluateCorrectionCase(correctionCase('unseenPara'), {sentences:[]}).pass, false);
 });
