@@ -560,3 +560,96 @@ main 同一输入只有 1/3 拆开，#47 为 3/3。main 本身不稳定，这组
 - 收益小且不确定，还可能误改 unique；整段作文这个实际使用场景没有改善。PR #59 不修改 SYSTEM，TOOL_VERSION 保持 2026-11-09.1，只合并 9 个用例和 --corrections 实验模式。
 - 以后的纠错对照每组至少 10 次。
 - 样本小，不代表稳定。
+
+## 2026-11-10：纠错按错误类型统计（main 基线，120 次）
+
+数据来源仅为以下三个目录，summary.json 的 ref 均为 origin/main（SYSTEM a49280c，TOOL_VERSION 2026-11-09.1），共 120 次返回，未使用本分支 working-tree 组：
+
+| 轮次 | 目录 | 原始返回数 |
+|---|---|---:|
+| 第一轮 | 2026-11-09T08-24-49-204Z-corrections | 30 |
+| 第二轮 | 2026-11-09T11-23-04-035Z-corrections | 45 |
+| 第三轮 | 2026-11-10T05-31-02-972Z-corrections | 45 |
+
+判定规则：
+
+- 每次返回、每个检查项单独判定对或错。格式校验没通过、请求失败或解析不出 JSON 的那次，这一次的所有检查项都算错。
+- 在所有句子的 corrections 和 segments 里查找，匹配方式沿用 evaluateCorrectionCase 的整词匹配：忽略大小写，按非英文字母分词后匹配完整词。
+- 「改对」= 存在一条纠错，text 含原词且 fix 含目标词。
+- 「不乱改」= 没有任何纠错的 text 含该词。
+- 「原形」= 含该词的谓语片段，lemma 全部等于目标原形；没有匹配的谓语片段也算错。
+- 「同句时态一致」= 沿用 consistent-tense 的规则：wake 改 woke 且 took 没被改，或 wake 改 wakes 且 took 改 takes，两种都算对。woke 与 wakes 同时出现、或修改 took 却未统一为 takes 等其他情况算错。
+- control 要求 wake → wakes 且对应 fix 不含 woke；unseenPara 要求 feed → fed 且 cleaned 没被改。
+- 「测试句数」按不同用例 id 计，整段输入算一个用例。总表中 shiftControl 的 think、is、know 合成一次联合判定；明细表仍按三个词分别列出。
+
+总表：
+
+| 类别 | 测试句数 | 正确次数 | 总次数 |
+|---|---:|---:|---:|
+| 主谓一致 | 2 | 30 | 30 |
+| 祈使句用动词原形 | 1 | 15 | 15 |
+| 名词单复数 | 2 | 22 | 25 |
+| 冠词 a / an | 1 | 8 | 10 |
+| 动词搭配 | 2 | 23 | 25 |
+| 时态：本句有过去时间词 | 3 | 26 | 40 |
+| 时态：同句谓语前后一致 | 2 | 0 | 25 |
+| 时态：跟随前一句 | 1 | 6 | 10 |
+| 不乱改 | 3 | 32 | 35 |
+| 原形标注取原文的词 | 3 | 32 | 40 |
+
+“不乱改”按逐词计算为 52/55。
+
+明细表：
+
+| 类别 | 用例 id | 检查项 | 正确次数 | 总次数 |
+|---|---|---|---:|---:|
+| 主谓一致 | control | wake→wakes，且 fix 不含 woke | 15 | 15 |
+| 主谓一致 | box | is→are | 15 | 15 |
+| 祈使句用动词原形 | box | handles→handle | 15 | 15 |
+| 名词单复数 | essay3 | photo→photos | 14 | 15 |
+| 名词单复数 | essayPara | photo→photos | 8 | 10 |
+| 冠词 a / an | essayPara | a→an | 8 | 10 |
+| 动词搭配 | essay6 | made→did | 15 | 15 |
+| 动词搭配 | essayPara | made→did | 8 | 10 |
+| 本句有过去时间词 | essay1 | goes→went | 5 | 15 |
+| 本句有过去时间词 | unseen | buy→bought | 14 | 15 |
+| 本句有过去时间词 | essayPara | goes→went | 7 | 10 |
+| 同句谓语前后一致 | essay3 | consistent-tense | 0 | 15 |
+| 同句谓语前后一致 | essayPara | consistent-tense | 0 | 10 |
+| 跟随前一句 | unseenPara | feed→fed，且 cleaned 未改 | 6 | 10 |
+| 不乱改 | box | 不改 unique | 14 | 15 |
+| 不乱改 | essayPara | 不改 unique | 8 | 10 |
+| 不乱改 | shiftControl | 不改 think | 10 | 10 |
+| 不乱改 | shiftControl | 不改 is | 10 | 10 |
+| 不乱改 | shiftControl | 不改 know | 10 | 10 |
+| 原形取原文 | essay6 | made 的 lemma 全为 make | 15 | 15 |
+| 原形取原文 | essayPara | made 的 lemma 全为 make | 3 | 10 |
+| 原形取原文 | unseen | buy 的 lemma 全为 buy | 14 | 15 |
+
+失败返回：
+
+格式校验失败 **7 次**；请求失败 **0 次**；模型内容无法解析为 JSON **0 次**。本地复核的格式结果与各目录 `summary.json` 完全一致。
+
+| 轮次 | 用例 | 第几次 | 格式失败原因 |
+|---|---|---:|---|
+| 第一轮 | unseen | 1 | `my sister` 被拼成 `mysister` |
+| 第二轮 | essay1 | 3 | `I goes` 中多出一个空格 |
+| 第三轮 | essay1 | 1 | `I goes` 中多出一个空格 |
+| 第三轮 | essay1 | 5 | `I goes` 中多出一个空格 |
+| 第三轮 | essay3 | 5 | `brother wake` 被拼成 `brotherwake` |
+| 第三轮 | essayPara | 2 | `I goes` 被拼成 `Igoes` |
+| 第三轮 | essayPara | 3 | `I goes` 中多出一个空格 |
+
+其中 4 次在 I goes 附近多出空格；另有 1 次把 I goes 拼成 Igoes，少了空格，共 5 次发生在该位置附近。
+
+整句通过次数核对：
+
+| 用例 | 第一轮 | 第二轮 | 第三轮 | 重新计算合计 | verification.md 合计 |
+|---|---:|---:|---:|---:|---:|
+| control | 5/5 | 5/5 | 5/5 | **15/15** | 15/15 |
+| essay6 | 5/5 | 5/5 | 5/5 | **15/15** | 15/15 |
+| shiftControl | 未设置 | 5/5 | 5/5 | **10/10** | 10/10 |
+
+三项均一致，**无差异**。
+
+样本小，每类只有 1–3 个测试，不代表这类语法整体的正确率。
