@@ -16,6 +16,7 @@
 - [`docs/verification.md`](../verification.md)、[`docs/feedback-verification.md`](../feedback-verification.md)：历史验证记录。
 - [`docs/usage.md`](../usage.md)：给用户的详细使用说明。
 - [`docs/development.md`](../development.md)：本地运行、部署、测试和校验规则。
+- [`docs/why-not-perfect.md`](../why-not-perfect.md)：给用户解释 AI 为什么会判错。
 
 ## 同步规则
 - 这里是项目资料的唯一来源。其他地方（例如 claude.ai 项目里的摘要）与这里不一致时，以这里为准。
