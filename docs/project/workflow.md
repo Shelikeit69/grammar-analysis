@@ -84,3 +84,5 @@ Single session. Do not use subagents or commit plan files.
 - [ ] `public/version.js` 的 `TOOL_VERSION` 在影响分析或反馈时已更新（实际合并日期加序号）。
 - [ ] 风险说明没有被删掉或弱化。
 - [ ] 截图或实测结果和 PR 描述一致。
+- [ ] 合并后 main 的「Deploy to GitHub Pages」运行为绿。失败时到 Actions → Deploy to GitHub Pages → Run workflow 新开一次；不要在失败的那次运行上点 Re-run，否则同一次运行里会有两个 github-pages 产物，部署仍会失败。
+- [ ] 禁用「本 PR」「待审核」等字样的规则只适用于 README、docs/project/、docs/roadmap.md 和 docs/usage.md 等现行说明；docs/verification.md 等历史验证记录按当时的原话保留，不回头改写。
