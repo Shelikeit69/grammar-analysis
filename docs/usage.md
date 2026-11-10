@@ -127,14 +127,6 @@ README 里只写了最常用的内容，这里是完整说明。
 
 预填链接超过 6000 字符时不会截断正文：保留真实标题，并按「① 复制反馈内容」「② 打开 GitHub 粘贴 →」两步操作，再点 Create。第 2 步在复制前禁用；修改内容会重置复制状态和公开确认。自动复制失败会全选正文供手动复制，手动复制好之后再点第 2 步。剪贴板可能保留内容，需要时请自行清除。反馈草稿不保存到浏览器存储，关闭预览或更换输入会清除草稿。
 
-## 项目介绍（原有说明）
-
-贴一句英文进去，它会像老师在课本上批注那样，用不同底色标出主语、谓语、宾语，旁边写中文意思，再告诉你这句是什么时态，最后给出整句翻译。
-
-**直接打开就能用：https://shelikeit69.github.io/grammar-analysis/**
-
-不用下载，不用安装，电脑和手机都能打开。
-
 ## 试验与合作
 
 项目刚起步，AI 时不时会判错，我也还在摸索怎么让它稳一点。想帮忙的话，下面这些最有用：
@@ -145,7 +137,3 @@ README 里只写了最常用的内容，这里是完整说明。
 - 教英语或学英语的人提意见：哪些标注对初学者有用，哪些看不懂。
 
 代码用 MIT 许可证开源，可以随便用、随便改。
-
-**English summary.** This is a free, open-source (MIT) experiment that draws colored grammar boxes, Chinese glosses and a tense note over English sentences. It runs entirely in your browser. You paste your own DeepSeek API key, and the page sends it only to `api.deepseek.com` (enforced by a Content-Security-Policy; there are no analytics, ads or third-party scripts). The key is kept in memory unless you tick "remember", and you can clear it any time. Normal analysis history is not stored by this app. The "这句分析有问题？" button opens a prefilled GitHub issue with the sentence, its analysis and your note; nothing is sent until you confirm, and issues you submit are public. Your sentences go to DeepSeek and are handled under its policy. The AI sometimes labels things wrongly, so bug reports with example sentences are the most useful contribution.
-
----
