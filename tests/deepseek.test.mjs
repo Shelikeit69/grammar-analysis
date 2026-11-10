@@ -1,6 +1,8 @@
 import {repairAnalysis, repairText} from './fixtures/repair.mjs';
 import {longTextAnchors, withTextAnchors} from './fixtures/clauses.mjs';
 import test from 'node:test';
+import {spawnSync} from 'node:child_process';
+import {extractSystem} from '../scripts/ab-clauses.mjs';
 import assert from 'node:assert/strict';
 import { analyzeWithDeepSeek } from '../lib/deepseek.mjs';
 import { SYSTEM } from '../public/deepseek.js';
@@ -655,8 +657,20 @@ test('verb corrections use time context and keep the original lemma through the 
 });
 
 
-test('frequency words allow past habits and corrections follow surrounding sentences through the exact rule', () => {
-  const rule = "Frequency words such as every morning, every day, usually or often do not set the tense; they fit both past and present. When a sentence has no word that sets the tense (such as last summer, yesterday, ago, now, today or tomorrow), follow the tense already set by the surrounding sentences of the input. Example: after \"Last year we lived near a lake.\", correct \"On weekends my father fish there and cooked what he caught.\" to fished, not fishes. After all corrections, the predicates of one sentence must agree in tense: never leave a fix such as fishes beside an unchanged past verb such as cooked. Keep a tense shift the writer clearly intends, such as a present-tense opinion inside a past story.";
-  assert.ok(SYSTEM.includes("that the verb form is corrected in corrections. " + rule));
-  assert.equal(SYSTEM.split(rule).length - 1, 1);
+test('the surrounding-sentence frequency rule has been withdrawn', () => {
+  assert.ok(!SYSTEM.includes('Frequency words such as every morning'));
+});
+
+test('SYSTEM matches the first-rule-only commit d421865', t => {
+  const result = spawnSync('git', ['show', 'd421865:public/deepseek.js'], {
+    cwd: new URL('..', import.meta.url), encoding:'utf8',
+  });
+  if (result.status === 0) {
+    assert.equal(SYSTEM, extractSystem(result.stdout));
+  } else {
+    assert.match(result.stderr || '', /invalid object name|bad object|unknown revision/i);
+    t.diagnostic('d421865 is unavailable in this shallow clone; checking recorded SYSTEM length and first-rule position instead.');
+    assert.equal(SYSTEM.length, 21449);
+    assert.equal(SYSTEM.indexOf('For a verb-form error,'), 17544);
+  }
 });

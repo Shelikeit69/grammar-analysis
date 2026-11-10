@@ -512,3 +512,43 @@ main 同一输入只有 1/3 拆开，#47 为 3/3。main 本身不稳定，这组
 - essayPara 2/5 未达到至少 4/5 的门槛，即使 essay3 C 类为 0/5，也不满足保留 Fixes 的条件；PR #59 改为 Related to #58，上线实测后决定是否关闭 #58。
 - 原始纠错返回保存在忽略目录 ab-results/2026-11-09T11-23-04-035Z-corrections/ 与 ab-results/2026-11-09T11-27-37-040Z-corrections/；汇总及测试日志位于忽略目录 artifacts/。密钥仅经环境变量传入，实验结束后移除。
 - 样本小，不代表稳定。两组顺序运行，观察不能确定因果；固定检查不等于完整语法或时态说明正确，格式校验不判断纠错正确性，网页不做拦截。
+
+## 2026-11-10：PR #59 第三轮对照（撤回第二段规则）
+
+- 本分支 TOOL_VERSION 为 2026-11-10.1。SYSTEM 已撤回 Frequency words 开头的第二段及前导空格，与 d421865 的 SYSTEM 逐字相同；只保留第一段动词形式纠错规则。基线 origin/main 为 a49280c（2026-11-09.1），独立基线 worktree 仍是该提交。
+- 先后运行 npm run ab:clauses -- --corrections --runs 5 --ref origin/main、npm run ab:clauses -- --corrections --runs 5；每组 45 次，每次一请求、不走重做。90 次返回 finish_reason 均为 stop，模型 deepseek-flash、temperature 0 与其他请求参数不变。
+- 表中通过次数要求用例检查和格式校验同时通过；两项逐次输出分开记录，不补做失败请求。
+
+| 用例 | main 通过 | 本分支通过 | main 校验通过 | 本分支校验通过 |
+| --- | --- | --- | --- | --- |
+| essay1 | 1/5 | 1/5 | 3/5 | 5/5 |
+| essay3 | 0/5 | 2/5 | 4/5 | 4/5 |
+| essay6 | 5/5 | 5/5 | 5/5 | 5/5 |
+| unseen | 5/5 | 5/5 | 5/5 | 5/5 |
+| control | 5/5 | 5/5 | 5/5 | 5/5 |
+| box | 5/5 | 3/5 | 5/5 | 5/5 |
+| essayPara | 0/5 | 0/5 | 3/5 | 5/5 |
+| unseenPara | 3/5 | 1/5 | 5/5 | 5/5 |
+| shiftControl | 5/5 | 5/5 | 5/5 | 5/5 |
+
+- essay3 的 A 为 wake → woke 且 took 不变；B 为 wake → wakes 且 took → takes；C 为 wake → wakes 但 took 不变；D 为其他。第三轮继续接受 A/B 并检查 photo → photos，第一轮只认 woke，两轮通过次数不能直接比较。
+
+| essay3 分类 | main | 本分支 |
+| --- | --- | --- |
+| A | 0/5 | 2/5 |
+| B | 0/5 | 0/5 |
+| C | 5/5 | 3/5 |
+| D | 0/5 | 0/5 |
+
+- main 五次均为 C；本分支第 3、5 次为 A，第 1、2、4 次为 C。两组无 D 类。main 第 5 次和本分支第 4 次 essay3 格式不合规，但原始纠错可读，分类仍计入 C。
+- **停止条件再次触发：box 本分支 3/5，main 5/5，少 2 次。** 本分支第 2、3 次误改 unique。control、shiftControl 两组均为 5/5。按停止条件跳过两组 #27 十次流程，没有继续修改提示词。
+
+| #27 第三轮 | 最终拆对 | 触发重做 | 请求总数 | 平均耗时 |
+| --- | --- | --- | --- | --- |
+| main | 未运行 | 未运行 | 0（停止后未请求） | 无数据 |
+| 本分支 | 未运行 | 未运行 | 0（停止后未请求） | 无数据 |
+
+- 原定本分支与独立 main worktree 的 npm run ab:clauses -- --flow --runs 10 均未执行，不能用前两轮数字代替第三轮，也无法判断长从句重做次数差异是否为随机波动。
+- essayPara 两组均为 0/5，整段作文时态和整段输入下 lemma 取改后词的问题仍未解决；unseenPara 本分支为 1/5，main 为 3/5。unseenPara、shiftControl 不在提示词示例里。即使撤回第二段，仍观察到 unique 误改，不能认为副作用已经消失。
+- 原始返回在忽略目录 ab-results/2026-11-10T05-31-02-972Z-corrections/ 与 ab-results/2026-11-10T05-35-41-658Z-corrections/，汇总和测试日志在忽略目录 artifacts/。临时密钥仅经环境变量传入，执行结束移除，不写入文件或输出。
+- 样本小，不代表稳定；两组顺序运行，不能据此确定因果。只保留第一段规则，整段时态和 lemma 另行设计方案；PR #59 保持 Related to #58，#58 保持打开。
