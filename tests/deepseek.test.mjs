@@ -1,8 +1,6 @@
 import {repairAnalysis, repairText} from './fixtures/repair.mjs';
 import {longTextAnchors, withTextAnchors} from './fixtures/clauses.mjs';
 import test from 'node:test';
-import {spawnSync} from 'node:child_process';
-import {extractSystem} from '../scripts/ab-clauses.mjs';
 import assert from 'node:assert/strict';
 import { analyzeWithDeepSeek } from '../lib/deepseek.mjs';
 import { SYSTEM } from '../public/deepseek.js';
@@ -650,27 +648,10 @@ test('learner explanations exclude internal labels through the exact rule after 
 });
 
 
-test('verb corrections use time context and keep the original lemma through the exact rule', () => {
-  const rule = "For a verb-form error, choose the fix that fits both subject agreement and the time the sentence sets: time markers actually present (for example last summer, yesterday, ago) and the tense of coordinated or main verbs. Example: in \"Yesterday he walk home and cooked dinner.\", walk -> walked, not walks. Only when the sentence gives no past marker and no past verb, fix agreement alone: in \"She usually walk to school.\", walk -> walks. lemma always comes from the original word, never from fix: if made is corrected to did, the made segment keeps lemma make. tense and tenseReason describe the original sentence; never claim that a wrongly formed verb (such as goes after Last summer) expresses the past; say instead that the time marker shows the past and that the verb form is corrected in corrections.";
-  assert.ok(SYSTEM.includes("reason is one short Chinese sentence explaining the error. " + rule));
-  assert.equal(SYSTEM.split(rule).length - 1, 1);
-});
-
-
 test('the surrounding-sentence frequency rule has been withdrawn', () => {
   assert.ok(!SYSTEM.includes('Frequency words such as every morning'));
 });
 
-test('SYSTEM matches the first-rule-only commit d421865', t => {
-  const result = spawnSync('git', ['show', 'd421865:public/deepseek.js'], {
-    cwd: new URL('..', import.meta.url), encoding:'utf8',
-  });
-  if (result.status === 0) {
-    assert.equal(SYSTEM, extractSystem(result.stdout));
-  } else {
-    assert.match(result.stderr || '', /invalid object name|bad object|unknown revision/i);
-    t.diagnostic('d421865 is unavailable in this shallow clone; checking recorded SYSTEM length and first-rule position instead.');
-    assert.equal(SYSTEM.length, 21449);
-    assert.equal(SYSTEM.indexOf('For a verb-form error,'), 17544);
-  }
+test('the verb-form experiment rule has been withdrawn', () => {
+  assert.ok(!SYSTEM.includes('For a verb-form error'));
 });
