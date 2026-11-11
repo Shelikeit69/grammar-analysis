@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { analyzeWithDeepSeek, DEEPSEEK_URL, DEFAULT_MODEL, SYSTEM } from '../public/deepseek.js';
 import { findUnsplitClauses, validateAnalysis } from '../public/analysis.js';
+import { EVAL_CASES, evaluateEvalCase } from './eval-cases.mjs';
 
 // Issue #27 原句，逐字使用（含原文拼写错误 argured、sub human）。
 export const ISSUE27_INPUT =
@@ -423,6 +424,55 @@ async function runCorrections(apiKey, runs, ref) {
   console.log('原始返回已保存到 ' + outDir + '/');
 }
 
+// 评测集模式：每句单独请求、不重做，按检查类型汇总通过次数。格式未通过的那次，所有检查项都算未通过。
+async function runEval(apiKey, runs, ref) {
+  const system = ref ? loadSystemAtRef(ref) : SYSTEM;
+  const outDir = path.join('ab-results', new Date().toISOString().replace(/[:.]/g, '-') + '-eval');
+  mkdirSync(outDir, {recursive:true});
+  const records = [];
+  for (let run = 1; run <= runs; run++) {
+    for (const caseItem of EVAL_CASES) {
+      let result;
+      try {
+        result = await callOnce({name:caseItem.id, input:caseItem.input, system}, apiKey);
+      } catch {
+        result = {record:{validOk:false}, envelope:{error:'Request failed'}};
+      }
+      let validated = null;
+      try {
+        if (result.parsed) validated = validateAnalysis(result.parsed, caseItem.input);
+      } catch { /* 格式未通过：下面全部记为未通过 */ }
+      const checks = evaluateEvalCase(caseItem, validated);
+      const record = {id:caseItem.id, run, valid:Boolean(validated),
+        pass:checks.filter(item => item.pass).length, total:checks.length,
+        failures:checks.filter(item => !item.pass).map(item => item.check)};
+      records.push({...record, checks:checks.map(item => ({type:item.type, pass:item.pass}))});
+      writeFileSync(path.join(outDir, caseItem.id + '-' + run + '.json'),
+        JSON.stringify(result.envelope, null, 2).replaceAll(apiKey, '[REDACTED]'));
+      console.log(JSON.stringify(record));
+    }
+  }
+  const byType = {};
+  for (const record of records) for (const item of record.checks) {
+    byType[item.type] ??= {pass:0, total:0};
+    byType[item.type].total++;
+    if (item.pass) byType[item.type].pass++;
+  }
+  const byCase = EVAL_CASES.map(caseItem => {
+    const own = records.filter(record => record.id === caseItem.id);
+    return {id:caseItem.id, inPrompt:Boolean(caseItem.inPrompt),
+      pass:own.reduce((sum, record) => sum + record.pass, 0), total:own.reduce((sum, record) => sum + record.total, 0),
+      valid:own.filter(record => record.valid).length, runs};
+  });
+  writeFileSync(path.join(outDir, 'summary.json'),
+    JSON.stringify({ref:ref || 'working-tree', model:DEFAULT_MODEL, runs, byType, byCase, records}, null, 2));
+  console.log('检查类型 | 通过次数 / 总次数');
+  for (const [type, row] of Object.entries(byType)) console.log(type + ' | ' + row.pass + '/' + row.total);
+  console.log('用例 | 检查项通过 / 总数 | 校验通过次数 / 总次数');
+  for (const row of byCase) console.log(row.id + (row.inPrompt ? '（提示词内）' : '') + ' | ' + row.pass + '/' + row.total + ' | ' + row.valid + '/' + runs);
+  console.log('参考答案是草稿，分数只用于同一评测集上的前后对照。原始返回已保存到 ' + outDir + '/');
+}
+
 async function main() {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
@@ -430,13 +480,14 @@ async function main() {
     process.exit(1);
   }
 
-  if (process.argv.includes('--terms') || process.argv.includes('--corrections')) {
+  if (process.argv.includes('--terms') || process.argv.includes('--corrections') || process.argv.includes('--eval')) {
     const index = process.argv.indexOf('--runs');
     const runs = index < 0 ? 5 : Number(process.argv[index + 1]);
     if (!Number.isSafeInteger(runs) || runs < 1) throw new Error('--runs 需要正整数');
     const refIndex = process.argv.indexOf('--ref');
     const ref = refIndex < 0 ? undefined : process.argv[refIndex + 1];
     if (refIndex >= 0 && (!ref || ref.startsWith('--'))) throw new Error('--ref 需要 git ref');
+    if (process.argv.includes('--eval')) return runEval(apiKey, runs, ref);
     return process.argv.includes('--corrections') ? runCorrections(apiKey, runs, ref) : runTerms(apiKey, runs, ref);
   }
   if (process.argv.includes('--flow')) {
