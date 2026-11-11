@@ -79,6 +79,7 @@ PR-A（#38，level 规则结构化试点）已合并并通过真实试点及格�
 - **Structured Outputs 核对（2026-10-18）：** 当前使用 `response_format: { type: "json_object" }`。[DeepSeek JSON 模式](https://api-docs.deepseek.com/guides/json_mode/)与严格 Schema 不应混为一谈。[官方工具调用文档](https://api-docs.deepseek.com/guides/tool_calls/#strict-mode-beta)已提供 Beta `strict`，需使用 Beta 地址并设置 `tools[].function.strict`。#15 未迁移请求及解析协议，也不声称 DeepSeek 不支持严格 Schema；后续单独评估兼容性、收益和 Schema 子集限制，即使接入仍保留原文覆盖校验。
 
 - 2026-11-02 补充：主句的长宾语从句拆开后保留自己的主干为 core（仅提示词）；PR #35 合并后真实密钥复测样例 09 两次，默认视图均显示 I know … she was working；范围和判断依据小问题见 verification.md。
+- 2026-11-11：#58 加了「纠错单独请求」的对照实验模式（`--corrections --split`，只在实验脚本里，线上流程和 SYSTEM 未改）。尚未用真实模型跑过；每组至少 10 次，与 2026-11-10 的 main 基线同口径比较后再决定是否上线，见 decisions.md 2026-11-11。
 
 ## 暂缓扩展
 

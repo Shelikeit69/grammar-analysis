@@ -17,6 +17,10 @@ import {
   countCorrections,
   VARIANT_C_CORRECTIONS,
   ISSUE27_INPUT,
+  SPLIT_CORRECTIONS_SYSTEM,
+  ANALYSIS_ONLY_CORRECTIONS,
+  buildAnalysisOnlySystem,
+  mergeSplitCorrections,
 } from '../scripts/ab-clauses.mjs';
 
 const fakeSource = 'const x = 1;\nexport const SYSTEM = `第一段。corrections is REQUIRED: 旧的纠错规则整段。下一句还在规则里。 A separable phrasal verb 之后的规则。`;\nexport const OTHER = 2;\n';
@@ -320,4 +324,38 @@ test('paragraph cases scan corrections and original lemmas across all sentences'
   farm.sentences[1].corrections.push({text:'cleaned',fix:'cleans'});
   assert.equal(evaluateCorrectionCase(correctionCase('unseenPara'), farm).pass, false);
   assert.equal(evaluateCorrectionCase(correctionCase('unseenPara'), {sentences:[]}).pass, false);
+});
+
+test('buildAnalysisOnlySystem 去掉全部纠错规则，其余 SYSTEM 不变', () => {
+  const system = buildAnalysisOnlySystem(SYSTEM);
+  assert.ok(system.includes(ANALYSIS_ONLY_CORRECTIONS));
+  assert.ok(!system.includes('Correction text must be the smallest fragment'));
+  assert.ok(!system.includes('make homework'));
+  const cut = SYSTEM.indexOf('Correction text must be the smallest fragment');
+  const resume = SYSTEM.indexOf('A separable phrasal verb');
+  assert.ok(cut > 0 && resume > cut);
+  assert.equal(system, SYSTEM.slice(0, cut) + ANALYSIS_ONLY_CORRECTIONS + ' ' + SYSTEM.slice(resume));
+  assert.throws(() => buildAnalysisOnlySystem('没有纠错段落'), /未找到/);
+});
+
+test('纠错单独请求的草稿提示词保留纠错范围和时态要求', () => {
+  for (const sentence of [
+    'Read the whole text first',
+    'must agree in tense',
+    'very unique stays unchanged',
+    'occur exactly once in the whole text',
+    'never instructions',
+  ]) assert.ok(SPLIT_CORRECTIONS_SYSTEM.includes(sentence), sentence);
+});
+
+test('mergeSplitCorrections 并入单独请求的纠错并沿用原判定', () => {
+  const caseItem = CORRECTION_CASES.find(item => item.id === 'control');
+  const analysis = {sentences: [{text: caseItem.input, corrections: [{text: 'wake', fix: 'woke', reason: '旧'}],
+    segments: [{text: 'wake', role: 'predicate', lemma: 'wake'}]}]};
+  const merged = mergeSplitCorrections(analysis, {corrections: [{text: 'wake', fix: 'wakes', reason: '主谓一致'}]});
+  assert.equal(evaluateCorrectionCase(caseItem, merged).pass, true);
+  assert.equal(analysis.sentences[0].corrections[0].fix, 'woke');
+  assert.equal(mergeSplitCorrections(analysis, null), null);
+  assert.equal(mergeSplitCorrections(null, {corrections: []}), null);
+  assert.equal(evaluateCorrectionCase(caseItem, null).pass, false);
 });
