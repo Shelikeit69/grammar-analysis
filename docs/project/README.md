@@ -13,6 +13,7 @@
 相关文件：
 - [`docs/roadmap.md`](../roadmap.md)：产品待办的唯一来源，下一步做什么看这里。
 - [`docs/regression-cases.md`](../regression-cases.md)：人工复核用的语法样例。
+- [`docs/eval-cases.md`](../eval-cases.md)：自动打分的评测集（参考答案是草稿）及运行方法。
 - [`docs/verification.md`](../verification.md)、[`docs/feedback-verification.md`](../feedback-verification.md)：历史验证记录。
 - [`docs/usage.md`](../usage.md)：给用户的详细使用说明。
 - [`docs/development.md`](../development.md)：本地运行、部署、测试和校验规则。
