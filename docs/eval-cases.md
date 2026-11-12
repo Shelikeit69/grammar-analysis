@@ -1,6 +1,6 @@
 # 评测集
 
-日期：2026-11-11。40 条虚构句，213 个检查项，放在 [`scripts/eval-cases.mjs`](../scripts/eval-cases.mjs)。用途是改提示词、换模型或换参数时，在同一批句子上前后对照，不用每次肉眼看结果。
+日期：2026-11-11。40 条虚构句，216 个检查项，放在 [`scripts/eval-cases.mjs`](../scripts/eval-cases.mjs)。用途是改提示词、换模型或换参数时，在同一批句子上前后对照，不用每次肉眼看结果。
 
 ## 先看限制
 
@@ -24,9 +24,9 @@ DEEPSEEK_API_KEY=… npm run ab:clauses -- --eval --runs 3
 
 | 类型 | 检查什么 | 条数 |
 |---|---|---:|
-| role | 含这个词（组）的片段，成分标签对不对 | 65 |
+| role | 含这个词（组）的片段，成分标签对不对 | 67 |
 | lemma | 谓语或系动词片段的原形 | 37 |
-| tense | 时态 + 语态组合及顺序，逐字比较 | 35 |
+| tense | 时态 + 语态组合及顺序，逐字比较 | 36 |
 | clause | 从句原文、类型，状语从句的小类 | 25 |
 | clauseCount | 从句总数 | 16 |
 | level | 主干（core）还是修饰（detail） | 14 |
@@ -38,18 +38,23 @@ DEEPSEEK_API_KEY=… npm run ab:clauses -- --eval --runs 3
 
 词组按完整单词、连续出现来匹配，所以把一个成分切成几段会被判为未通过。
 
-## 需要你或老师拍板的 6 处
+## 需要你或老师拍板的 4 处
 
 这些地方没有唯一答案，或者现有标签体系表达不了，目前不设检查。定下来后补检查项。
 
 | 用例 | 句子 | 待定的问题 |
 |---|---|---|
-| n04 | The engineer explained that the old bridge could carry heavy trucks. | could carry 的时态名称怎么写 |
 | n09 | They have been waiting for the bus since seven o'clock. | wait for 算短语动词，还是 wait 加介词短语（目前两种原形都接受） |
 | n11 | My father, an engineer who loves history, explained the plan. | 同位语标什么。现有 9 个成分标签里没有同位语，「被标为定语」算不算错要先定 |
 | n14 | There are three apples on the table. | There 和 three apples 各标什么 |
 | n19 | If you had told me earlier, I would have helped you. | 虚拟语气的时态名称怎么写 |
-| n24 | He was so tired that he fell asleep on the sofa. | fell asleep 按系动词加表语，还是整体作谓语（目前两种原形都接受） |
+
+原先列在这里的两处已按 SYSTEM 现有写法定下来（2026-11-12）：
+
+- n04 could carry 记为「一般过去时 · 主动语态」。SYSTEM 的例子把 could be funded 记为一般过去时的被动语态，同一写法。
+- n24 fell asleep 记为系动词 fell（原形 fall）加表语 asleep。SYSTEM 把 fall 列为系动词，例子是 had fallen ill。
+
+这两处检查的是「输出是否符合 SYSTEM 的约定」。约定本身合不合适，仍由你和老师判断。
 
 ## 维护
 

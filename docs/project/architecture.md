@@ -27,7 +27,7 @@
 - `lib/access.mjs`：本地和 Codespaces 的访问来源校验（只允许 127.0.0.1 和本 Codespace 的域名）。
 - `server.mjs`：本地和 Codespaces 用的 HTTP 服务，只监听 127.0.0.1。新增的 `public/` 文件要加进它的资源白名单，也要加进 `scripts/browser-pages-check.cjs` 的白名单。
 - `tests/`：node --test 单元测试，数量以 `npm test` 输出为准。
-- `scripts/eval-cases.mjs`：评测集（40 条虚构句、213 个检查项，参考答案是草稿）和打分函数 `evaluateEvalCase`；由 `scripts/ab-clauses.mjs --eval` 调用真实模型，不进 CI，见 `docs/eval-cases.md`。
+- `scripts/eval-cases.mjs`：评测集（40 条虚构句、216 个检查项，参考答案是草稿）和打分函数 `evaluateEvalCase`；由 `scripts/ab-clauses.mjs --eval` 调用真实模型，不进 CI，见 `docs/eval-cases.md`。
 - `tests/fixtures/clauses.mjs`：从句渲染夹具（条件、宾语、两层/三层嵌套、同终点、相邻范围，以及只用于验证同一片段内部换行的长状语），句子为虚构改写，供浏览器检查模拟响应使用。
 - `scripts/browser-check.cjs`：Playwright 排版与交互检查（含从句模式选择、嵌套框与交互、从句清单、跨行条带位置、嵌套轨道、单片段短从句、单片段内部换行、清理、窄屏和大字检查）；`scripts/browser-pages-check.cjs`：模拟 Pages 静态网页的检查（12 项）；`scripts/browser-feedback-check.cjs`：反馈流程检查（154 项断言，PR #28 起包含长链接两步流程和 380/390px 排版检查，任务 B PR 1 新增从句清单的 XSS/字段白名单断言，会生成截图到 `artifacts/feedback/`）。都用模拟响应，不调用真实 DeepSeek，也不提交真实 Issue。
 - `.gitignore`：`artifacts/` 已加入（PR #28），测试生成的截图不提交。

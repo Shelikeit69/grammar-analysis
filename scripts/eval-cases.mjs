@@ -85,8 +85,8 @@ export const EVAL_CASES = [
     {type:'lemma', text:'explained', lemma:'explain'}, {type:'lemma', text:'could carry', lemma:'carry'},
     {type:'clause', text:'that the old bridge could carry heavy trucks', clauseType:'object'},
     {type:'split', text:'that the old bridge could carry heavy trucks'},
-    {type:'level', text:'could carry', level:'core'}, {type:'level', text:'bridge', level:'core'}],
-    needsReview:'could carry 的时态名称（一般过去时，还是按情态动词另写）未定，不检查 tense。'},
+    {type:'level', text:'could carry', level:'core'}, {type:'level', text:'bridge', level:'core'},
+    {type:'tense', value:PAST}]},
   {id:'n05', input:'She gave her brother a book about birds.', checks:[
     {type:'lemma', text:'gave', lemma:'give'}, {type:'role', text:'brother', role:'object'},
     {type:'role', text:'book', role:'object'}, {type:'role', text:'about birds', role:'attribute'},
@@ -177,10 +177,10 @@ export const EVAL_CASES = [
     {type:'clauseCount', count:2}]},
   {id:'n24', input:'He was so tired that he fell asleep on the sofa.', checks:[
     {type:'role', text:'was', role:'linking'}, {type:'role', text:'tired', role:'predicative'},
-    {type:'lemma', text:'fell', lemma:['fall', 'fall asleep']},
+    {type:'role', text:'fell', role:'linking'}, {type:'lemma', text:'fell', lemma:'fall'},
+    {type:'role', text:'asleep', role:'predicative'},
     {type:'clause', text:'that he fell asleep on the sofa', clauseType:'adverbial', subtype:'result'},
-    {type:'split', text:'that he fell asleep on the sofa'}, {type:'tense', value:PAST}],
-    needsReview:'fell asleep：按系动词 fall + 表语 asleep，还是整体作谓语 fall asleep，两种 lemma 都接受。'},
+    {type:'split', text:'that he fell asleep on the sofa'}, {type:'tense', value:PAST}]},
   {id:'n25', input:'Neither the students nor the teacher knows the answer.', checks:[
     {type:'role', text:'knows', role:'predicate'}, {type:'lemma', text:'knows', lemma:'know'},
     {type:'role', text:'answer', role:'object'}, {type:'clauseCount', count:0}, {type:'tense', value:PRESENT}]},
