@@ -487,7 +487,7 @@ async function runEval(apiKey, runs, ref) {
         if (result.parsed) validated = validateAnalysis(result.parsed, caseItem.input);
       } catch { /* 格式未通过：下面全部记为未通过 */ }
       const checks = evaluateEvalCase(caseItem, validated);
-      const record = {id:caseItem.id, run, valid:Boolean(validated),
+      const record = {id:caseItem.id, run, valid:Boolean(validated), requestOk:Boolean(result.envelope?.choices),
         pass:checks.filter(item => item.pass).length, total:checks.length,
         failures:checks.filter(item => !item.pass).map(item => item.check)};
       records.push({...record, checks:checks.map(item => ({type:item.type, pass:item.pass}))});
@@ -514,6 +514,7 @@ async function runEval(apiKey, runs, ref) {
   for (const [type, row] of Object.entries(byType)) console.log(type + ' | ' + row.pass + '/' + row.total);
   console.log('用例 | 检查项通过 / 总数 | 校验通过次数 / 总次数');
   for (const row of byCase) console.log(row.id + (row.inPrompt ? '（提示词内）' : '') + ' | ' + row.pass + '/' + row.total + ' | ' + row.valid + '/' + runs);
+  console.log('请求失败（没拿到模型返回，不是模型答错）：' + records.filter(record => !record.requestOk).length + '/' + records.length + ' 次');
   console.log('参考答案是草稿，分数只用于同一评测集上的前后对照。原始返回已保存到 ' + outDir + '/');
 }
 

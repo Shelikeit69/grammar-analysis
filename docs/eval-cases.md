@@ -1,6 +1,6 @@
 # 评测集
 
-日期：2026-11-11。40 条虚构句，216 个检查项，放在 [`scripts/eval-cases.mjs`](../scripts/eval-cases.mjs)。用途是改提示词、换模型或换参数时，在同一批句子上前后对照，不用每次肉眼看结果。
+日期：2026-11-11，2026-11-12 按首次基线修订。40 条虚构句，214 个检查项，放在 [`scripts/eval-cases.mjs`](../scripts/eval-cases.mjs)。用途是改提示词、换模型或换参数时，在同一批句子上前后对照，不用每次肉眼看结果。
 
 ## 先看限制
 
@@ -25,8 +25,8 @@ DEEPSEEK_API_KEY=… npm run ab:clauses -- --eval --runs 3
 | 类型 | 检查什么 | 条数 |
 |---|---|---:|
 | role | 含这个词（组）的片段，成分标签对不对 | 67 |
-| lemma | 谓语或系动词片段的原形 | 37 |
-| tense | 时态 + 语态组合及顺序，逐字比较 | 36 |
+| lemma | 谓语或系动词片段的原形 | 36 |
+| tense | 时态 + 语态组合及顺序，逐字比较 | 35 |
 | clause | 从句原文、类型，状语从句的小类 | 25 |
 | clauseCount | 从句总数 | 16 |
 | level | 主干（core）还是修饰（detail） | 14 |
@@ -38,23 +38,28 @@ DEEPSEEK_API_KEY=… npm run ab:clauses -- --eval --runs 3
 
 词组按完整单词、连续出现来匹配，所以把一个成分切成几段会被判为未通过。
 
-## 需要你或老师拍板的 4 处
+## 需要你或老师拍板的 5 处
 
 这些地方没有唯一答案，或者现有标签体系表达不了，目前不设检查。定下来后补检查项。
 
 | 用例 | 句子 | 待定的问题 |
 |---|---|---|
+| n04 | The engineer explained that the old bridge could carry heavy trucks. | could carry 的时态名称怎么写。SYSTEM 自己有矛盾：should give、can shop for 记为一般现在时，could be funded 记为一般过去时。实测模型 3/3 记为一般现在时 |
 | n09 | They have been waiting for the bus since seven o'clock. | wait for 算短语动词，还是 wait 加介词短语（目前两种原形都接受） |
 | n11 | My father, an engineer who loves history, explained the plan. | 同位语标什么。现有 9 个成分标签里没有同位语，「被标为定语」算不算错要先定 |
 | n14 | There are three apples on the table. | There 和 three apples 各标什么 |
 | n19 | If you had told me earlier, I would have helped you. | 虚拟语气的时态名称怎么写 |
 
-原先列在这里的两处已按 SYSTEM 现有写法定下来（2026-11-12）：
+n24 fell asleep 已按 SYSTEM 现有写法设检查（2026-11-12）：系动词 fell（原形 fall）加表语 asleep。SYSTEM 把 fall 列为系动词，例子是 had fallen ill。这检查的是「输出是否符合 SYSTEM 的约定」，约定本身合不合适仍由你和老师判断。首次基线里模型 3 次给了 3 种分法，都不是系动词加表语。
 
-- n04 could carry 记为「一般过去时 · 主动语态」。SYSTEM 的例子把 could be funded 记为一般过去时的被动语态，同一写法。
-- n24 fell asleep 记为系动词 fell（原形 fall）加表语 asleep。SYSTEM 把 fall 列为系动词，例子是 had fallen ill。
+## 首次基线和两处修订（2026-11-12）
 
-这两处检查的是「输出是否符合 SYSTEM 的约定」。约定本身合不合适，仍由你和老师判断。
+首次基线见 [verification.md](verification.md) 2026-11-12 一节：596/642，格式失败 1/120。对照原始返回后，改了两处参考答案：
+
+- n04：先前把 could carry 定为一般过去时，依据不够。SYSTEM 两处写法矛盾，退回待定，去掉时态检查。
+- n23：去掉「won 的原形是 win」这项检查。that won the prize 只有 4 个词，按 SYSTEM 可以整个留在一个片段里，这时没有单独的谓语片段，原检查会把合规的输出判为未通过。
+
+检查项因此从 216 个变为 214 个，和修订前的分数不能直接比较。
 
 ## 维护
 

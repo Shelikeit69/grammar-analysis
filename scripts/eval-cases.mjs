@@ -85,8 +85,8 @@ export const EVAL_CASES = [
     {type:'lemma', text:'explained', lemma:'explain'}, {type:'lemma', text:'could carry', lemma:'carry'},
     {type:'clause', text:'that the old bridge could carry heavy trucks', clauseType:'object'},
     {type:'split', text:'that the old bridge could carry heavy trucks'},
-    {type:'level', text:'could carry', level:'core'}, {type:'level', text:'bridge', level:'core'},
-    {type:'tense', value:PAST}]},
+    {type:'level', text:'could carry', level:'core'}, {type:'level', text:'bridge', level:'core'}],
+    needsReview:'could carry 的时态名称未定，不检查 tense：SYSTEM 里 should give、can shop for 记为一般现在时，could be funded 记为一般过去时，两处写法矛盾；2026-11-12 实测模型 3/3 记为一般现在时。'},
   {id:'n05', input:'She gave her brother a book about birds.', checks:[
     {type:'lemma', text:'gave', lemma:'give'}, {type:'role', text:'brother', role:'object'},
     {type:'role', text:'book', role:'object'}, {type:'role', text:'about birds', role:'attribute'},
@@ -169,7 +169,7 @@ export const EVAL_CASES = [
   {id:'n22', input:'What a beautiful day!', checks:[
     {type:'clauseCount', count:0}, {type:'tense', value:''}]},
   {id:'n23', input:'The manager said that the team that won the prize would get a bonus.', checks:[
-    {type:'lemma', text:'said', lemma:'say'}, {type:'lemma', text:'won', lemma:'win'},
+    {type:'lemma', text:'said', lemma:'say'},
     {type:'clause', text:'that the team that won the prize would get a bonus', clauseType:'object'},
     {type:'clause', text:'that won the prize', clauseType:'relative'},
     {type:'split', text:'that the team that won the prize would get a bonus'},
