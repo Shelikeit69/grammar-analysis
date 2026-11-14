@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:lang="zh-CN" lang="zh-CN" width="820" height="924" viewBox="0 0 820 924" role="img" aria-label="句间的工作原理：贴入英文，发给 AI，AI 切块贴标签，网页逐字核对原文，画成彩色结构图">
+<title>句间的工作原理：一句话是怎么被分析出来的</title>
+<style>
+  svg { --page:#f7fafc; --grid:#e9eef2; --panel:#ffffff; --line:#dfe3d9; --ink:#26392f; --muted:#737b73; --green:#365c45; --soft:#eef3ec;
+        --subject:#316ba0; --subject-l:#dcecfb; --predicate:#ad5600; --predicate-l:#fff0de; --object:#397c59; --object-l:#d4f2dc;
+        --adverbial:#7753a0; --adverbial-l:#ecdef5; --attribute:#706b60; --attribute-l:#f1efe9; --tense-l:#f7e8aa; --tense-b:#e6d27c; --error:#981b38; --error-l:#fceaf0; --error-b:#f0c9d4; }
+  @media (prefers-color-scheme: dark) { svg { --page:#151a17; --grid:#1c221f; --panel:#1e2421; --line:#343d37; --ink:#e7ece7; --muted:#9ba59d; --green:#86b89a; --soft:#26302a;
+        --subject:#a9cdf0; --subject-l:#1d3550; --predicate:#f2c58c; --predicate-l:#4a3212; --object:#a6dcb9; --object-l:#1e4030;
+        --adverbial:#cdb4e8; --adverbial-l:#38284c; --attribute:#cfcabb; --attribute-l:#35332d; --tense-l:#4a4216; --tense-b:#6a5e1f; --error:#f0a8b8; --error-l:#3f1a24; --error-b:#6a2c3c; } }
+  text { font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", sans-serif; fill: var(--ink); }
+  .page { fill: var(--page); } .gridline { stroke: var(--grid); stroke-width: 1; fill: none; }
+  .panel { fill: var(--panel); stroke: var(--line); } .inset { fill: var(--page); stroke: var(--line); }
+  .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 2.4px; fill: var(--muted); }
+  .title { font-family: "Noto Serif SC", "Songti SC", SimSun, serif; font-size: 27px; }
+  .sub { font-size: 13.5px; fill: var(--muted); }
+  .h { font-size: 15.5px; font-weight: 700; } .d { font-size: 13px; fill: var(--muted); } .b { font-size: 13px; font-weight: 600; }
+  .s { font-size: 11.5px; fill: var(--muted); } .si { font-size: 12px; }
+  .n { font-size: 13px; font-weight: 700; fill: var(--green); } .ring { fill: var(--panel); stroke: var(--green); stroke-width: 1.5; }
+  .conn { stroke: var(--green); stroke-width: 1.5; fill: none; opacity: .55; } .tip { fill: var(--green); opacity: .55; }
+  .en { font-family: Georgia, "Times New Roman", serif; }
+  .pill { fill: var(--soft); stroke: var(--line); } .pilltext { font-size: 13px; font-weight: 600; }
+  .arrow { stroke: var(--green); stroke-width: 1.5; fill: none; } .arrowtip { fill: var(--green); }
+  .ok { fill: var(--object); font-size: 12px; font-weight: 700; }
+  .c-subject { fill: var(--subject-l); } .c-predicate { fill: var(--predicate-l); } .c-object { fill: var(--object-l); } .c-adverbial { fill: var(--adverbial-l); } .c-attribute { fill: var(--attribute-l); }
+  .t-subject { fill: var(--subject); font-size: 10.5px; } .t-predicate { fill: var(--predicate); font-size: 10.5px; } .t-object { fill: var(--object); font-size: 10.5px; } .t-adverbial { fill: var(--adverbial); font-size: 10.5px; } .t-attribute { fill: var(--attribute); font-size: 10.5px; }
+  .tense { fill: var(--tense-l); stroke: var(--tense-b); } .errbox { fill: var(--error-l); stroke: var(--error-b); } .errtag { fill: var(--error); font-size: 12px; font-weight: 700; }
+</style>
+<defs><pattern id="g" width="28" height="28" patternUnits="userSpaceOnUse"><path class="gridline" d="M0 .5 H28 M.5 0 V28"/></pattern><clipPath id="r"><rect width="820" height="924" rx="10"/></clipPath></defs>
+<g clip-path="url(#r)"><rect class="page" width="820" height="924"/><rect fill="url(#g)" width="820" height="924"/></g>
+<text class="eyebrow" x="26" y="42" text-anchor="start">HOW IT WORKS</text>
+<text class="title" x="24" y="80" text-anchor="start">一句话是怎么被分析出来的</text>
+<text class="sub" x="26" y="106" text-anchor="start">从你点下「分析句子」到看见彩色的结构图，中间有五步。</text>
+<rect class="panel" x="24" y="128" width="772" height="96" rx="11"/>
+<circle class="ring" cx="58" cy="162" r="13"/><text class="n" x="58" y="167" text-anchor="middle">1</text>
+<text class="h" x="88" y="167" text-anchor="start">你贴一句英文</text>
+<text class="d" x="88" y="191" text-anchor="start">点一下「分析句子」。</text>
+<rect class="inset" x="404" y="144" width="372" height="64" rx="8"/>
+<text class="en" x="420" y="170" font-size="14" text-anchor="start" textLength="331" lengthAdjust="spacingAndGlyphs">Tired learners who keep going every day will see</text>
+<text class="en" x="420" y="191" font-size="14" text-anchor="start" textLength="283" lengthAdjust="spacingAndGlyphs">the beauty of English grammar in the end.</text>
+<path class="conn" d="M58 226 V234"/><path class="tip" d="M53 233 L58 240 L63 233 Z"/>
+<rect class="panel" x="24" y="242" width="772" height="96" rx="11"/>
+<circle class="ring" cx="58" cy="276" r="13"/><text class="n" x="58" y="281" text-anchor="middle">2</text>
+<text class="h" x="88" y="281" text-anchor="start">网页把这句话发给 AI</text>
+<text class="d" x="88" y="305" text-anchor="start">网页版用你自己填的 DeepSeek 密钥，从你的</text>
+<text class="d" x="88" y="324" text-anchor="start">浏览器直接发出去，中间没有别的服务器。</text>
+<rect class="pill" x="404" y="272" width="118" height="36" rx="18"/>
+<text class="pilltext" x="463" y="295" text-anchor="middle">你的浏览器</text>
+<rect class="pill" x="658" y="272" width="118" height="36" rx="18"/>
+<text class="pilltext" x="717" y="295" text-anchor="middle">DeepSeek</text>
+<path class="arrow" d="M532 290 H642"/><path class="arrowtip" d="M640 285 L650 290 L640 295 Z"/>
+<text class="s" x="590" y="282" text-anchor="middle">句子 + 你的密钥</text>
+<path class="conn" d="M58 340 V348"/><path class="tip" d="M53 347 L58 354 L63 347 Z"/>
+<rect class="panel" x="24" y="356" width="772" height="126" rx="11"/>
+<circle class="ring" cx="58" cy="390" r="13"/><text class="n" x="58" y="395" text-anchor="middle">3</text>
+<text class="h" x="88" y="395" text-anchor="start">AI 把句子切成小块，每块贴上标签</text>
+<text class="d" x="88" y="419" text-anchor="start">这块是主语还是谓语、中文什么意思、动词原形</text>
+<text class="d" x="88" y="438" text-anchor="start">是什么，都由 AI 判断。</text>
+<text class="b" x="88" y="457" text-anchor="start">它会判错。</text>
+<rect class="c-attribute" x="404" y="374" width="56" height="40" rx="4"/>
+<text class="en" x="432.0" y="391" font-size="13" text-anchor="middle" textLength="30" lengthAdjust="spacingAndGlyphs">Tired</text>
+<text class="t-attribute" x="432.0" y="407" text-anchor="middle">定语</text>
+<rect class="c-subject" x="466" y="374" width="76" height="40" rx="4"/>
+<text class="en" x="504.0" y="391" font-size="13" text-anchor="middle" textLength="48" lengthAdjust="spacingAndGlyphs">learners</text>
+<text class="t-subject" x="504.0" y="407" text-anchor="middle">主语</text>
+<rect class="c-attribute" x="548" y="374" width="170" height="40" rx="4"/>
+<text class="en" x="633.0" y="391" font-size="13" text-anchor="middle" textLength="145" lengthAdjust="spacingAndGlyphs">who keep going every day</text>
+<text class="t-attribute" x="633.0" y="407" text-anchor="middle">定语</text>
+<rect class="c-predicate" x="404" y="424" width="82" height="40" rx="4"/>
+<text class="en" x="445.0" y="441" font-size="13" text-anchor="middle" textLength="48" lengthAdjust="spacingAndGlyphs">will see</text>
+<text class="t-predicate" x="445.0" y="457" text-anchor="middle">谓语 · 原形 see</text>
+<rect class="c-object" x="492" y="424" width="76" height="40" rx="4"/>
+<text class="en" x="530.0" y="441" font-size="13" text-anchor="middle" textLength="60" lengthAdjust="spacingAndGlyphs">the beauty</text>
+<text class="t-object" x="530.0" y="457" text-anchor="middle">宾语</text>
+<rect class="c-attribute" x="574" y="424" width="122" height="40" rx="4"/>
+<text class="en" x="635.0" y="441" font-size="13" text-anchor="middle" textLength="109" lengthAdjust="spacingAndGlyphs">of English grammar</text>
+<text class="t-attribute" x="635.0" y="457" text-anchor="middle">定语</text>
+<rect class="c-adverbial" x="702" y="424" width="68" height="40" rx="4"/>
+<text class="en" x="736.0" y="441" font-size="13" text-anchor="middle" textLength="60" lengthAdjust="spacingAndGlyphs">in the end</text>
+<text class="t-adverbial" x="736.0" y="457" text-anchor="middle">状语</text>
+<path class="conn" d="M58 484 V492"/><path class="tip" d="M53 491 L58 498 L63 491 Z"/>
+<rect class="panel" x="24" y="500" width="772" height="206" rx="11"/>
+<circle class="ring" cx="58" cy="534" r="13"/><text class="n" x="58" y="539" text-anchor="middle">4</text>
+<text class="h" x="88" y="539" text-anchor="start">网页把小块拼回去，和原文逐字比对</text>
+<text class="d" x="88" y="563" text-anchor="start">少一个空格、多一个逗号都不合格。</text>
+<text class="b" x="88" y="582" text-anchor="start">这一步只能查出 AI 有没有抄错原文，</text>
+<text class="b" x="88" y="601" text-anchor="start">查不出语法判断对不对。</text>
+<rect class="inset" x="404" y="516" width="372" height="58" rx="8"/>
+<text class="s" x="418" y="538" text-anchor="start">拼回去</text>
+<text class="en" x="466" y="538" font-size="12.5" text-anchor="start" textLength="172" lengthAdjust="spacingAndGlyphs">Tired learners … in the end.</text>
+<text class="s" x="418" y="560" text-anchor="start">原　文</text>
+<text class="en" x="466" y="560" font-size="12.5" text-anchor="start" textLength="172" lengthAdjust="spacingAndGlyphs">Tired learners … in the end.</text>
+<text class="ok" x="762" y="550" text-anchor="end">✓ 一字不差</text>
+<rect class="errbox" x="404" y="584" width="372" height="106" rx="8"/>
+<text class="errtag" x="418" y="606" text-anchor="start">对不上</text>
+<text class="si" x="466" y="606" text-anchor="start">把哪里不对告诉 AI，让它重做一次。</text>
+<text class="si" x="466" y="624" text-anchor="start">还不行就报错，不显示出错的结果。</text>
+<text class="errtag" x="418" y="648" text-anchor="start">长从句没拆开</text>
+<text class="si" x="502" y="648" text-anchor="start">也重做一次；重做的不合格，就用第一次的。</text>
+<text class="s" x="418" y="676" text-anchor="start">两种情况合起来最多重做一次，会多算一次 DeepSeek 调用费用。</text>
+<path class="conn" d="M58 708 V716"/><path class="tip" d="M53 715 L58 722 L63 715 Z"/>
+<rect class="panel" x="24" y="724" width="772" height="150" rx="11"/>
+<circle class="ring" cx="58" cy="758" r="13"/><text class="n" x="58" y="763" text-anchor="middle">5</text>
+<text class="h" x="88" y="763" text-anchor="start">画成带颜色的结构图</text>
+<text class="d" x="88" y="787" text-anchor="start">主语蓝、谓语橙、宾语绿，时态写在黄框里。</text>
+<text class="d" x="88" y="806" text-anchor="start">先只显示主干；勾选「显示详细结构」，</text>
+<text class="d" x="88" y="825" text-anchor="start">再看定语、状语这些修饰成分。</text>
+<rect class="tense" x="404" y="740" width="372" height="28" rx="5"/>
+<text class="si" x="416" y="759" text-anchor="start">时态：一般将来时 · 主动语态；一般现在时 · 主动语态</text>
+<text class="t-subject" x="480" y="786" text-anchor="middle">主语：学习者</text>
+<text class="en" x="404" y="808" font-size="13" text-anchor="start" textLength="32" lengthAdjust="spacingAndGlyphs">Tired</text>
+<rect class="c-subject" x="444" y="789" width="72" height="28" rx="4"/>
+<text class="en" x="480" y="808" font-size="13" text-anchor="middle" textLength="51" lengthAdjust="spacingAndGlyphs">learners</text>
+<text class="en" x="524" y="808" font-size="13" text-anchor="start" textLength="154" lengthAdjust="spacingAndGlyphs">who keep going every day</text>
+<text class="t-predicate" x="439" y="832" text-anchor="middle">谓语：see</text>
+<text class="t-object" x="520" y="832" text-anchor="middle">宾语：美</text>
+<rect class="c-predicate" x="404" y="835" width="70" height="28" rx="4"/>
+<text class="en" x="439" y="854" font-size="13" text-anchor="middle" textLength="51" lengthAdjust="spacingAndGlyphs">will see</text>
+<rect class="c-object" x="480" y="835" width="80" height="28" rx="4"/>
+<text class="en" x="520" y="854" font-size="13" text-anchor="middle" textLength="64" lengthAdjust="spacingAndGlyphs">the beauty</text>
+<text class="en" x="568" y="854" font-size="13" text-anchor="start" textLength="192" lengthAdjust="spacingAndGlyphs">of English grammar in the end.</text>
+<text class="s" x="26" y="904" text-anchor="start">AI 可能判错。网页只检查结果能否和原文逐字对上，不检查语法判断是否正确。</text>
+</svg>
