@@ -8,6 +8,7 @@
 | [architecture.md](architecture.md) | 文件结构、数据格式、校验、反馈流程、密钥与隐私 | 改代码前 |
 | [prompt-rules.md](prompt-rules.md) | `SYSTEM` 提示词规则的中文摘要、已知问题 | 改提示词或处理错句前 |
 | [decisions.md](decisions.md) | 按时间记录的决定和原因 | 想推翻或绕开某个做法前 |
+| [direction.md](direction.md) | 项目性质、还没想清楚的问题和各自的重启条件 | 想开新功能或改方向前 |
 | [workflow.md](workflow.md) | 分工、PR 流程、任务单模板、反馈处理、合并前清单 | 每次开工 |
 
 相关文件：
